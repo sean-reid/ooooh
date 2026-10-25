@@ -13,7 +13,8 @@ extension ProxyClient {
     AsyncThrowingStream { continuation in
       let task = Task {
         do {
-          let request = try request("v1/speak", body: SpeakBody(text: text), accept: "audio/mpeg")
+          let request = try await request(
+            "v1/speak", body: SpeakBody(text: text), accept: "audio/mpeg")
           let (bytes, response) = try await session.bytes(for: request)
           try await ProxyError.check(response, bytes: bytes)
           for try await chunk in Chunked(bytes, size: Self.speechChunkBytes) {
