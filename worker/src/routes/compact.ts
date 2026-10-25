@@ -69,6 +69,8 @@ const checkIds = (p: StatePatch, existing: string[]) => {
   }
 };
 
+const compactMaxTokens = 4096;
+
 export async function compact(request: Request, env: Env): Promise<Response> {
   const input = await readBody(request, body);
   const client = anthropicClient(credential(env));
@@ -83,13 +85,17 @@ export async function compact(request: Request, env: Env): Promise<Response> {
   const response = await client.messages
     .create({
       model: models.compact,
-      max_tokens: 4096,
+      max_tokens: compactMaxTokens,
       system,
       messages: [{ role: "user", content: user }],
       output_config: { effort: "low", format: { type: "json_schema", schema: patchSchema } },
     })
     .catch(upstreamError);
+  await charge(env, "anthropic", response.usage.input_tokens + response.usage.output_tokens);
 
+  if (response.stop_reason === "max_tokens") {
+    throw new HttpError(502, { error: "anthropic truncated", maxTokens: compactMaxTokens });
+  }
   if (response.stop_reason === "refusal") {
     throw new HttpError(502, { error: "anthropic refused", detail: response.stop_details });
   }
@@ -110,7 +116,6 @@ export async function compact(request: Request, env: Env): Promise<Response> {
     throw e;
   }
 
-  await charge(env, "anthropic", response.usage.input_tokens + response.usage.output_tokens);
   return json({
     patch: result,
     usage: {
