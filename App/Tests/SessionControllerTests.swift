@@ -1,5 +1,6 @@
 import Foundation
 import Governor
+import Notes
 import Session
 import State
 import Testing
@@ -83,6 +84,19 @@ import Transcription
       client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
     }
     override func stopLoading() {}
+  }
+
+  struct CannedNotes: NotesGenerator {
+    static let notes = SessionNotes(
+      title: "Pricing and the free tier",
+      summary: "Cap the prompts, not the sessions.",
+      decisions: [NoteItem(id: "cap-prompts", text: "Cap prompts at twenty minutes")],
+      openThreads: [NoteItem(id: "free-tier-purpose", text: "What the free tier is for")])
+
+    func generate(state: CompactState, transcript: [Segment]) async throws -> SessionNotes {
+      try await Task.sleep(for: .milliseconds(50))
+      return Self.notes
+    }
   }
 
   func wait(_ condition: @MainActor () -> Bool, seconds: Double = 10) async {
@@ -190,5 +204,19 @@ import Transcription
     #expect(result.prompts.isEmpty)
     #expect(result.state.currentThread.contains("done for now"))
     #expect(controller.lastPrompt == nil)
+    await wait { controller.notes == .unavailable }
+    #expect(controller.notes == .unavailable)
+  }
+
+  @Test func writesTheNotesAfterTheEnd() async throws {
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.notesGenerator = CannedNotes()
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.notes == .writing)
+    await wait { controller.notes != .writing }
+    #expect(controller.notes == .written(CannedNotes.notes))
   }
 }

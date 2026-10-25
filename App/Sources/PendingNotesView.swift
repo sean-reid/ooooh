@@ -3,8 +3,8 @@ import State
 import SwiftUI
 import Transcription
 
-/// Stands in for the notes screen: the final state's lists, nothing more.
-struct NotesPlaceholderView: View {
+/// The session's compact state, shown when the notes could not be written yet.
+struct PendingNotesView: View {
   let state: CompactState
   let transcript: [Segment]
   let done: () -> Void
@@ -19,6 +19,10 @@ struct NotesPlaceholderView: View {
               .font(Typography.title)
               .foregroundStyle(Palette.ink)
               .accessibilityAddTraits(.isHeader)
+            Text("Your listener is offline. The notes will be written when it is back.")
+              .font(Typography.body)
+              .foregroundStyle(Palette.inkDim)
+              .accessibilityIdentifier("notes.pending.line")
             Text("^[\(transcript.count) utterance](inflect: true), \(state.mode.rawValue)")
               .font(Typography.caption)
               .foregroundStyle(Palette.inkDim)
@@ -44,7 +48,7 @@ struct NotesPlaceholderView: View {
         .accessibilityIdentifier("notes.done")
       }
       .accessibilityElement(children: .contain)
-      .accessibilityIdentifier("notes.placeholder")
+      .accessibilityIdentifier("notes.pending")
     }
   }
 

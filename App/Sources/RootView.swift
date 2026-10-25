@@ -1,4 +1,5 @@
 import Design
+import Notes
 import SwiftUI
 
 struct RootView: View {
@@ -25,16 +26,12 @@ struct RootView: View {
         case .starting, .running:
           SessionView(controller: controller)
         case .ended:
-          NotesPlaceholderView(
-            state: controller.result?.state ?? .empty,
-            transcript: controller.result?.transcript ?? []
-          ) {
-            controller = SessionController(environment: .app)
-          }
+          ended
         }
       }
     }
     .animation(.easeInOut(duration: 0.4), value: controller.stage)
+    .animation(.easeInOut(duration: 0.4), value: controller.notes)
     .animation(.easeInOut(duration: 0.4), value: showsOnboarding)
     #if DEBUG
       .task {
@@ -49,6 +46,24 @@ struct RootView: View {
         .presentationDragIndicator(.visible)
       }
     #endif
+  }
+
+  @ViewBuilder private var ended: some View {
+    let transcript = controller.result?.transcript ?? []
+    switch controller.notes {
+    case .written(let notes):
+      NotesView(notes: notes, transcript: transcript, date: controller.startedAt ?? .now) {
+        controller = SessionController(environment: .app)
+      }
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier("notes.view")
+    case .unavailable:
+      PendingNotesView(state: controller.result?.state ?? .empty, transcript: transcript) {
+        controller = SessionController(environment: .app)
+      }
+    case .writing, nil:
+      NotesWritingView()
+    }
   }
 
   private var home: some View {

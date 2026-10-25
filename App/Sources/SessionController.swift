@@ -2,6 +2,7 @@ import Audio
 import Design
 import Foundation
 import Governor
+import Notes
 import Observation
 import Proxy
 import Session
@@ -22,6 +23,12 @@ final class SessionController {
     case failed(String)
   }
 
+  enum NotesState: Equatable {
+    case writing
+    case written(SessionNotes)
+    case unavailable
+  }
+
   struct Environment {
     var workerURL: URL?
     var session: URLSession = .shared
@@ -30,6 +37,8 @@ final class SessionController {
     var speaker: (any PromptSpeaking)?
     /// Speaks on every route, for hearing the voice path on a simulator.
     var forceVoice = false
+    /// Set to replace Opus, as the tests do.
+    var notesGenerator: (any NotesGenerator)?
     var haptic: @MainActor () -> Void = {}
     var offlineDelay: Duration = .seconds(3)
     var aboutToSpeakHold: Duration = .seconds(1)
@@ -46,6 +55,8 @@ final class SessionController {
   private(set) var isOffline = false
   private(set) var quietMode = true
   private(set) var result: SessionResult?
+  /// Nil until the session ends.
+  private(set) var notes: NotesState?
   private(set) var compactions = 0
 
   private var measuredLevel: Double?
@@ -54,9 +65,11 @@ final class SessionController {
   private var promptPendingSince: Date?
   private var isSpeaking = false
   private var voice: any PromptSpeaking = SilentSpeaker()
+  private var generator: (any NotesGenerator)?
   private var live: LiveSessionLoop?
   private var observers: [Task<Void, Never>] = []
   private var delivery: Task<Void, Never>?
+  private var writing: Task<Void, Never>?
   private var offlineChange: Task<Void, Never>?
   private let environment: Environment
 
@@ -113,6 +126,7 @@ final class SessionController {
       } else if let client {
         voice = VoiceSpeaker(audio: client.speak)
       }
+      generator = environment.notesGenerator ?? client.map { OpusNotesGenerator(client: $0) }
       let dependencies =
         environment.dependencies ?? client?.sessionDependencies()
         ?? SessionLoop.Dependencies(
@@ -252,6 +266,24 @@ final class SessionController {
     isHearingSpeech = false
     stage = .ended
     try? environment.audio.deactivate()
+    writeNotes(for: result)
+  }
+
+  private func writeNotes(for result: SessionResult) {
+    guard let generator else {
+      notes = .unavailable
+      return
+    }
+    notes = .writing
+    writing = Task {
+      do {
+        let written = try await generator.generate(
+          state: result.state, transcript: result.transcript)
+        notes = .written(written)
+      } catch {
+        notes = .unavailable
+      }
+    }
   }
 }
 
