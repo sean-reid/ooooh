@@ -5,7 +5,9 @@ describe("worker", () => {
   it("reports health", async () => {
     const res = await SELF.fetch("https://ooooh.test/health");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    const body = (await res.json()) as { ok: boolean; version: string | null };
+    expect(body.ok).toBe(true);
+    expect(typeof body.version).toBe("string");
   });
 
   it("serves the governor config with a version", async () => {

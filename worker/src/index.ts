@@ -14,7 +14,7 @@ import { speak } from "./routes/speak";
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
 
 const routes: Record<string, Partial<Record<string, Handler>>> = {
-  "/health": { GET: () => json({ ok: true }) },
+  "/health": { GET: (_, env) => json({ ok: true, version: env.CF_VERSION_METADATA?.id ?? null }) },
   "/v1/config": { GET: () => json(governorConfig) },
   "/v1/challenge": { GET: challenge },
   "/v1/attest": { POST: attest },

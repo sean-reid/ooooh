@@ -42,8 +42,22 @@ jobs:
           fi
       - run: npm ci
       - run: npm test
-      - run: npx wrangler deploy --env production
-      - name: smoke
+      - name: deploy
+        id: deploy
         run: |
-          curl -fsS --retry 5 --retry-all-errors --retry-delay 3 https://api.ooooh.app/health | grep -q '"ok":true'
+          npx wrangler deploy --env production | tee deploy.log
+          version=$(sed -n 's/^Current Version ID: //p' deploy.log)
+          [ -n "$version" ] || { echo "::error::wrangler printed no version id"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: smoke
+        env:
+          VERSION: ${{ steps.deploy.outputs.version }}
+        run: |
+          for attempt in $(seq 1 20); do
+            live=$(curl -fsS https://api.ooooh.app/health | jq -r .version || true)
+            [ "$live" = "$VERSION" ] && break
+            echo "attempt $attempt: live $live, want $VERSION"
+            sleep 3
+          done
+          [ "$live" = "$VERSION" ] || { echo "::error::$VERSION never answered on api.ooooh.app"; exit 1; }
           curl -fsS https://api.ooooh.app/v1/config | jq .version

@@ -27,6 +27,8 @@
   },
   // Counters for the caps above, attested device keys, challenges, and free-session counts. Local runs count in a Miniflare namespace, so this id is a label.
   "kv_namespaces": [{ "binding": "BUDGET", "id": "local" }],
+  // /health reports the running version id so a deploy can wait for its own upload to answer.
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Secrets, set with `wrangler secret put <NAME> --env production` and read locally from .dev.vars:
   //   TYPESAFE_API_KEY    Jev, POST /v1/decide
   //   ANTHROPIC_API_KEY   Haiku, Sonnet, and Opus, POST /v1/compact, /v1/phrase, and /v1/notes
@@ -54,6 +56,7 @@
       },
       // `wrangler kv namespace create BUDGET --env production` prints the id to paste here.
       "kv_namespaces": [{ "binding": "BUDGET", "id": "f2d21eda63ed44c5a0350e9d94ccf8c4" }],
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
     },
   },
 }
