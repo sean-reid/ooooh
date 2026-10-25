@@ -62,9 +62,9 @@ The Worker reads three secrets. Set them once per deployment and put the same na
 
 ```sh
 cd worker
-wrangler secret put TYPESAFE_API_KEY
-wrangler secret put ANTHROPIC_API_KEY
-wrangler secret put ELEVENLABS_API_KEY
+wrangler secret put TYPESAFE_API_KEY --env production
+wrangler secret put ANTHROPIC_API_KEY --env production
+wrangler secret put ELEVENLABS_API_KEY --env production
 ```
 
 For local development with a short-lived OAuth token instead of a stored key, set `ANTHROPIC_AUTH_TOKEN` in `.dev.vars`. It is sent as a bearer with the `oauth-2025-04-20` beta, and when both are set the token wins.
@@ -75,7 +75,7 @@ When a session ends the app posts the compact state and the whole transcript to 
 
 ### Caps
 
-Every provider-backed route runs behind two checks before it calls upstream. A per-device limit of `DEVICE_MINUTE_REQUESTS` requests a minute, keyed on the attested key id (or the `x-device` header, else the client IP, when attestation is off), answers 429 with `retry-after`. A daily cap per provider, `JEV_DAILY_TOKENS`, `ANTHROPIC_DAILY_TOKENS`, and `ELEVENLABS_DAILY_CHARACTERS`, counted in the `BUDGET` KV namespace from the usage each response reports, answers 503 with the provider, the count, and seconds until the UTC day rolls over. The defaults in `wrangler.jsonc` are about a dollar a day per provider; change them per deployment, not in code. Create the namespace once with `wrangler kv namespace create BUDGET` and paste the id into `wrangler.jsonc`.
+Every provider-backed route runs behind two checks before it calls upstream. A per-device limit of `DEVICE_MINUTE_REQUESTS` requests a minute, keyed on the attested key id (or the `x-device` header, else the client IP, when attestation is off), answers 429 with `retry-after`. A daily cap per provider, `JEV_DAILY_TOKENS`, `ANTHROPIC_DAILY_TOKENS`, and `ELEVENLABS_DAILY_CHARACTERS`, counted in the `BUDGET` KV namespace from the usage each response reports, answers 503 with the provider, the count, and seconds until the UTC day rolls over. The defaults in `wrangler.jsonc` are about a dollar a day per provider; change them under `env.production` for the deployment, not in code. Creating the namespace is the first step under Deploy.
 
 ### Authentication
 
@@ -92,6 +92,19 @@ The Worker tests build attestations and assertions in Apple's exact CBOR and X.5
 The Design package has snapshot tests that render the orb and the session screen with ImageRenderer and compare against the PNGs in `Packages/Tests/DesignTests/__Snapshots__`. `NotesSnapshotTests` does the same for the notes screen. They need UIKit, so run them on the simulator: `xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:DesignTests -only-testing:NotesSnapshotTests test`. Record on the iPhone 17 Pro simulator, since text rendering differs between devices. To re-record after a visual change, delete the PNGs you changed and run again, or run with `SIMCTL_CHILD_SNAPSHOT_TESTING_RECORD=all` in the environment; then look at the new PNGs before committing them. A failed comparison writes the rendered image and a diff to the path in `SIMCTL_CHILD_SNAPSHOT_ARTIFACTS`, which CI uploads as the `snapshot-failures` artifact.
 
 The app icon is rendered from the orb painter, so the icon and the listening indicator cannot drift apart. `swift run --package-path Packages render-icon` writes `App/Resources/Assets.xcassets/AppIcon.appiconset/`: the 1024 px light icon on the night sky, a dark variant of the same orb unmixed onto transparency, a tinted variant as the orb's luminance on transparency, and the Contents.json. Run it after any change to the painter and commit the PNGs.
+
+### Deploy
+
+The Worker runs at `https://api.ooooh.app` as the `production` environment in `worker/wrangler.jsonc`, named `ooooh-production` in the Cloudflare dashboard. `.github/workflows/deploy.yml` deploys it on every push to `main` that touches `worker/`, and on a manual run from the Actions tab. The first deploy needs these, in order, from `worker/`:
+
+1. `npx wrangler kv namespace create BUDGET --env production`, then paste the id it prints over `set-at-deploy` under `env.production` in `wrangler.jsonc` and commit.
+2. `npx wrangler secret put TYPESAFE_API_KEY --env production`, then the same for `ANTHROPIC_API_KEY` and `ELEVENLABS_API_KEY`. Wrangler offers to create the Worker when it does not exist yet; say yes. The workflow never touches these secrets.
+3. Two Actions secrets on the repo: `CLOUDFLARE_API_TOKEN`, an API token from the Edit Cloudflare Workers template scoped to this account and the `ooooh.app` zone, and `CLOUDFLARE_ACCOUNT_ID`, which `npx wrangler whoami` prints.
+4. Nothing in DNS. The first deploy creates the `api.ooooh.app` custom domain on the zone, with its record and certificate.
+
+Merging the commit from step 1 runs the first deploy. The workflow runs the tests, deploys, then checks `/health` with five retries and prints the `/v1/config` version. `npm run deploy:dry` builds the production config without uploading; CI runs it on every PR.
+
+To rotate a key, run `bin/rotate-secret ELEVENLABS_API_KEY` from the repo root. It reads the new value from the terminal with echo off, puts it in production, and probes `/health` and `/v1/speak`. It prints `ok` or the failing status, then reminds you to revoke the old key at the provider and to set `KEY_ROTATED_AT_ELEVENLABS_API_KEY` to the date under `env.production.vars`, which the next deploy ships. The other two names probe `/v1/decide` and `/v1/compact`.
 
 ## Layout
 

@@ -42,6 +42,7 @@ jobs:
       - run: npm test
       - run: node --test ../site/site.test.mjs ../tools/synth/*.test.mjs ../tools/labeler/*.test.mjs
       - run: npm run build
+      - run: npm run deploy:dry
       - run: npm audit --audit-level=high
 
   app:
