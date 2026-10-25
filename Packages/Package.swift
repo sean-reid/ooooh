@@ -29,7 +29,7 @@ let package = Package(
     .target(
       name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription", "Notes"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
-    .executableTarget(name: "eval", dependencies: ["Session"]),
+    .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
     .testTarget(
       name: "DesignTests",
