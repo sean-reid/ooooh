@@ -7,13 +7,16 @@ struct CarryoverCard: View {
   let threads: [OpenThread]
   let pick: (OpenThread) -> Void
   let dismiss: () -> Void
+  @Environment(\.dynamicTypeSize) private var typeSize
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
-      HStack {
+      HStack(alignment: .top) {
         Text("Still open from last time")
           .font(Typography.caption)
           .foregroundStyle(Palette.inkDim)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(minHeight: 44, alignment: .leading)
         Spacer()
         Button(action: dismiss) {
           Image(systemName: "xmark")
@@ -32,7 +35,8 @@ struct CarryoverCard: View {
             .font(Typography.body)
             .foregroundStyle(Palette.ink)
             .multilineTextAlignment(.leading)
-            .lineLimit(2)
+            .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+            .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         }
         .buttonStyle(.plain)

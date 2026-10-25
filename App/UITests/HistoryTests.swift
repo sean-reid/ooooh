@@ -31,6 +31,9 @@ final class HistoryTests: XCTestCase {
     XCTAssertTrue(card.buttons["Pick up How Sam and I weight time against money"].exists)
     XCTAssertTrue(card.buttons["Pick up Whether the eighteen month lease is a problem"].exists)
     attach(app.screenshot(), named: "\(name)-carryover")
+    app.swipeUp()
+    attach(app.screenshot(), named: "\(name)-carryover-scrolled")
+    XCTAssertTrue(card.buttons["Pick up Whether the eighteen month lease is a problem"].isHittable)
 
     app.buttons["home.history"].tap()
     let list = app.collectionViews["history.list"]

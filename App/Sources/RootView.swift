@@ -13,6 +13,7 @@ struct RootView: View {
   @State private var threads: [OpenThread] = []
   @State private var hidesThreads = false
   @State private var showsHistory = false
+  @Environment(\.dynamicTypeSize) private var typeSize
   #if DEBUG
     @State private var isRecordingFixture = false
   #endif
@@ -28,7 +29,13 @@ struct RootView: View {
       } else {
         switch controller.stage {
         case .idle, .failed:
-          home
+          if typeSize.isAccessibilitySize {
+            GeometryReader { proxy in
+              ScrollView { home.frame(minHeight: proxy.size.height) }
+            }
+          } else {
+            home
+          }
         case .starting, .running:
           SessionView(controller: controller)
         case .ended:
