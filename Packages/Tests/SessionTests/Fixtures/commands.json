@@ -1,0 +1,9 @@
+{
+  "segments": [
+    { "text": "so the pricing thing again, I think seven dollars is fine", "start": 0.0, "end": 4.0, "isFinal": true },
+    { "text": "the backend is about twenty cents an hour so the margin holds", "start": 5.0, "end": 9.2, "isFinal": true },
+    { "text": "what did I say about the free tier earlier", "start": 12.0, "end": 14.8, "isFinal": true },
+    { "text": "right, cap the prompts not the sessions", "start": 18.0, "end": 20.6, "isFinal": true },
+    { "text": "okay let's wrap up", "start": 24.0, "end": 25.5, "isFinal": true }
+  ]
+}

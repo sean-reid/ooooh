@@ -26,6 +26,7 @@ public struct Labels: Codable, Equatable, Sendable {
 
   public static let finishedKind = "finished"
   public static let leaveKind = "leave"
+  public static let commandKinds: Set<String> = ["recall", "wrapUp"]
 }
 
 /// Precision, recall, and lateness of a session's decisions against labels.
@@ -46,6 +47,13 @@ public struct EvalReport: Equatable, Sendable {
       return total == 0 ? nil : Double(truePositives) / Double(total)
     }
 
+    mutating func add(_ other: Kind) {
+      truePositives += other.truePositives
+      falsePositives += other.falsePositives
+      falseNegatives += other.falseNegatives
+      latenesses += other.latenesses
+    }
+
     public var medianLateness: Double? {
       guard !latenesses.isEmpty else { return nil }
       let sorted = latenesses.sorted()
@@ -58,7 +66,31 @@ public struct EvalReport: Equatable, Sendable {
   public var byKind: [String: Kind]
   public var overall: Kind
   public var finished: Kind
+  public var commands: Kind
   public var intrusions: Int
+
+  /// Precision and recall of 1 wherever a label or a decision exists.
+  public var isPerfect: Bool {
+    [overall, finished, commands].allSatisfy { kind in
+      (kind.precision ?? 1) == 1 && (kind.recall ?? 1) == 1
+    }
+  }
+
+  /// Sums the counts of several sessions into one report.
+  public static func merged(_ reports: [EvalReport]) -> EvalReport {
+    var out = EvalReport(
+      byKind: [:], overall: Kind(), finished: Kind(), commands: Kind(), intrusions: 0)
+    for report in reports {
+      out.overall.add(report.overall)
+      out.finished.add(report.finished)
+      out.commands.add(report.commands)
+      out.intrusions += report.intrusions
+      for (name, kind) in report.byKind {
+        out.byKind[name, default: Kind()].add(kind)
+      }
+    }
+    return out
+  }
 
   /// How many utterances late a decision may land and still count.
   public static let tolerance = 1
@@ -72,13 +104,18 @@ public struct EvalReport: Equatable, Sendable {
     var byKind: [String: Kind] = [:]
     var overall = Kind()
     var finished = Kind()
+    var commands = Kind()
     var unmatched = labels.labels.filter { $0.kind != Labels.leaveKind }
 
     func match(at: TimeInterval, kind: String?) -> (Labels.Label, Int)? {
       let candidates = unmatched.enumerated().compactMap { index, label -> (Int, Int)? in
         guard label.at <= at else { return nil }
         if let kind, label.kind != kind { return nil }
-        if kind == nil, label.kind == Labels.finishedKind { return nil }
+        if kind == nil,
+          label.kind == Labels.finishedKind || Labels.commandKinds.contains(label.kind)
+        {
+          return nil
+        }
         let late = utterancesBetween(label.at, at)
         return late <= tolerance ? (index, late) : nil
       }
@@ -107,9 +144,24 @@ public struct EvalReport: Equatable, Sendable {
         finished.falsePositives += 1
       }
     }
+    for command in result.commands {
+      let name = command.command.rawValue
+      if let (_, late) = match(at: command.at, kind: name) {
+        byKind[name, default: Kind()].truePositives += 1
+        byKind[name, default: Kind()].latenesses.append(late)
+        commands.truePositives += 1
+        commands.latenesses.append(late)
+      } else {
+        byKind[name, default: Kind()].falsePositives += 1
+        commands.falsePositives += 1
+      }
+    }
     for label in unmatched {
       if label.kind == Labels.finishedKind {
         finished.falseNegatives += 1
+      } else if Labels.commandKinds.contains(label.kind) {
+        byKind[label.kind, default: Kind()].falseNegatives += 1
+        commands.falseNegatives += 1
       } else {
         byKind[label.kind, default: Kind()].falseNegatives += 1
         overall.falseNegatives += 1
@@ -121,7 +173,9 @@ public struct EvalReport: Equatable, Sendable {
       leaves.contains { utterancesBetween($0.at, prompt.at) == 0 && $0.at <= prompt.at }
     }.count
 
-    return EvalReport(byKind: byKind, overall: overall, finished: finished, intrusions: intrusions)
+    return EvalReport(
+      byKind: byKind, overall: overall, finished: finished, commands: commands,
+      intrusions: intrusions)
   }
 }
 
@@ -133,7 +187,7 @@ extension EvalReport {
       let l = kind.medianLateness.map { String(format: "%.1f", $0) } ?? "-"
       return "\(name.padding(toLength: 10, withPad: " ", startingAt: 0)) p \(p)  r \(r)  late \(l)"
     }
-    var out = [line("overall", overall), line("finished", finished)]
+    var out = [line("overall", overall), line("finished", finished), line("commands", commands)]
     for (name, kind) in byKind.sorted(by: { $0.key < $1.key }) {
       out.append(line(name, kind))
     }

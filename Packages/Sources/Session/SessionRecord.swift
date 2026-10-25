@@ -34,6 +34,12 @@ public struct SessionResult: Sendable {
     }
   }
 
+  public var commands: [(at: TimeInterval, command: JevAnswers.Command)] {
+    records.compactMap {
+      if case .command(let at, let command) = $0 { (at, command) } else { nil }
+    }
+  }
+
   public var finishedAsks: [TimeInterval] {
     records.compactMap {
       if case .askedIfFinished(let at) = $0 { at } else { nil }

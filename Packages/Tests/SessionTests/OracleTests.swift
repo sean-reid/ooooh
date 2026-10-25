@@ -35,3 +35,29 @@ import Transcription
     #expect(at >= 87.8 + 30)
   }
 }
+
+@Suite struct OracleCommandTests {
+  @Test func oracleIssuesCommandsFromLabelsAndWrapUpEndsTheSession() async throws {
+    let decoder = JSONDecoder()
+    let fixture = try decoder.decode(
+      FixtureTranscriber.Fixture.self,
+      from: Data(
+        contentsOf: Bundle.module.url(
+          forResource: "commands", withExtension: "json", subdirectory: "Fixtures")!))
+    let labels = try decoder.decode(
+      Labels.self,
+      from: Data(
+        contentsOf: Bundle.module.url(
+          forResource: "commands.labels", withExtension: "json", subdirectory: "Fixtures")!))
+    let result = await FixtureDriver.run(
+      fixture: fixture, config: .initial,
+      dependencies: .init(
+        decisions: OracleDecisionProvider(labels: labels), compactor: PassthroughCompactor(),
+        phraser: TemplatePhraser()))
+    #expect(result.commands.map(\.command) == [.recall, .wrapUp])
+    #expect(result.records.last == .ended(at: 25.5, byUser: true))
+    let report = EvalReport.score(result, against: labels)
+    #expect(report.isPerfect)
+    #expect(report.commands.recall == 1)
+  }
+}
