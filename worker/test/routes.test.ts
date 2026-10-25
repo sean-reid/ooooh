@@ -2,8 +2,11 @@ import { SELF } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   bodyOf,
+  compactBody,
   decideBody,
   fakeUpstream,
+  haikuPatch,
+  haikuReply,
   jevReply,
   type FakeUpstream,
   type Reply,
@@ -90,5 +93,39 @@ describe("POST /v1/decide", () => {
       field: "signals.pauseLength",
       expected: "number",
     });
+  });
+});
+
+describe("POST /v1/compact", () => {
+  it("returns the validated patch and usage", async () => {
+    expectUpstream({ body: haikuReply });
+
+    const res = await post("/v1/compact", compactBody);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      patch: haikuPatch,
+      usage: { inputTokens: 980, outputTokens: 120 },
+    });
+    expect(upstream.requests[0].url).toBe("https://api.anthropic.com/v1/messages");
+    expect(upstream.requests[0].headers.authorization).toBe("Bearer test-anthropic");
+    const sent = bodyOf<{
+      model: string;
+      output_config: { format: { type: string } };
+      messages: { content: string }[];
+    }>(upstream.requests[0]);
+    expect(sent.model).toBe("claude-haiku-5-5");
+    expect(sent.output_config.format.type).toBe("json_schema");
+    expect(sent.messages[0].content).toContain("sync-rebuild, who-owns-sync");
+  });
+
+  it("refuses a patch that reuses an existing id", async () => {
+    const colliding = { ...haikuPatch, add: [{ ...haikuPatch.add[0], id: "sync-rebuild" }] };
+    expectUpstream({
+      body: { ...haikuReply, content: [{ type: "text", text: JSON.stringify(colliding) }] },
+    });
+
+    const res = await post("/v1/compact", compactBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
   });
 });
