@@ -75,3 +75,4 @@ schemes:
       config: Debug
       targets:
         - oooohUITests
+        - package: Packages/DesignTests
