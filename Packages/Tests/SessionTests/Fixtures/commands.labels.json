@@ -1,0 +1,7 @@
+{
+  "fixture": "commands",
+  "labels": [
+    { "utterance": 2, "at": 14.8, "kind": "recall" },
+    { "utterance": 4, "at": 25.5, "kind": "wrapUp" }
+  ]
+}

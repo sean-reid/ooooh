@@ -2,8 +2,8 @@ import Foundation
 import Governor
 import State
 
-/// Answers straight from the labels. Scores perfectly if the loop and the
-/// scorer agree, so it checks the harness, not the model.
+/// Answers straight from the labels, once per label at the utterance end.
+/// Scores perfectly if the loop and the scorer agree, so it checks the harness, not the model.
 public struct OracleDecisionProvider: DecisionProvider {
   let byEnd: [TimeInterval: Labels.Label]
 
@@ -13,11 +13,13 @@ public struct OracleDecisionProvider: DecisionProvider {
 
   public func check(_ input: CheckInput) async throws -> JevAnswers {
     var answers = JevAnswers.quiet
-    guard let last = input.recentTranscript.last, let label = byEnd[last.end],
-      input.signals.pauseLength < input.signals.now - last.end + 0.001
+    guard input.signals.pauseLength == 0, let last = input.recentTranscript.last,
+      let label = byEnd[last.end]
     else { return answers }
     if label.kind == Labels.finishedKind {
       answers.seemsFinished = .init(0.99)
+    } else if let command = JevAnswers.Command(rawValue: label.kind), command != .none {
+      answers.addressesApp = .init(command, confidence: 0.99)
     } else if let kind = InterventionKind(rawValue: label.kind) {
       answers.goodMoment = .init(0.99)
       answers.intervention = .init(kind, confidence: 0.99)

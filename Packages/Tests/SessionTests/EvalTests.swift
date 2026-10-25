@@ -62,3 +62,44 @@ import Transcription
     #expect(report.summary.contains("finished   p 1.00  r 1.00  late 0.0"))
   }
 }
+
+@Suite struct EvalCommandTests {
+  let transcript = (0..<4).map {
+    Segment(text: "u\($0)", start: Double($0) * 10, end: Double($0) * 10 + 5, isFinal: true)
+  }
+
+  @Test func commandsScoreApartFromPrompts() {
+    let labels = Labels(
+      fixture: "t",
+      labels: [
+        .init(utterance: 1, at: 15, kind: "recall"),
+        .init(utterance: 3, at: 35, kind: "wrapUp"),
+        .init(utterance: 2, at: 25, kind: "deepen"),
+      ])
+    let records: [SessionRecord] = [
+      .command(at: 15, .recall), .prompt(at: 25, kind: .deepen, text: ""),
+    ]
+    let report = EvalReport.score(
+      SessionResult(records: records, state: .empty, transcript: transcript), against: labels)
+    #expect(report.commands.truePositives == 1)
+    #expect(report.commands.falseNegatives == 1)
+    #expect(report.overall.truePositives == 1)
+    #expect(report.overall.falseNegatives == 0)
+    #expect(report.isPerfect == false)
+  }
+
+  @Test func mergedSumsCounts() {
+    var a = EvalReport(
+      byKind: [:], overall: .init(), finished: .init(), commands: .init(), intrusions: 1)
+    a.overall.truePositives = 2
+    a.byKind["clarify"] = .init(
+      truePositives: 2, falsePositives: 0, falseNegatives: 0, latenesses: [0, 1])
+    var b = a
+    b.overall.falsePositives = 1
+    let merged = EvalReport.merged([a, b])
+    #expect(merged.overall.truePositives == 4)
+    #expect(merged.overall.falsePositives == 1)
+    #expect(merged.byKind["clarify"]?.latenesses == [0, 1, 0, 1])
+    #expect(merged.intrusions == 2)
+  }
+}

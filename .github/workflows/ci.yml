@@ -21,6 +21,7 @@ jobs:
       - run: swift format lint --strict --recursive Packages App
       - run: swift build --package-path Packages
       - run: swift test --package-path Packages
+      - run: swift run --package-path Packages eval --corpus fixtures/synthetic/estimate --require-perfect
 
   worker:
     runs-on: ubuntu-latest
