@@ -49,6 +49,22 @@ import Transcription
 
   final class Counter { var count = 0 }
 
+  /// Refuses every request at once, so going offline does not depend on the host's network stack.
+  final class UnreachableProtocol: URLProtocol {
+    static func session() -> URLSession {
+      let configuration = URLSessionConfiguration.ephemeral
+      configuration.protocolClasses = [UnreachableProtocol.self]
+      return URLSession(configuration: configuration)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+      client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
+    }
+    override func stopLoading() {}
+  }
+
   func wait(_ condition: @MainActor () -> Bool, seconds: Double = 10) async {
     let deadline = ContinuousClock.now + .seconds(seconds)
     while !condition(), ContinuousClock.now < deadline {
@@ -117,8 +133,8 @@ import Transcription
 
   @Test func unreachableWorkerGoesOfflineAndStillEndsWithState() async throws {
     var environment = environment(nil, speaker: Recorder(), haptics: Counter())
-    environment.workerURL = URL(string: "http://127.0.0.1:9")
-    environment.configTimeout = .seconds(5)
+    environment.workerURL = URL(string: "http://worker.invalid")
+    environment.session = UnreachableProtocol.session()
     let controller = SessionController(environment: environment)
 
     await controller.start(.fixture(shortFixture, speed: 20))
