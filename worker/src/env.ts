@@ -9,6 +9,9 @@ declare global {
     ANTHROPIC_DAILY_TOKENS?: string;
     ELEVENLABS_DAILY_CHARACTERS?: string;
     DEVICE_MINUTE_REQUESTS?: string;
+    APP_ATTEST_APP_ID?: string;
+    APP_ATTEST_ENVIRONMENT?: string;
+    APP_ATTEST_ROOT_PEM?: string;
   }
 }
 

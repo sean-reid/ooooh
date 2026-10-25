@@ -6,6 +6,7 @@ import { compact } from "./routes/compact";
 import { decide } from "./routes/decide";
 import { notesRoute } from "./routes/notes";
 import { phrase } from "./routes/phrase";
+import { attest, challenge } from "./routes/attest";
 import { speak } from "./routes/speak";
 
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
@@ -13,6 +14,8 @@ type Handler = (request: Request, env: Env) => Promise<Response> | Response;
 const routes: Record<string, Partial<Record<string, Handler>>> = {
   "/health": { GET: () => json({ ok: true }) },
   "/v1/config": { GET: () => json(governorConfig) },
+  "/v1/challenge": { GET: challenge },
+  "/v1/attest": { POST: attest },
   "/v1/decide": { POST: guarded("jev", decide) },
   "/v1/compact": { POST: guarded("anthropic", compact) },
   "/v1/phrase": { POST: guarded("anthropic", phrase) },
