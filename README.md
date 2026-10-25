@@ -43,16 +43,17 @@ Free is three sessions a month, each with 20 minutes of prompts. Paid is `com.se
 
 ### Worker routes
 
-| Path                     | Provider                       | Returns                                                                           |
-| ------------------------ | ------------------------------ | --------------------------------------------------------------------------------- |
-| `POST /v1/decide`        | Jev (`jev-latest`)             | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens`    |
-| `POST /v1/compact`       | Claude Haiku                   | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`       |
-| `POST /v1/phrase`        | Claude Sonnet                  | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`         |
-| `POST /v1/speak`         | ElevenLabs (`eleven_v4_turbo`) | `audio/mpeg` streamed as it is made, `x-character-count` in the headers           |
-| `GET /v1/challenge`      | none                           | `{ challenge }`, 32 random bytes in base64, good once for five minutes            |
-| `POST /v1/attest`        | none                           | 204 once the App Attest attestation checks out, 401 with a `reason` otherwise     |
-| `POST /v1/session/start` | none                           | `{ allowed, free, remainingFree, promptMinutes }` or `{ allowed: false, reason }` |
-| `POST /v1/session/end`   | none                           | 204, after `{ minutes }` is added to the month's usage                            |
+| Path                     | Provider                       | Returns                                                                              |
+| ------------------------ | ------------------------------ | ------------------------------------------------------------------------------------ |
+| `POST /v1/decide`        | Jev (`jev-latest`)             | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens`       |
+| `POST /v1/compact`       | Claude Haiku                   | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`          |
+| `POST /v1/phrase`        | Claude Sonnet                  | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`            |
+| `POST /v1/speak`         | ElevenLabs (`eleven_v4_turbo`) | `audio/mpeg` streamed as it is made, `x-character-count` in the headers              |
+| `GET /v1/challenge`      | none                           | `{ challenge }`, 32 random bytes in base64, good once for five minutes               |
+| `POST /v1/attest`        | none                           | 204 once the App Attest attestation checks out, 401 with a `reason` otherwise        |
+| `POST /v1/session/start` | none                           | `{ allowed, free, remainingFree, promptMinutes }` or `{ allowed: false, reason }`    |
+| `POST /v1/session/end`   | none                           | 204, after `{ minutes }` is added to the month's usage                               |
+| `POST /v1/entitlement`   | none                           | `{ entitlement, expiresDate }` once a StoreKit 2 transaction verifies, 401 otherwise |
 
 Bodies are JSON, capped at 256 KiB. A bad field comes back as 422 with the field named. A rate-limited provider comes back as 503 with `retryAfter` in seconds.
 
@@ -85,9 +86,11 @@ The vars in `wrangler.jsonc`: `REQUIRE_ATTESTATION` (`true`), `APP_ATTEST_APP_ID
 
 App Attest does not run on the simulator, so put `REQUIRE_ATTESTATION=false` in `worker/.dev.vars`. The routes then take `x-device` as a plain label and otherwise key on the client address, which is what `npm run dev` plus a simulator build needs. On the Swift side `ProxyClient.attestor(baseURL:session:)` returns `DeviceAttestation` when `DCAppAttestService.isSupported` and `SimulatorAttestor`, which sends nothing, otherwise. `DeviceAttestation` keeps the key id in the keychain, enrols on the first request, and enrols again with a fresh key when Apple reports the old one invalid.
 
-Sessions are free three times a month per device, 20 prompt minutes each, counted by UTC month. `POST /v1/session/start` decides and counts at the start, and `POST /v1/session/end` with `{ minutes }` records what the session used. `entitlement()` in `worker/src/entitlement.ts` answers `free` for every device until the StoreKit check replaces it; a device it reports as `paid` skips the count.
+Sessions are free three times a month per device, 20 prompt minutes each, counted by UTC month. `POST /v1/session/start` decides and counts at the start, and `POST /v1/session/end` with `{ minutes }` records what the session used. A device the entitlement below reports as `paid` skips the count.
 
-The Worker tests build attestations and assertions in Apple's exact CBOR and X.509 layout from keys they generate, including a P-384 root in Apple's shape, and check that Apple's real root parses and is self-signed. Nothing runs against Apple itself, since the simulator cannot attest; the first end-to-end run is a device build against a deployed Worker.
+Entitlement comes from StoreKit 2, not an account. After a purchase, and again whenever a transaction updates, the app posts the latest signed transaction as `{ transaction }` to `POST /v1/entitlement` through `ProxyClient.submitEntitlement(transactionJWS:)`. The Worker decodes the JWS, requires ES256 and an `x5c` chain, walks the leaf and intermediate to the Apple Root CA G3 at the payload's `signedDate`, requires Apple's marker extensions on both (the same two Apple's app-store-server-library checks), verifies the signature with the leaf key, and then checks `bundleId` against `APP_BUNDLE_ID` (`com.seanreid.ooooh`), `productId` against the monthly and yearly ids, `type` as an auto-renewable subscription, and `environment` against `APP_STORE_ENVIRONMENT` (`Production`, or `Sandbox` for TestFlight). A verified transaction is stored under `entitlement:<keyId>` for its expiry plus 30 days and answers `{ entitlement, expiresDate }`; a failed one answers 401 with `bad-transaction`. The device is `paid` while `expiresDate` or `gracePeriodExpiresDate` is ahead and no `revocationDate` is recorded, and `free` otherwise, including with no record at all, so a device that never posts stays on the three free sessions. `APPLE_ROOT_PEM` replaces the root the way `APP_ATTEST_ROOT_PEM` does, for tests only.
+
+The Worker tests build attestations and assertions in Apple's exact CBOR and X.509 layout from keys they generate, including a P-384 root in Apple's shape, and check that Apple's real root parses and is self-signed. The entitlement tests sign transactions the same way, with a receipt signing chain they generate, and check that the Apple Root CA G3 parses and is self-signed. Nothing runs against Apple itself: the simulator cannot attest, and no App Store Connect record exists yet, so no real transaction can be fetched. The first end-to-end run is a device build against a deployed Worker.
 
 The Design package has snapshot tests that render the orb and the session screen with ImageRenderer and compare against the PNGs in `Packages/Tests/DesignTests/__Snapshots__`. `NotesSnapshotTests` does the same for the notes screen. They need UIKit, so run them on the simulator: `xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:DesignTests -only-testing:NotesSnapshotTests test`. Record on the iPhone 17 Pro simulator, since text rendering differs between devices. To re-record after a visual change, delete the PNGs you changed and run again, or run with `SIMCTL_CHILD_SNAPSHOT_TESTING_RECORD=all` in the environment; then look at the new PNGs before committing them. A failed comparison writes the rendered image and a diff to the path in `SIMCTL_CHILD_SNAPSHOT_ARTIFACTS`, which CI uploads as the `snapshot-failures` artifact.
 
