@@ -99,7 +99,8 @@ final class SessionController {
       }
       quietMode = environment.audio.route().prefersQuietMode
 
-      let guardian = OfflineGuard(offline: environment.workerURL == nil)
+      let guardian = OfflineGuard(
+        offline: environment.workerURL == nil && environment.dependencies == nil)
       let client = environment.workerURL.map {
         ProxyClient(baseURL: $0, session: environment.session, offline: guardian)
       }
