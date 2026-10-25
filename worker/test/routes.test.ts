@@ -209,6 +209,22 @@ describe("POST /v1/notes", () => {
     });
   });
 
+  it("charges input plus output tokens to the anthropic budget", async () => {
+    expectUpstream({ body: opusReply() });
+    const env = { BUDGET: memoryKV(), CONFIG_VERSION: "1", ANTHROPIC_API_KEY: "sk-key" } as Env;
+    const res = await worker.fetch(
+      new Request("https://ooooh.test/v1/notes", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(notesBody),
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const day = new Date().toISOString().slice(0, 10);
+    expect(await env.BUDGET.get(`budget:anthropic:${day}`)).toBe("3920");
+  });
+
   it("refuses an id that is not a slug", async () => {
     const shouty = {
       ...opusNotes,
