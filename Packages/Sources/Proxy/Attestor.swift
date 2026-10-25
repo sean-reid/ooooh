@@ -15,6 +15,9 @@ public struct Assertion: Sendable, Equatable {
 public protocol Attestor: Sendable {
   /// Nil means the request goes out with no attestation headers.
   func assertion(clientDataHash: Data) async throws -> Assertion?
+  /// The id of the key the assertions come from, enrolled first when needed. Nil when the
+  /// install cannot attest.
+  func keyId() async throws -> String?
 }
 
 /// App Attest does not run on the simulator; the Worker there has `REQUIRE_ATTESTATION=false`.
@@ -22,6 +25,8 @@ public struct SimulatorAttestor: Attestor {
   public init() {}
 
   public func assertion(clientDataHash: Data) async throws -> Assertion? { nil }
+
+  public func keyId() async throws -> String? { nil }
 }
 
 /// The two wire shapes shared with the Worker's `/v1/challenge` and `/v1/attest`.
