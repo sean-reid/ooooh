@@ -16,7 +16,6 @@ const settings = (overrides: Partial<StoreKitSettings> = {}): StoreKitSettings =
   bundleId: "com.seanreid.ooooh",
   environment: "Production",
   rootPem: chain.rootPem,
-  now: new Date(now),
   ...overrides,
 });
 
@@ -47,10 +46,20 @@ describe("verifyTransaction", () => {
     expect(await verifyTransaction(jws, settings())).toEqual({
       productId: "com.seanreid.ooooh.monthly",
       originalTransactionId: "2000000123456000",
+      signedDate: now,
+      appAccountToken: undefined,
       expiresDate: now + 30 * day,
       gracePeriodExpiresDate: undefined,
       revocationDate: undefined,
     });
+  });
+
+  it("keeps the appAccountToken as signed and refuses one that is not a string", async () => {
+    const token = "1f0c3b2a-9d8e-8f70-a1b2-c3d4e5f60718";
+    const jws = await signTransaction(chain, transactionPayload(now, { appAccountToken: token }));
+    expect(await verifyTransaction(jws, settings())).toMatchObject({ appAccountToken: token });
+    const bad = await signTransaction(chain, transactionPayload(now, { appAccountToken: 7 }));
+    expect(await reason(bad)).toBe("bad-format");
   });
 
   it("keeps the yearly product, a revocation, and a grace period when present", async () => {
@@ -145,5 +154,7 @@ describe("verifyTransaction", () => {
       transactionPayload(now, { originalTransactionId: 7 }),
     );
     expect(await reason(noId)).toBe("bad-format");
+    const noDate = await signTransaction(chain, transactionPayload(now, { signedDate: undefined }));
+    expect(await reason(noDate)).toBe("bad-format");
   });
 });
