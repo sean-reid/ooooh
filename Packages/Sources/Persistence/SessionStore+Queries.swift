@@ -14,18 +14,23 @@ extension SessionStore {
     return try modelContext.fetch(descriptor).map(Self.summary)
   }
 
-  /// Sessions with the query in a segment or a note item, newest first. Case and diacritics
-  /// do not matter.
+  /// Sessions with the query in a segment, a note item, or the summary, newest first. Case
+  /// and diacritics do not matter.
   public func search(_ query: String) throws -> [SessionSummary] {
     let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !needle.isEmpty else { return [] }
-    var descriptor = FetchDescriptor<StoredSession>(
+    let inText = FetchDescriptor<StoredSession>(
       predicate: #Predicate { session in
         (session.segments?.contains { $0.text.localizedStandardContains(needle) } ?? false)
           || (session.items?.contains { $0.text.localizedStandardContains(needle) } ?? false)
-      },
-      sortBy: [SortDescriptor(\.startedAt, order: .reverse)])
-    return try modelContext.fetch(descriptor).map(Self.summary)
+      })
+    let inSummary = FetchDescriptor<StoredSession>(
+      predicate: #Predicate { $0.summary?.localizedStandardContains(needle) ?? false })
+    var seen = Set<UUID>()
+    return try (modelContext.fetch(inText) + modelContext.fetch(inSummary))
+      .filter { seen.insert($0.id).inserted }
+      .sorted { $0.startedAt > $1.startedAt }
+      .map(Self.summary)
   }
 
   /// Unresolved threads, most recent session first, in note order within a session.
@@ -69,8 +74,9 @@ extension SessionStore {
 
   static func summary(_ session: StoredSession) -> SessionSummary {
     SessionSummary(
-      id: session.id, title: session.title, startedAt: session.startedAt,
-      duration: session.duration, openThreadCount: session.openThreadCount)
+      id: session.id, title: session.title, summary: session.summary,
+      startedAt: session.startedAt, duration: session.duration,
+      openThreadCount: session.openThreadCount)
   }
 
   static func transcript(of session: StoredSession) -> [Segment] {
@@ -94,8 +100,8 @@ extension SessionStore {
   }
 
   static func notes(of session: StoredSession, items: [NoteEntry]) -> SessionNotes? {
-    guard !items.isEmpty else { return nil }
-    var notes = SessionNotes(title: session.title)
+    guard !items.isEmpty || session.summary != nil else { return nil }
+    var notes = SessionNotes(title: session.title, summary: session.summary)
     for entry in items {
       switch entry.section {
       case .ideas: notes.ideas.append(entry.item)

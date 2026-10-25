@@ -11,6 +11,7 @@ public final class StoredSession {
   public var endedAt: Date = Date()
   public var duration: TimeInterval = 0
   public var title: String = ""
+  public var summary: String? = nil
   public var modeAtEnd: String = "exploring"
   public var state: Data? = nil
   public var audioPath: String? = nil
