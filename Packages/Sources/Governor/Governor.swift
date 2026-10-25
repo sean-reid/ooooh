@@ -48,9 +48,11 @@ public struct Governor: Sendable {
     return config.floor.min + (config.floor.max - config.floor.min) * ease
   }
 
+  /// Every utterance end is a check. Pause ticks are throttled to the minimum interval.
   public func shouldCheck(signals: Signals, utteranceEnded: Bool) -> Bool {
+    if utteranceEnded { return true }
     if let last = lastCheckAt, signals.now - last < config.minCheckInterval { return false }
-    return utteranceEnded || signals.pauseLength >= config.checkPause
+    return signals.pauseLength >= config.checkPause
   }
 
   public mutating func decide(_ answers: JevAnswers, signals: Signals) -> Decision {
