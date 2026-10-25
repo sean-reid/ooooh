@@ -16,7 +16,7 @@ let package = Package(
     .executable(name: "eval", targets: ["eval"]),
   ],
   targets: [
-    .target(name: "Design"),
+    .target(name: "Design", resources: [.copy("Fonts")]),
     .target(name: "State"),
     .target(name: "Governor", dependencies: ["State"]),
     .target(name: "Notes", dependencies: ["State"]),
