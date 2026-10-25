@@ -31,6 +31,9 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
     body: JSON.stringify(body),
   });
 
+const today = new Date().toISOString().slice(0, 10);
+const spent = async () => Number((await env.BUDGET.get(`budget:anthropic:${today}`)) ?? 0);
+
 let upstream: FakeUpstream;
 const expectUpstream = (...replies: Reply[]) => {
   upstream = fakeUpstream(replies);
@@ -93,19 +96,36 @@ describe("POST /v1/decide", () => {
   });
 
   it("backs off twice on 429 then returns 503 with retryAfter", async () => {
-    const limited = {
-      status: 429,
-      body: { error: "rate limited" },
-      headers: { "retry-after": "7" },
-    };
+    const limited = { status: 429, body: { error: "rate limited" } };
     expectUpstream(limited, limited, limited);
 
     const started = Date.now();
     const res = await post("/v1/decide", decideBody);
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "jev unavailable", retryAfter: 7 });
+    expect(await res.json()).toEqual({ error: "jev unavailable", retryAfter: 1 });
     expect(Date.now() - started).toBeGreaterThanOrEqual(700);
     expect(upstream.requests).toHaveLength(3);
+  });
+
+  it("waits the Retry-After it is given, and gives up at once when that is too long", async () => {
+    expectUpstream(
+      { status: 429, body: { error: "rate limited" }, headers: { "retry-after": "1" } },
+      { body: jevReply },
+    );
+    const started = Date.now();
+    expect((await post("/v1/decide", decideBody)).status).toBe(200);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(1000);
+    expect(upstream.requests).toHaveLength(2);
+
+    expectUpstream({
+      status: 429,
+      body: { error: "rate limited" },
+      headers: { "retry-after": "7" },
+    });
+    const res = await post("/v1/decide", decideBody);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "jev unavailable", retryAfter: 7 });
+    expect(upstream.requests).toHaveLength(1);
   });
 
   it("returns 422 naming the field", async () => {
@@ -148,9 +168,21 @@ describe("POST /v1/compact", () => {
       body: { ...haikuReply, content: [{ type: "text", text: JSON.stringify(colliding) }] },
     });
 
+    const before = await spent();
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
+    expect(await spent()).toBe(before + 1100);
+  });
+
+  it("names a reply cut off at max_tokens and still charges it", async () => {
+    expectUpstream({ body: { ...haikuReply, stop_reason: "max_tokens" } });
+
+    const before = await spent();
+    const res = await post("/v1/compact", compactBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "anthropic truncated", maxTokens: 4096 });
+    expect(await spent()).toBe(before + 1100);
   });
 });
 
@@ -361,6 +393,40 @@ describe("POST /v1/phrase", () => {
     expect(deltas.join("").trim()).toBe(shortSentence);
     expect(events.at(-1)).toEqual({ event: "done", data: { text: shortSentence } });
   });
+
+  it("sends the same 503 body as an error event when the stream never starts", async () => {
+    const limited: Reply = {
+      status: 429,
+      body: { error: { type: "rate_limit_error" } },
+      headers: { "retry-after-ms": "1" },
+    };
+    expectUpstream(limited, limited, limited);
+
+    const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
+    expect(res.status).toBe(200);
+    const [event, data] = (await res.text()).trim().split("\n");
+    expect(event).toBe("event: error");
+    expect(JSON.parse(data.slice(6))).toEqual({ error: "anthropic unavailable", retryAfter: 5 });
+  });
+});
+
+describe("labels", () => {
+  it("falls back to the address when x-device is too long for a KV key", async () => {
+    const res = await SELF.fetch("https://ooooh.test/v1/challenge", {
+      headers: { "x-device": "d".repeat(600) },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("refuses a challenge of the wrong length before looking it up", async () => {
+    const res = await post("/v1/attest", {
+      keyId: "k",
+      attestation: "AAAA",
+      challenge: "A".repeat(600),
+    });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "unauthorized", reason: "bad-challenge" });
+  });
 });
 
 describe("POST /v1/speak", () => {
@@ -435,17 +501,22 @@ describe("POST /v1/speak", () => {
   });
 
   it("backs off once on 429 then returns 503 with retryAfter", async () => {
-    const limited: Reply = {
-      status: 429,
-      body: { detail: "busy" },
-      headers: { "retry-after": "7" },
-    };
+    const limited: Reply = { status: 429, body: { detail: "busy" } };
     expectUpstream(limited, limited);
 
     const res = await post("/v1/speak", speakBody);
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "elevenlabs unavailable", retryAfter: 7 });
+    expect(await res.json()).toEqual({ error: "elevenlabs unavailable", retryAfter: 5 });
     expect(upstream.requests).toHaveLength(2);
+  });
+
+  it("gives up at once when Retry-After is longer than it will wait", async () => {
+    expectUpstream({ status: 429, body: { detail: "busy" }, headers: { "retry-after": "7" } });
+
+    const res = await post("/v1/speak", speakBody);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "elevenlabs unavailable", retryAfter: 7 });
+    expect(upstream.requests).toHaveLength(1);
   });
 
   it("returns 502 with the upstream status on other failures", async () => {
