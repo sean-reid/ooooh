@@ -101,7 +101,7 @@ public struct SettingsView: View {
       if let onDone {
         Button("Done", action: onDone)
           .font(.body.weight(.semibold))
-          .foregroundStyle(Palette.amber)
+          .foregroundStyle(Palette.accent)
           .frame(minWidth: 44, minHeight: 44)
       }
     }
@@ -172,7 +172,7 @@ public struct SettingsView: View {
       ActionRow(title: "Delete one session", detail: "In History", action: openHistory)
       RowDivider()
       ActionRow(
-        title: "Delete everything", detail: countLine, symbol: "trash", color: Palette.amber
+        title: "Delete everything", detail: countLine, symbol: "trash", color: Palette.accent
       ) {
         confirmingDelete = true
       }

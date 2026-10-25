@@ -95,7 +95,7 @@ struct ChoiceRow<Choice: Hashable>: View {
           } label: {
             Text(choice.title)
               .font(Typography.caption.weight(.medium))
-              .foregroundStyle(chosen ? Palette.sky : Palette.ink)
+              .foregroundStyle(chosen ? Palette.inkOnAmber : Palette.ink)
               .padding(.horizontal, 12)
               .frame(maxWidth: .infinity, minHeight: 44)
               .background(chosen ? Palette.amber : Palette.sky.opacity(0.6), in: Capsule())

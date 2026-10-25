@@ -113,7 +113,7 @@ public struct PrivacyView: View {
           .frame(minHeight: 44)
       }
       .font(Typography.body)
-      .foregroundStyle(Palette.amber)
+      .foregroundStyle(Palette.accent)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 24)
