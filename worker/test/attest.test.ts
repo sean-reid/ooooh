@@ -5,7 +5,14 @@ import type { DeviceRecord } from "../src/attest/record";
 import { appleAppAttestRootPem } from "../src/attest/root";
 import { fromBase64, toBase64 } from "../src/bytes";
 import { parseCertificate, pemToDer, signedBy } from "../src/x509";
-import { buildAttestation, makeDevice, makeRoot, type Device, type TestRoot } from "./appattest";
+import {
+  assertionHeaders,
+  buildAttestation,
+  makeDevice,
+  makeRoot,
+  type Device,
+  type TestRoot,
+} from "./appattest";
 
 let authority: TestRoot;
 const attestEnv = (overrides: Partial<Env> = {}): Env => ({
@@ -107,6 +114,29 @@ describe("POST /v1/attest", () => {
       y: device.jwk.y,
     });
     expect(Date.parse(stored!.createdAt)).toBeGreaterThan(Date.now() - 10_000);
+  });
+
+  it("keeps the counter when a known key attests again, so a refused replay stays refused", async () => {
+    const device = await enrol();
+    const body = "{}";
+    const headers = await assertionHeaders(device, { path: "/v1/session/start", body, counter: 5 });
+    const start = (headers: Record<string, string>) =>
+      fetchWorker("/v1/session/start", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body,
+      });
+    expect((await start(headers)).status).toBe(200);
+    expect(await reason(await start(headers))).toBe("replay");
+
+    const challenge = await getChallenge();
+    const again = await buildAttestation({ device, authority, challenge: fromBase64(challenge)! });
+    expect((await postAttestation(device, challenge, again)).status).toBe(204);
+    const stored = await env.BUDGET.get<DeviceRecord>(`device:${device.keyId}`, "json");
+    expect(stored?.counter).toBe(5);
+    expect(await reason(await start(headers))).toBe("replay");
+    const next = await assertionHeaders(device, { path: "/v1/session/start", body, counter: 6 });
+    expect((await start(next)).status).toBe(200);
   });
 
   it("burns the challenge even when the attestation is good", async () => {

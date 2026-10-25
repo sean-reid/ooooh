@@ -42,7 +42,12 @@ export async function attest(request: Request, env: Env): Promise<Response> {
       challengeBytes,
       settingsFrom(env),
     );
-    const record: DeviceRecord = { publicKey, counter: 0, createdAt: new Date().toISOString() };
+    const known = await env.BUDGET.get<DeviceRecord>(deviceKey(keyId), "json");
+    const record: DeviceRecord = {
+      publicKey,
+      counter: known?.counter ?? 0,
+      createdAt: new Date().toISOString(),
+    };
     await env.BUDGET.put(deviceKey(keyId), JSON.stringify(record));
   } catch (e) {
     if (e instanceof AttestationError) throw unauthorized(e.reason);
