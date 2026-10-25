@@ -116,3 +116,15 @@ test("every page declares the favicon, touch icon, and manifest, and the files e
     assert.ok(existsSync(join(here, file)), file);
   }
 });
+
+test("every page carries Open Graph and Twitter tags and the card is 1200 by 630", () => {
+  for (const page of ["index.html", "privacy.html", "terms.html"]) {
+    const html = readFileSync(join(here, page), "utf8");
+    assert.match(html, /property="og:title"/);
+    assert.match(html, /property="og:image" content="https:\/\/ooooh.app\/images\/og.png"/);
+    assert.match(html, /name="twitter:card" content="summary_large_image"/);
+  }
+  const png = readFileSync(join(here, "images/og.png"));
+  assert.equal(png.readUInt32BE(16), 1200);
+  assert.equal(png.readUInt32BE(20), 630);
+});
