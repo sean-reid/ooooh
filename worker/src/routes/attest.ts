@@ -5,6 +5,7 @@ import {
   toBase64,
   verifyAttestation,
 } from "../attest/verify";
+import { callerFrom } from "../attest/device";
 import { deviceKey, unauthorized, type DeviceRecord } from "../attest/record";
 import { checkDeviceRate } from "../budget";
 import { HttpError, json, readBody } from "../http";
@@ -15,7 +16,7 @@ const challengeKey = (challenge: string) => `challenge:${challenge}`;
 
 /** 32 random bytes the app hashes into `clientDataHash` for `attestKey`. One use, five minutes. */
 export async function challenge(request: Request, env: Env): Promise<Response> {
-  await checkDeviceRate(request, env);
+  await checkDeviceRate(callerFrom(request), env);
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const issued = toBase64(bytes);
   await env.BUDGET.put(challengeKey(issued), "1", { expirationTtl: challengeTtlSeconds });
@@ -25,7 +26,7 @@ export async function challenge(request: Request, env: Env): Promise<Response> {
 const body = obj({ keyId: str, attestation: str, challenge: str });
 
 export async function attest(request: Request, env: Env): Promise<Response> {
-  await checkDeviceRate(request, env);
+  await checkDeviceRate(callerFrom(request), env);
   const { keyId, attestation, challenge } = await readBody(request, body);
   const attestationBytes = fromBase64(attestation);
   const challengeBytes = fromBase64(challenge);

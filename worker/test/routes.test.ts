@@ -213,7 +213,12 @@ describe("POST /v1/notes", () => {
 
   it("charges input plus output tokens to the anthropic budget", async () => {
     expectUpstream({ body: opusReply() });
-    const env = { BUDGET: memoryKV(), CONFIG_VERSION: "1", ANTHROPIC_API_KEY: "sk-key" } as Env;
+    const env = {
+      BUDGET: memoryKV(),
+      CONFIG_VERSION: "1",
+      ANTHROPIC_API_KEY: "sk-key",
+      REQUIRE_ATTESTATION: "false",
+    } as Env;
     const res = await worker.fetch(
       new Request("https://ooooh.test/v1/notes", {
         method: "POST",
@@ -241,7 +246,7 @@ describe("POST /v1/notes", () => {
 });
 
 describe("Anthropic credentials", () => {
-  const env = { BUDGET: memoryKV(), CONFIG_VERSION: "1" } as Env;
+  const env = { BUDGET: memoryKV(), CONFIG_VERSION: "1", REQUIRE_ATTESTATION: "false" } as Env;
   const request = () =>
     new Request("https://ooooh.test/v1/compact", {
       method: "POST",

@@ -12,6 +12,7 @@ declare global {
     APP_ATTEST_APP_ID?: string;
     APP_ATTEST_ENVIRONMENT?: string;
     APP_ATTEST_ROOT_PEM?: string;
+    REQUIRE_ATTESTATION?: string;
   }
 }
 

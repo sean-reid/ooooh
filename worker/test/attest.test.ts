@@ -10,6 +10,7 @@ import { buildAttestation, makeDevice, makeRoot, type Device, type TestRoot } fr
 let authority: TestRoot;
 const attestEnv = (overrides: Partial<Env> = {}): Env => ({
   ...env,
+  REQUIRE_ATTESTATION: "true",
   APP_ATTEST_ENVIRONMENT: "development",
   APP_ATTEST_ROOT_PEM: authority.rootPem,
   ...overrides,

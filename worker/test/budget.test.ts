@@ -41,16 +41,14 @@ describe("budget", () => {
   });
 
   it("limits one device per minute and leaves others alone", async () => {
-    const request = (device: string) =>
-      new Request("https://ooooh.test/v1/decide", { headers: { "x-device": device } });
     const now = new Date("2026-10-25T10:00:30Z");
     const minute = Math.floor(now.getTime() / 60_000);
     await env.BUDGET.put(`rate:a:${minute}`, "59");
-    await checkDeviceRate(request("a"), env, now);
-    const err = await checkDeviceRate(request("a"), env, now).catch((e) => e);
+    await checkDeviceRate("a", env, now);
+    const err = await checkDeviceRate("a", env, now).catch((e) => e);
     expect(err.status).toBe(429);
     expect(err.body.retryAfter).toBe(30);
-    await expect(checkDeviceRate(request("b"), env, now)).resolves.toBeUndefined();
+    await expect(checkDeviceRate("b", env, now)).resolves.toBeUndefined();
   });
 });
 
