@@ -2,8 +2,10 @@ import Foundation
 import Governor
 import Notes
 import Persistence
+import Proxy
 import Session
 import State
+import Synchronization
 import Testing
 import Transcription
 
@@ -42,10 +44,14 @@ import Transcription
     }
   }
 
-  /// A good moment on the utterance ending at `end`, quiet otherwise.
-  func deps(firing kind: InterventionKind, at end: TimeInterval) -> SessionLoop.Dependencies {
+  /// A good moment on the utterance ending at `end`, quiet otherwise. `seen` gets every check's
+  /// session time.
+  func deps(firing kind: InterventionKind, at end: TimeInterval, seen: Seen? = nil)
+    -> SessionLoop.Dependencies
+  {
     .init(
       decisions: ScriptedDecisionProvider { input in
+        seen?.nows.append(input.signals.now)
         var answers = JevAnswers.quiet
         if input.recentTranscript.last?.end == end {
           answers.goodMoment = .init(0.95)
@@ -70,6 +76,82 @@ import Transcription
   }
 
   final class Counter { var count = 0 }
+
+  /// Answers the session routes as the Worker does, with the start body picked by host so the
+  /// tests run side by side. Reads each body back, since URLSession hands it over as a stream.
+  final class GateProtocol: URLProtocol {
+    struct Request: Sendable {
+      var host: String
+      var path: String
+      var body: Data
+    }
+
+    static let starts = Mutex<[String: (status: Int, body: Data)]>([:])
+    static let seen = Mutex<[Request]>([])
+
+    static func session() -> URLSession {
+      let configuration = URLSessionConfiguration.ephemeral
+      configuration.protocolClasses = [GateProtocol.self]
+      return URLSession(configuration: configuration)
+    }
+
+    static func requests(to host: String) -> [Request] {
+      seen.withLock { $0.filter { $0.host == host } }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+      let host = request.url?.host() ?? ""
+      let path = request.url?.path() ?? ""
+      Self.seen.withLock { $0.append(Request(host: host, path: path, body: readBody())) }
+      let (status, body): (Int, Data) =
+        switch path {
+        case "/v1/session/start": Self.starts.withLock { $0[host] } ?? (404, Data())
+        case "/v1/session/end": (204, Data())
+        default: (404, Data())
+        }
+      let response = HTTPURLResponse(
+        url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      if !body.isEmpty { client?.urlProtocol(self, didLoad: body) }
+      client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+
+    private func readBody() -> Data {
+      guard let stream = request.httpBodyStream else { return request.httpBody ?? Data() }
+      stream.open()
+      defer { stream.close() }
+      var data = Data()
+      var buffer = [UInt8](repeating: 0, count: 4096)
+      while stream.hasBytesAvailable {
+        let read = stream.read(&buffer, maxLength: buffer.count)
+        if read <= 0 { break }
+        data.append(buffer, count: read)
+      }
+      return data
+    }
+  }
+
+  /// A fixture session gated through a real `ProxyClient` against `GateProtocol`, answering the
+  /// start with `body` for this `host`.
+  func gated(
+    _ host: String, answering body: Data, status: Int = 200, deps: SessionLoop.Dependencies
+  ) -> SessionController.Environment {
+    GateProtocol.starts.withLock { $0[host] = (status, body) }
+    var environment = environment(deps, speaker: Recorder(), haptics: Counter())
+    environment.gate = .worker(
+      ProxyClient(baseURL: URL(string: "http://\(host)")!, session: GateProtocol.session()))
+    environment.notesGenerator = CannedNotes()
+    return environment
+  }
+
+  func workerFixture(_ name: String) throws -> Data {
+    try Data(contentsOf: #require(Bundle(for: Marker.self).url(forResource: name, withExtension: "json")))
+  }
 
   /// Refuses every request at once, so going offline does not depend on the host's network stack.
   final class UnreachableProtocol: URLProtocol {
@@ -366,7 +448,120 @@ import Transcription
     #expect(!StartFailure.message(for: SpeechAnalyzerError.noMicrophoneInput).contains("en_US"))
   }
 
+  @Test func aFreeSessionPromptsAndPostsItsMinutesAtTheEnd() async throws {
+    let seen = Seen()
+    let controller = SessionController(
+      environment: gated(
+        "free", answering: try workerFixture("session-start-free"),
+        deps: deps(firing: .deepen, at: 14.0, seen: seen)))
+
+    await controller.start(.fixture(shortFixture, speed: 20))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == .free(remaining: 2, promptMinutes: 20))
+    #expect(!controller.promptsRefused)
+    #expect(SessionView.status(for: controller) == nil)
+    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    #expect(seen.nows.contains { $0 >= 60 })
+
+    await wait { GateProtocol.requests(to: "free").count == 2 }
+    let requests = GateProtocol.requests(to: "free")
+    #expect(requests.map(\.path) == ["/v1/session/start", "/v1/session/end"])
+    let end = try JSONSerialization.jsonObject(with: requests[1].body) as? [String: Double]
+    let minutes = try #require(end?["minutes"])
+    #expect(minutes > 0)
+    #expect(minutes == (controller.elapsed(at: .now) / 60 * 100).rounded() / 100)
+  }
+
+  @Test func aRefusedSessionListensWithoutAskingForADecision() async throws {
+    let seen = Seen()
+    let controller = SessionController(
+      environment: gated(
+        "refused", answering: try workerFixture("session-start-refused"),
+        deps: deps(firing: .deepen, at: 14.0, seen: seen)))
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == .refused(reason: "free-exhausted"))
+    #expect(controller.promptsRefused)
+    #expect(
+      SessionView.status(for: controller)?.text
+        == "listening only, this month's free sessions are used up")
+    #expect(SessionView.status(for: controller)?.id == "session.quota")
+    #expect(seen.nows.isEmpty)
+    #expect(controller.result?.prompts.isEmpty == true)
+    #expect(controller.lastPrompt == nil)
+    #expect(controller.result?.transcript.count == 17)
+    await wait { controller.notes == .written(CannedNotes.notes) }
+
+    try? await Task.sleep(for: .milliseconds(200))
+    #expect(GateProtocol.requests(to: "refused").map(\.path) == ["/v1/session/start"])
+  }
+
+  @Test func aPaidSessionPromptsWithoutACap() async throws {
+    let seen = Seen()
+    let controller = SessionController(
+      environment: gated(
+        "paid", answering: try workerFixture("session-start-paid"),
+        deps: deps(firing: .deepen, at: 80.6, seen: seen)))
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == .paid)
+    #expect(controller.result?.prompts.map(\.at) == [82.1])
+    #expect(seen.nows.contains { $0 >= 60 })
+    await wait { GateProtocol.requests(to: "paid").count == 2 }
+    #expect(GateProtocol.requests(to: "paid").last?.path == "/v1/session/end")
+  }
+
+  @Test func thePromptMinutesStopTheDecisions() async throws {
+    let seen = Seen()
+    let body = Data(#"{"allowed":true,"free":true,"remainingFree":0,"promptMinutes":1}"#.utf8)
+    let controller = SessionController(
+      environment: gated("capped", answering: body, deps: deps(firing: .deepen, at: 80.6, seen: seen)))
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == .free(remaining: 0, promptMinutes: 1))
+    #expect(!seen.nows.isEmpty)
+    #expect(seen.nows.allSatisfy { $0 < 60 })
+    #expect(controller.result?.prompts.isEmpty == true)
+    #expect(controller.result?.transcript.count == 17)
+  }
+
+  @Test func aFailedStartLeavesThePromptsToTheOfflineGuard() async throws {
+    let controller = SessionController(
+      environment: gated(
+        "down", answering: Data(#"{"error":"internal"}"#.utf8), status: 500,
+        deps: deps(firing: .deepen, at: 14.0)))
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == nil)
+    #expect(!controller.promptsRefused)
+    #expect(!controller.isOffline)
+    #expect(controller.result?.prompts.map(\.at) == [15.5])
+
+    try? await Task.sleep(for: .milliseconds(200))
+    #expect(GateProtocol.requests(to: "down").map(\.path) == ["/v1/session/start"])
+  }
+
+  @Test func aFixtureWithoutAGateAsksTheWorkerNothing() async throws {
+    var environment = environment(
+      deps(firing: .deepen, at: 14.0), speaker: Recorder(), haptics: Counter())
+    environment.workerURL = URL(string: "http://ungated")
+    environment.session = GateProtocol.session()
+    environment.notesGenerator = CannedNotes()
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == nil)
+    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    #expect(GateProtocol.requests(to: "ungated").isEmpty)
+  }
+
   final class Seen: @unchecked Sendable {
     var states: [CompactState] = []
+    var nows: [TimeInterval] = []
   }
 }

@@ -3,6 +3,7 @@ import Design
 import Foundation
 import Governor
 import Notes
+import OSLog
 import Observation
 import Persistence
 import Proxy
@@ -51,6 +52,9 @@ final class SessionController {
     /// Set to skip the Worker, as the tests do.
     var dependencies: SessionLoop.Dependencies?
     var config: GovernorConfig?
+    /// Set to ask it before every source, as the tests and `-free-exhausted 1` do. Microphone
+    /// sessions otherwise ask the Worker, and fixtures ask nothing.
+    var gate: SessionGate?
   }
 
   private(set) var stage: Stage = .idle
@@ -64,6 +68,8 @@ final class SessionController {
   private(set) var notes: NotesState?
   private(set) var savedSessionID: UUID?
   private(set) var compactions = 0
+  /// The Worker's answer for this session. Nil until it answers, and when the start failed.
+  private(set) var admission: SessionStart?
 
   private var measuredLevel: Double?
   private var isHearingSpeech = false
@@ -77,7 +83,10 @@ final class SessionController {
   private var delivery: Task<Void, Never>?
   private var writing: Task<Void, Never>?
   private var offlineChange: Task<Void, Never>?
+  private var admitting: Task<Void, Never>?
+  private var gate: SessionGate?
   private let environment: Environment
+  private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "session")
 
   init(environment: Environment = Environment(workerURL: WorkerURL.fromBundle)) {
     self.environment = environment
@@ -89,6 +98,12 @@ final class SessionController {
     if promptPending { return .aboutToSpeak }
     if isOffline { return .offline }
     return .listening
+  }
+
+  /// True once the Worker has refused the session, so it listens without prompts.
+  var promptsRefused: Bool {
+    if case .refused = admission { return true }
+    return false
   }
 
   /// Measured from the microphone when there is one, else high while an utterance is heard.
@@ -142,6 +157,17 @@ final class SessionController {
         ?? SessionLoop.Dependencies(
           decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
           phraser: TemplatePhraser())
+      if case .microphone = source {
+        gate = environment.gate ?? client.map(SessionGate.worker)
+      } else {
+        gate = environment.gate
+      }
+      if let gate {
+        let admission = Task { await Self.admit(gate) }
+        dependencies.decisions = AdmittedDecisions(
+          base: dependencies.decisions, admission: admission)
+        admitting = Task { self.admission = await admission.value }
+      }
       if let thread {
         dependencies = CarriedThread(thread).wrap(dependencies)
       }
@@ -179,6 +205,29 @@ final class SessionController {
     guard stage == .running, let live else { return }
     await live.end()
     await observers.first?.value
+  }
+
+  /// Nil when the start fails, which leaves the prompts to the offline guard.
+  private static func admit(_ gate: SessionGate) async -> SessionStart? {
+    do {
+      return try await gate.start()
+    } catch {
+      log.error("Session start failed: \(String(describing: error), privacy: .public)")
+      return nil
+    }
+  }
+
+  /// Posts the wall-clock minutes once the Worker has counted the session.
+  private func postEnd() {
+    guard let gate, admission != nil, !promptsRefused else { return }
+    let minutes = (elapsed(at: .now) / 60 * 100).rounded() / 100
+    Task {
+      do {
+        try await gate.end(minutes)
+      } catch {
+        Self.log.error("Session end failed: \(String(describing: error), privacy: .public)")
+      }
+    }
   }
 
   private func isQuiet(_ route: AudioRoute) -> Bool {
@@ -281,6 +330,7 @@ final class SessionController {
     isHearingSpeech = false
     stage = .ended
     try? environment.audio.deactivate()
+    postEnd()
     writeNotes(for: result)
   }
 

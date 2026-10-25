@@ -78,6 +78,12 @@ targets:
       - App/Tests
       - path: Packages/Tests/SessionTests/Fixtures/short.json
         buildPhase: resources
+      - path: Packages/Tests/ProxyTests/Fixtures/session-start-free.json
+        buildPhase: resources
+      - path: Packages/Tests/ProxyTests/Fixtures/session-start-paid.json
+        buildPhase: resources
+      - path: Packages/Tests/ProxyTests/Fixtures/session-start-refused.json
+        buildPhase: resources
     dependencies:
       - target: ooooh
     settings:
