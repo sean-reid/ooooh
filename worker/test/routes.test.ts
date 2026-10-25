@@ -8,6 +8,11 @@ import {
   haikuPatch,
   haikuReply,
   jevReply,
+  longSentence,
+  phraseBody,
+  shortSentence,
+  sonnetReply,
+  sonnetStream,
   type FakeUpstream,
   type Reply,
 } from "./upstream";
@@ -127,5 +132,62 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
+  });
+});
+
+describe("POST /v1/phrase", () => {
+  it("asks again when the first sentence is over 15 words", async () => {
+    expectUpstream({ body: sonnetReply(longSentence) }, { body: sonnetReply(shortSentence) });
+
+    const res = await post("/v1/phrase", phraseBody);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ text: shortSentence });
+    expect(upstream.requests).toHaveLength(2);
+    type Sent = {
+      model: string;
+      fallbacks: string;
+      messages: { role: string; content: string }[];
+    };
+    const bodies = upstream.requests.map((r) => bodyOf<Sent>(r));
+    expect(bodies[0].model).toBe("claude-sonnet-5-5");
+    expect(bodies[0].fallbacks).toBe("default");
+    expect(upstream.requests[0].headers["anthropic-beta"]).toContain("server-side-fallback");
+    expect(bodies[1].messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(bodies[1].messages[2].content).toContain("3 words over");
+  });
+
+  it("truncates at a sentence boundary when the retry is still too long", async () => {
+    expectUpstream(
+      { body: sonnetReply(longSentence) },
+      {
+        body: sonnetReply(
+          "Is it the queue? Or is it the sync layer that keeps pulling you back again?",
+        ),
+      },
+    );
+
+    const res = await post("/v1/phrase", phraseBody);
+    expect(await res.json()).toEqual({ text: "Is it the queue?" });
+  });
+
+  it("streams deltas then a done event over SSE", async () => {
+    expectUpstream({
+      body: sonnetStream(shortSentence),
+      headers: { "content-type": "text/event-stream" },
+    });
+
+    const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
+    const events = (await res.text())
+      .trim()
+      .split("\n\n")
+      .map((chunk) => {
+        const [event, data] = chunk.split("\n");
+        return { event: event.slice(7), data: JSON.parse(data.slice(6)) as { text: string } };
+      });
+    const deltas = events.filter((e) => e.event === "delta").map((e) => e.data.text);
+    expect(deltas.join("").trim()).toBe(shortSentence);
+    expect(events.at(-1)).toEqual({ event: "done", data: { text: shortSentence } });
   });
 });
