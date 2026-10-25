@@ -97,7 +97,6 @@ import Transcription
     h.advance(to: 2.0)
     let fired = await h.events.next(until: \.isPromptRequested)
     #expect(spoken(fired).map(\.at) == [2.0])
-    #expect((start + fired).contains { $0.isPromptPending })
 
     h.advance(to: 12)
     let (events, result) = try await h.finish()
@@ -229,7 +228,6 @@ import Transcription
 
 extension SessionEvent {
   var isSpeechEnded: Bool { if case .speechEnded = self { true } else { false } }
-  var isPromptPending: Bool { if case .promptPending = self { true } else { false } }
   var isPromptRequested: Bool { if case .promptRequested = self { true } else { false } }
   var isPromptCancelled: Bool { if case .promptCancelled = self { true } else { false } }
   var isAskedIfFinished: Bool { if case .askedIfFinished = self { true } else { false } }

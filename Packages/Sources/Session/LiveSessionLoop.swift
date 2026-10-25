@@ -35,10 +35,6 @@ public actor LiveSessionLoop {
     levels: AsyncStream<Double>? = nil, offline: AsyncStream<Bool>? = nil, clock: C
   ) where C.Duration == Duration {
     let (stream, continuation) = AsyncStream.makeStream(of: SessionEvent.self)
-    var dependencies = dependencies
-    dependencies.phraser = AnnouncingPhraser(base: dependencies.phraser) { kind in
-      continuation.yield(.promptPending(kind))
-    }
     self.loop = SessionLoop(config: config, policy: policy, dependencies: dependencies)
     self.transcriber = transcriber
     self.config = config
@@ -216,19 +212,5 @@ struct LoopClock: Sendable {
     let origin = clock.now
     now = { origin.duration(to: clock.now) }
     sleep = { try await clock.sleep(until: origin.advanced(by: $0), tolerance: nil) }
-  }
-}
-
-/// Tells the screen a prompt is coming before the phraser has the words.
-struct AnnouncingPhraser: Phraser {
-  let base: any Phraser
-  let announce: @Sendable (InterventionKind) -> Void
-
-  func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
-    -> String
-  {
-    try Task.checkCancellation()
-    announce(kind)
-    return try await base.phrase(kind, state: state, recent: recent)
   }
 }

@@ -43,8 +43,12 @@ import Transcription
 
     let utterances = events.filter { if case .utterance = $0 { true } else { false } }
     #expect(utterances.count == 17)
-    let pending = events.compactMap { if case .promptPending(let k) = $0 { k } else { nil } }
-    #expect(pending == [.deepen])
+    let armed = events.compactMap {
+      if case .promptArmed(let at, let k) = $0 { (at, k) } else { nil }
+    }
+    #expect(armed.count == 1)
+    #expect(armed.first?.0 == 14.0)
+    #expect(armed.first?.1 == .intervention(.deepen))
     let prompts = events.compactMap {
       if case .promptRequested(_, let text, let at) = $0 { (text, at) } else { nil }
     }
