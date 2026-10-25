@@ -3,9 +3,29 @@ import Governor
 import Network
 import Session
 import State
+import Synchronization
 import Testing
 
 @testable import Proxy
+
+/// Refuses every request at once and counts them, so going offline depends on nothing outside the test.
+final class RefusingProtocol: URLProtocol {
+  static let attempts = Mutex(0)
+
+  static func session() -> URLSession {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [RefusingProtocol.self]
+    return URLSession(configuration: configuration)
+  }
+
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+  override func startLoading() {
+    Self.attempts.withLock { $0 += 1 }
+    client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
+  }
+  override func stopLoading() {}
+}
 
 @Suite struct OfflineGuardTests {
   let input = CheckInput(
@@ -51,7 +71,9 @@ import Testing
 
   @Test func jevGoesQuietOnceTheWorkerIsUnreachable() async throws {
     let guardian = OfflineGuard()
-    let client = ProxyClient(baseURL: URL(string: "http://127.0.0.1:9")!, offline: guardian)
+    let client = ProxyClient(
+      baseURL: URL(string: "http://worker.invalid")!, session: RefusingProtocol.session(),
+      offline: guardian)
     let jev = JevDecisionProvider(client: client)
 
     await #expect(throws: URLError.self) { try await jev.check(input) }
@@ -59,12 +81,12 @@ import Testing
     let second = try await jev.check(input)
     #expect(second == .quiet)
     #expect(guardian.isOffline)
-    let clock = ContinuousClock()
-    var third = JevAnswers.quiet
-    third.goodMoment = .init(1)
-    let elapsed = try await clock.measure { third = try await jev.check(input) }
+    let third = try await jev.check(input)
     #expect(third == .quiet)
-    #expect(elapsed < .milliseconds(50))
+    let probes = RefusingProtocol.attempts.withLock { $0 }
+    let fourth = try await jev.check(input)
+    #expect(fourth == .quiet)
+    #expect(RefusingProtocol.attempts.withLock { $0 } == probes)
   }
 
   @Test func oneGoodAnswerBringsTheWorkerBack() async throws {
