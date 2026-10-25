@@ -47,6 +47,7 @@ extension SessionStore {
     modelContext.insert(item)
     if section == .openThreads {
       let thread = StoredThread(text: text, sourceNoteItemSlug: slug)
+      thread.order = (session.openedThreads ?? []).count
       thread.sourceSession = session
       modelContext.insert(thread)
       try refreshOpenThreadCount(session)

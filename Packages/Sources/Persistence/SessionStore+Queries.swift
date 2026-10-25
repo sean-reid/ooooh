@@ -32,13 +32,19 @@ extension SessionStore {
   public func openThreads(limit: Int = 3) throws -> [OpenThread] {
     guard limit > 0 else { return [] }
     let descriptor = FetchDescriptor<StoredThread>(predicate: #Predicate { !$0.resolved })
-    let threads = try modelContext.fetch(descriptor).compactMap { thread -> OpenThread? in
-      guard let session = thread.sourceSession else { return nil }
-      return OpenThread(
-        id: thread.id, text: thread.text, sessionID: session.id, sessionTitle: session.title,
-        sessionStartedAt: session.startedAt, noteItemID: thread.sourceNoteItemSlug)
-    }
-    return Array(threads.sorted { $0.sessionStartedAt > $1.sessionStartedAt }.prefix(limit))
+    let threads = try modelContext.fetch(descriptor)
+      .compactMap { thread -> (OpenThread, Int)? in
+        guard let session = thread.sourceSession else { return nil }
+        let open = OpenThread(
+          id: thread.id, text: thread.text, sessionID: session.id, sessionTitle: session.title,
+          sessionStartedAt: session.startedAt, noteItemID: thread.sourceNoteItemSlug)
+        return (open, thread.order)
+      }
+      .sorted { a, b in
+        a.0.sessionStartedAt != b.0.sessionStartedAt
+          ? a.0.sessionStartedAt > b.0.sessionStartedAt : a.1 < b.1
+      }
+    return Array(threads.map(\.0).prefix(limit))
   }
 
   public func detail(_ sessionID: UUID) throws -> SessionDetail? {
