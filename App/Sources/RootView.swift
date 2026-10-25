@@ -9,24 +9,24 @@ struct RootView: View {
   var body: some View {
     ZStack {
       Palette.sky.ignoresSafeArea()
-      VStack(spacing: 24) {
-        Circle()
-          .fill(Palette.amber)
-          .frame(width: 96, height: 96)
-          .shadow(color: Palette.amberDim, radius: 40)
-          .accessibilityLabel("Your listener, resting")
+      VStack(spacing: 8) {
+        Orb(level: 0, phase: .resting)
+          .frame(width: 240, height: 240)
         Text("ooooh")
-          .font(.system(size: 34, weight: .regular, design: .serif))
+          .font(Typography.display)
           .foregroundStyle(Palette.ink)
       }
       #if DEBUG
         VStack {
           Spacer()
-          Button("Record a fixture") { isRecordingFixture = true }
-            .font(.footnote)
-            .foregroundStyle(Palette.inkDim)
-            .frame(minHeight: 44)
-            .padding(.bottom, 8)
+          HStack(spacing: 24) {
+            Button("Record a fixture") { isRecordingFixture = true }
+              .font(.footnote)
+              .foregroundStyle(Palette.inkDim)
+              .frame(minHeight: 44)
+            OrbGalleryButton()
+          }
+          .padding(.bottom, 8)
         }
       #endif
     }

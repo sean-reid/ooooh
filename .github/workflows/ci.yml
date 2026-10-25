@@ -56,10 +56,26 @@ jobs:
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath ui.xcresult
-          test
+          -only-testing:oooohUITests test
+      - run: >
+          xcodebuild -project ooooh.xcodeproj -scheme ooooh
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+          -derivedDataPath DerivedData -resultBundlePath design.xcresult
+          -only-testing:DesignTests test
+        env:
+          SIMCTL_CHILD_SNAPSHOT_ARTIFACTS: ${{ github.workspace }}/snapshot-failures
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ui-results
-          path: ui.xcresult
+          path: |
+            ui.xcresult
+            design.xcresult
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: snapshot-failures
+          path: snapshot-failures
+          if-no-files-found: ignore
           retention-days: 7

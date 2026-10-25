@@ -10,11 +10,15 @@ struct OooohApp: App {
     }
   }
 
-  /// Debug builds take `-ui-color-scheme light` so UI tests can screenshot both appearances.
-  private var colorScheme: ColorScheme {
+  /// Debug builds take `-ui-color-scheme light|dark` so UI tests can screenshot one appearance.
+  private var colorScheme: ColorScheme? {
     #if DEBUG
-      if UserDefaults.standard.string(forKey: "ui-color-scheme") == "light" { return .light }
+      switch UserDefaults.standard.string(forKey: "ui-color-scheme") {
+      case "light": return .light
+      case "dark": return .dark
+      default: break
+      }
     #endif
-    return .dark
+    return nil
   }
 }
