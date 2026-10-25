@@ -6,7 +6,7 @@ import Testing
 @Suite struct GovernorTests {
   func answers(
     good: Double = 0.2, kind: InterventionKind = .clarify, confidence: Double = 0.8,
-    struggle: Int = 1, momentum: Int = 5, finished: Double = 0.05,
+    struggle: Double = 1, momentum: Double = 5, finished: Double = 0.05,
     command: JevAnswers.Command = .none, commandConfidence: Double = 0.1
   ) -> JevAnswers {
     JevAnswers(
@@ -42,6 +42,16 @@ import Testing
     let stuck = g.floor(for: answers(struggle: 5, momentum: 1), signals: signals(at: 0, density: 0))
     #expect(flowing == 120)
     #expect(stuck == 30)
+  }
+
+  @Test func fractionalScoresMapOntoTheUnitRange() {
+    #expect(JevAnswers.Score(3.35, confidence: 0.6).unit == 0.5875)
+    #expect(JevAnswers.Score(0, confidence: 0.6).unit == 0)
+    #expect(JevAnswers.Score(6, confidence: 0.6).unit == 1)
+    let g = Governor(config: .initial)
+    let partway = g.floor(
+      for: answers(struggle: 3, momentum: 3), signals: signals(at: 0, density: 0.5))
+    #expect(partway == 75)
   }
 
   @Test func struggleShortensTheGap() {
