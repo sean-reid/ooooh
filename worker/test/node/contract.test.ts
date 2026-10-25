@@ -15,6 +15,7 @@ const decisionFixture = resolve(
 
 const env: Env = {
   ...vars,
+  REQUIRE_ATTESTATION: "false",
   BUDGET: memoryKV(),
   TYPESAFE_API_KEY: secret("TYPESAFE_API_KEY"),
   ANTHROPIC_API_KEY: secret("ANTHROPIC_API_KEY"),
@@ -137,7 +138,9 @@ describe("provider contracts", () => {
     const res = await post("/v1/speak", speakBody);
     expect(res.status, await res.clone().text()).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/mpeg");
-    expect(Number(res.headers.get("x-character-count"))).toBeGreaterThan(0);
+    expect(res.headers.get("x-character-count"), "ElevenLabs stopped sending the count").toMatch(
+      /^\d+$/,
+    );
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(1000);
   });
 });
