@@ -14,6 +14,7 @@ let package = Package(
     .library(name: "Proxy", targets: ["Proxy"]),
     .library(name: "Session", targets: ["Session"]),
     .library(name: "Persistence", targets: ["Persistence"]),
+    .library(name: "Billing", targets: ["Billing"]),
     .executable(name: "eval", targets: ["eval"]),
     .executable(name: "render-icon", targets: ["render-icon"]),
   ],
@@ -31,6 +32,7 @@ let package = Package(
       name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription", "Notes"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .target(name: "Persistence", dependencies: ["State", "Notes", "Session", "Transcription"]),
+    .target(name: "Billing", dependencies: ["Design"]),
     .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
     .testTarget(

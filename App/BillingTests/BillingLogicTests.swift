@@ -1,0 +1,34 @@
+import XCTest
+
+@testable import Billing
+
+/// Needs no StoreKit session, so it runs on every runtime.
+@MainActor
+final class BillingLogicTests: XCTestCase {
+  func testPriceLinesReadAsSpoken() {
+    XCTAssertEqual(Plan(id: .monthly, price: "$6.99").priceLine, "$6.99 a month")
+    XCTAssertEqual(
+      Plan(id: .yearly, price: "$49.99", perMonth: "$4.17").priceLine,
+      "$49.99 a year, $4.17 a month")
+  }
+
+  func testFreeSessionCountComesFromOutside() {
+    let store = BillingStore(plans: [])
+    XCTAssertEqual(store.entitlement, .free(remainingSessions: 3))
+    store.freeSessionsRemaining = 1
+    XCTAssertEqual(store.entitlement, .free(remainingSessions: 1))
+  }
+
+  func testOnlySubscribedAndGraceArePaid() {
+    XCTAssertTrue(Entitlement.subscribed(expires: .distantFuture, product: .monthly).isPaid)
+    XCTAssertTrue(Entitlement.inGrace.isPaid)
+    XCTAssertFalse(Entitlement.revoked.isPaid)
+    XCTAssertFalse(Entitlement.free(remainingSessions: 3).isPaid)
+  }
+
+  func testProductIDsAndGroup() {
+    XCTAssertEqual(ProductID.monthly.rawValue, "com.seanreid.ooooh.monthly")
+    XCTAssertEqual(ProductID.yearly.rawValue, "com.seanreid.ooooh.yearly")
+    XCTAssertEqual(ProductID.subscriptionGroup, "ooooh.listener")
+  }
+}
