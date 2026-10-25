@@ -37,6 +37,10 @@ To record a fixture, run a debug build on a phone, tap "Record a fixture" at the
 
 The store has three configurations: `.inMemory` for tests, `.local` for a device without iCloud, and `.cloud`, which syncs through the user's private CloudKit database in the container `iCloud.com.seanreid.ooooh`. The app passes `.local` until the capability exists in the developer portal, since a build with `.cloud` and no entitlement fails on launch. To turn sync on, add the iCloud capability with CloudKit and that container id to the app target in `project.yml`, plus `remote-notification` under `UIBackgroundModes` so the device picks up changes pushed from another one. The schema follows the CloudKit rules: every attribute has a default or is optional, every relationship is optional with an inverse, and nothing is marked unique.
 
+### Subscriptions
+
+Free is three sessions a month, each with 20 minutes of prompts. Paid is `com.seanreid.ooooh.monthly` at $6.99 or `com.seanreid.ooooh.yearly` at $49.99, both in the subscription group `ooooh.listener`, no trial, no introductory offer. `Packages/Sources/Billing` holds the store and the paywall. `App/Resources/Products.storekit` describes the products and the ooooh scheme loads it for Debug runs, so the simulator sells them before App Store Connect has a record; create them there later with the same ids and nothing in the app changes. `BillingTests` buys, refunds, and restores through StoreKitTest and snapshots the paywall; StoreKitTest needs the app as its host, so it runs on the simulator: `xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:BillingTests test`. The iOS 26.4 simulator runtime refuses StoreKit test sessions (Apple's FB22774836); on it the purchase tests skip and say so, and the snapshots still run.
+
 ### Worker routes
 
 | Path               | Provider                         | Returns                                                                        |
