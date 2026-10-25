@@ -38,6 +38,8 @@ export const compactBody = { state, transcript: segments };
 
 export const phraseBody = { kind: "clarify", state, recent: segments };
 
+export const notesBody = { state, transcript: segments };
+
 export const jevReply = {
   answers: {
     goodMoment: { type: "noul", noul: 0.82 },
@@ -107,6 +109,45 @@ const message = (text: string, usage = { input_tokens: 980, output_tokens: 120 }
 });
 
 export const haikuReply = message(JSON.stringify(haikuPatch));
+
+export const opusNotes = {
+  title: "Queue or sync layer",
+  summary: null,
+  ideas: [
+    {
+      id: "rebuild-removes-queue",
+      text: "A rebuild would remove the retry queue.",
+      span: { start: 120, end: 126 },
+    },
+  ],
+  decisions: [],
+  questions: [
+    {
+      id: "queue-or-sync",
+      text: "Is the queue or the sync layer the actual problem?",
+      span: { start: 120, end: 133 },
+    },
+  ],
+  insights: [],
+  actions: [],
+  openThreads: [
+    {
+      id: "who-owns-sync",
+      text: "Who owns the sync layer after the move.",
+      span: null,
+    },
+  ],
+  quotes: [
+    {
+      id: "back-and-forth",
+      text: "I keep going back and forth on that.",
+      span: { start: 127, end: 133 },
+    },
+  ],
+};
+
+export const opusReply = (notes: unknown = opusNotes) =>
+  message(JSON.stringify(notes), { input_tokens: 3100, output_tokens: 820 });
 
 export const longSentence =
   "Which part of the queue versus the sync layer question feels least clear to you right now today?";

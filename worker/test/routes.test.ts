@@ -9,6 +9,9 @@ import {
   haikuReply,
   jevReply,
   longSentence,
+  notesBody,
+  opusNotes,
+  opusReply,
   phraseBody,
   shortSentence,
   sonnetReply,
@@ -134,6 +137,88 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
+  });
+});
+
+describe("POST /v1/notes", () => {
+  const sent = () =>
+    bodyOf<{
+      model: string;
+      fallbacks: string;
+      thinking: { type: string };
+      output_config: { effort: string; format: { type: string; schema: { required: string[] } } };
+      messages: { content: string }[];
+    }>(upstream.requests[0]);
+
+  it("returns the notes and usage, dropping null spans and summary", async () => {
+    expectUpstream({ body: opusReply() });
+
+    const res = await post("/v1/notes", notesBody);
+    expect(res.status).toBe(200);
+    const { summary, openThreads, ...rest } = opusNotes;
+    void summary;
+    expect(await res.json()).toEqual({
+      notes: { ...rest, openThreads: [{ id: "who-owns-sync", text: openThreads[0].text }] },
+      usage: { inputTokens: 3100, outputTokens: 820 },
+    });
+    const request = sent();
+    expect(request.model).toBe("claude-opus-5-5");
+    expect(request.thinking).toEqual({ type: "adaptive" });
+    expect(request.fallbacks).toBe("default");
+    expect(upstream.requests[0].headers["anthropic-beta"]).toContain("server-side-fallback");
+    expect(request.output_config.effort).toBe("high");
+    expect(request.output_config.format.type).toBe("json_schema");
+    expect(request.output_config.format.schema.required).toContain("openThreads");
+    expect(request.messages[0].content).toContain("1. [120s to 126s] So the queue keeps retrying");
+  });
+
+  it("clamps a span that runs past the transcript and nulls one outside it", async () => {
+    const stray = {
+      ...opusNotes,
+      quotes: [
+        { ...opusNotes.quotes[0], span: { start: 125, end: 140 } },
+        { id: "after-the-end", text: "Said after the recording.", span: { start: 200, end: 210 } },
+        { id: "reversed", text: "Ends before it starts.", span: { start: 130, end: 121 } },
+      ],
+    };
+    expectUpstream({ body: opusReply(stray) });
+
+    const res = await post("/v1/notes", notesBody);
+    expect(res.status).toBe(200);
+    const { notes } = (await res.json()) as { notes: typeof opusNotes };
+    expect(notes.quotes).toEqual([
+      { ...opusNotes.quotes[0], span: { start: 125, end: 133 } },
+      { id: "after-the-end", text: "Said after the recording." },
+      { id: "reversed", text: "Ends before it starts." },
+    ]);
+  });
+
+  it("refuses notes that reuse an id across sections", async () => {
+    const colliding = {
+      ...opusNotes,
+      decisions: [{ id: "queue-or-sync", text: "Patch the queue first.", span: null }],
+    };
+    expectUpstream({ body: opusReply(colliding) });
+
+    const res = await post("/v1/notes", notesBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({
+      error: "bad notes",
+      field: "questions.queue-or-sync",
+      expected: "unique id",
+    });
+  });
+
+  it("refuses an id that is not a slug", async () => {
+    const shouty = {
+      ...opusNotes,
+      ideas: [{ id: "Rebuild Removes Queue", text: "A rebuild.", span: null }],
+    };
+    expectUpstream({ body: opusReply(shouty) });
+
+    const res = await post("/v1/notes", notesBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ field: "ideas.Rebuild Removes Queue" });
   });
 });
 

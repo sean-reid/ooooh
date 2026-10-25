@@ -10,6 +10,8 @@ import {
   fakeUpstream,
   haikuReply,
   jevReply,
+  notesBody,
+  opusReply,
   phraseBody,
   shortSentence,
   sonnetReply,
@@ -62,6 +64,7 @@ const cases = [
     body: phraseBody,
     replies: [{ body: sonnetReply(shortSentence) }],
   },
+  { name: "notes", path: "/v1/notes", body: notesBody, replies: [{ body: opusReply() }] },
 ];
 
 afterEach(() => vi.unstubAllGlobals());

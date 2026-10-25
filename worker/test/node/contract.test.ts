@@ -4,10 +4,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import worker from "../../src/index";
 import { memoryKV } from "../kv";
-import { compactBody, decideBody, phraseBody } from "../upstream";
+import { compactBody, decideBody, phraseBody, state } from "../upstream";
 
 // Real provider calls. Each runs only when its key is set, in the environment or in .dev.vars.
-const devVars = resolve(dirname(fileURLToPath(import.meta.url)), "../../.dev.vars");
+const here = dirname(fileURLToPath(import.meta.url));
+const devVars = resolve(here, "../../.dev.vars");
+const decisionFixture = resolve(here, "../../../fixtures/synthetic/estimate/decision.fixture.json");
 
 const secret = (name: string): string | undefined => {
   if (process.env[name]) return process.env[name];
@@ -82,4 +84,63 @@ describe("provider contracts", () => {
     expect(text.trim().split(/\s+/).length).toBeLessThanOrEqual(15);
     expect(text).not.toMatch(/\bI\b/);
   });
+
+  // Opus on 20 lines of the decision fixture: about 3,000 tokens in and 800 out.
+  it.skipIf(!anthropic)(
+    "Opus writes notes whose spans lie in the transcript",
+    async () => {
+      type Segment = { text: string; start: number; end: number };
+      const fixture = JSON.parse(readFileSync(decisionFixture, "utf8")) as { segments: Segment[] };
+      const transcript = fixture.segments
+        .slice(0, 20)
+        .map(({ text, start, end }) => ({ text, start, end }));
+      const notesState = {
+        ...state,
+        currentThread: "Carver Street or the apartment by the park, money against time.",
+        mainIdeas: [
+          {
+            id: "money-versus-time",
+            text: "The trade is a thousand a month against seven and a half hours a week.",
+            resolved: false,
+          },
+        ],
+        openQuestions: [],
+        recentTopics: ["apartments", "commute"],
+        mode: "converging",
+      };
+      const res = await post("/v1/notes", { state: notesState, transcript });
+      expect(res.status, await res.clone().text()).toBe(200);
+      type Item = { id: string; text: string; span?: { start: number; end: number } };
+      const body = (await res.json()) as {
+        notes: { title: string; summary?: string } & Record<string, Item[] | string | undefined>;
+        usage: { inputTokens: number; outputTokens: number };
+      };
+      const sections = [
+        "ideas",
+        "decisions",
+        "questions",
+        "insights",
+        "actions",
+        "openThreads",
+        "quotes",
+      ];
+      const counts = Object.fromEntries(
+        sections.map((name) => [name, (body.notes[name] as Item[]).length]),
+      );
+      console.log(`notes title: ${body.notes.title}`, counts, body.usage);
+      expect(body.notes.title.trim().length).toBeGreaterThan(0);
+      const items = sections.flatMap((name) => body.notes[name] as Item[]);
+      expect(items.length).toBeGreaterThan(0);
+      const last = transcript.at(-1)!.end;
+      for (const item of items) {
+        if (!item.span) continue;
+        expect(item.span.start).toBeGreaterThanOrEqual(0);
+        expect(item.span.end).toBeLessThanOrEqual(last);
+        expect(item.span.start).toBeLessThanOrEqual(item.span.end);
+      }
+      expect(new Set(items.map((i) => i.id)).size).toBe(items.length);
+      expect(body.usage.inputTokens).toBeGreaterThan(0);
+    },
+    180_000,
+  );
 });

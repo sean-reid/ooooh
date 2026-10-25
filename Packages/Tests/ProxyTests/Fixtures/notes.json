@@ -1,0 +1,48 @@
+{
+  "notes": {
+    "title": "Queue or sync layer",
+    "ideas": [
+      {
+        "id": "rebuild-removes-queue",
+        "text": "A rebuild would remove the retry queue.",
+        "span": {
+          "start": 120,
+          "end": 126
+        }
+      }
+    ],
+    "decisions": [],
+    "questions": [
+      {
+        "id": "queue-or-sync",
+        "text": "Is the queue or the sync layer the actual problem?",
+        "span": {
+          "start": 120,
+          "end": 133
+        }
+      }
+    ],
+    "insights": [],
+    "actions": [],
+    "openThreads": [
+      {
+        "id": "who-owns-sync",
+        "text": "Who owns the sync layer after the move."
+      }
+    ],
+    "quotes": [
+      {
+        "id": "back-and-forth",
+        "text": "I keep going back and forth on that.",
+        "span": {
+          "start": 127,
+          "end": 133
+        }
+      }
+    ]
+  },
+  "usage": {
+    "inputTokens": 3100,
+    "outputTokens": 820
+  }
+}
