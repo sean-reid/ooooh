@@ -77,3 +77,4 @@ schemes:
       targets:
         - oooohUITests
         - package: Packages/DesignTests
+        - package: Packages/NotesSnapshotTests

@@ -23,10 +23,11 @@ let package = Package(
     .target(name: "Design", resources: [.copy("Fonts")]),
     .target(name: "State"),
     .target(name: "Governor", dependencies: ["State"]),
-    .target(name: "Notes", dependencies: ["State"]),
+    .target(name: "Notes", dependencies: ["State", "Transcription", "Design"]),
     .target(name: "Transcription"),
     .target(name: "Audio"),
-    .target(name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription"]),
+    .target(
+      name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription", "Notes"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .executableTarget(name: "eval", dependencies: ["Session"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
@@ -38,6 +39,11 @@ let package = Package(
     .testTarget(name: "StateTests", dependencies: ["State"]),
     .testTarget(name: "GovernorTests", dependencies: ["Governor"]),
     .testTarget(name: "NotesTests", dependencies: ["Notes"]),
+    .testTarget(
+      name: "NotesSnapshotTests",
+      dependencies: [
+        "Notes", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+      ]),
     .testTarget(
       name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
     .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),

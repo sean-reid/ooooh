@@ -1,7 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { HttpError } from "./http";
 
-export const models = { compact: "claude-haiku-5-5", phrase: "claude-sonnet-5-5" } as const;
+export const models = {
+  compact: "claude-haiku-5-5",
+  phrase: "claude-sonnet-5-5",
+  notes: "claude-opus-5-5",
+} as const;
 
 const oauthBeta = "oauth-2025-04-20";
 
@@ -18,12 +22,12 @@ export const credential = (env: Env): Credential => {
   throw new HttpError(500, { error: "missing secret", name: "ANTHROPIC_API_KEY" });
 };
 
-export const anthropicClient = (cred: Credential) =>
+export const anthropicClient = (cred: Credential, options: { timeout?: number } = {}) =>
   new Anthropic({
     ...(cred.kind === "token" ? { authToken: cred.authToken } : { apiKey: cred.apiKey }),
     defaultHeaders: cred.betas.length ? { "anthropic-beta": cred.betas.join(",") } : {},
     maxRetries: 2,
-    timeout: 30_000,
+    timeout: options.timeout ?? 30_000,
   });
 
 export const upstreamError = (e: unknown): never => {

@@ -1,5 +1,6 @@
 import Foundation
 import Governor
+import Notes
 import State
 import Testing
 
@@ -36,6 +37,19 @@ import Testing
     let next = try CompactState.empty.applying(response.patch)
     #expect(next.uncertainties.map(\.id) == ["queue-or-sync"])
     #expect(next.recentTopics == ["sync", "queue", "retries"])
+  }
+
+  @Test func notesDecodeIntoSessionNotes() throws {
+    let response = try JSONDecoder().decode(
+      OpusNotesGenerator.Response.self, from: fixture("notes", "json"))
+    let notes = response.notes
+    #expect(notes.title == "Queue or sync layer")
+    #expect(notes.summary == nil)
+    #expect(notes.sections.map(\.name) == ["Ideas", "Questions", "Open threads", "Quotes"])
+    #expect(notes.ideas.first?.span == TranscriptSpan(start: 120, end: 126))
+    #expect(notes.openThreads.first?.span == nil)
+    #expect(notes.quotes.allSatisfy { !$0.edited && !$0.resolved })
+    #expect(response.usage == ProviderUsage(inputTokens: 3100, outputTokens: 820))
   }
 
   @Test func phraseDecodesToOneShortSentence() throws {

@@ -4,6 +4,7 @@ import { governorConfig } from "./config";
 import { HttpError, json, methodNotAllowed, notFound } from "./http";
 import { compact } from "./routes/compact";
 import { decide } from "./routes/decide";
+import { notesRoute } from "./routes/notes";
 import { phrase } from "./routes/phrase";
 
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
@@ -14,6 +15,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   "/v1/decide": { POST: guarded("jev", decide) },
   "/v1/compact": { POST: guarded("anthropic", compact) },
   "/v1/phrase": { POST: guarded("anthropic", phrase) },
+  "/v1/notes": { POST: guarded("anthropic", notesRoute) },
 };
 
 export default {
