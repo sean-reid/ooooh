@@ -243,7 +243,7 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
-    expect(await spent()).toBe(before + 1100);
+    expect(await spent()).toBe(before + 27.5);
   });
 
   it("names a reply cut off at max_tokens and still charges it", async () => {
@@ -253,7 +253,7 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "anthropic truncated", maxTokens: 4096 });
-    expect(await spent()).toBe(before + 1100);
+    expect(await spent()).toBe(before + 27.5);
   });
 });
 
@@ -326,7 +326,7 @@ describe("POST /v1/notes", () => {
     });
   });
 
-  it("charges input plus output tokens to the anthropic budget", async () => {
+  it("charges Opus input plus output tokens at full weight", async () => {
     expectUpstream({ body: opusReply() });
     const env = {
       BUDGET: memoryKV(),
@@ -357,6 +357,35 @@ describe("POST /v1/notes", () => {
     const res = await post("/v1/notes", notesBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ field: "ideas.Rebuild Removes Queue" });
+  });
+});
+
+describe("weighted Anthropic charges", () => {
+  it("charges each route by the model that answered: Haiku 0.025, Sonnet 0.5, Opus 1", async () => {
+    expectUpstream(
+      { body: haikuReply },
+      { body: sonnetReply(shortSentence) },
+      { body: opusReply() },
+    );
+    const before = await spent();
+    expect((await post("/v1/compact", compactBody)).status).toBe(200);
+    expect(await spent()).toBe(before + 0.025 * (980 + 120));
+    expect((await post("/v1/phrase", phraseBody)).status).toBe(200);
+    expect(await spent()).toBe(before + 27.5 + 0.5 * (640 + 18));
+    expect((await post("/v1/notes", notesBody)).status).toBe(200);
+    expect(await spent()).toBe(before + 27.5 + 329 + 3920);
+  });
+
+  it("charges the streamed phrase by the model in the final message", async () => {
+    expectUpstream({
+      body: sonnetStream(shortSentence),
+      headers: { "content-type": "text/event-stream" },
+    });
+    const before = await spent();
+    const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(await spent()).toBe(before + 0.5 * (640 + 18));
   });
 });
 

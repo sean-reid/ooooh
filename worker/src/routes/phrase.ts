@@ -7,7 +7,7 @@ import {
   upstreamError,
   type Credential,
 } from "../anthropic";
-import { charge } from "../budget";
+import { chargeModel } from "../budget";
 import { HttpError, json, readBody } from "../http";
 import { compactState, intervention, interventionKinds, segment, transcriptLines } from "../schema";
 import { array, obj, oneOf, optional } from "../validate";
@@ -22,8 +22,8 @@ const body = obj({
 });
 type Input = ReturnType<typeof body> & { cred: Credential; env: Env };
 
-const spent = (input: Input, usage: { input_tokens: number; output_tokens: number }) =>
-  charge(input.env, "anthropic", usage.input_tokens + usage.output_tokens);
+const spent = (input: Input, message: Anthropic.Beta.BetaMessage) =>
+  chargeModel(input.env, message.model, message.usage);
 
 const system = `You write the one sentence a quiet thinking companion says to someone thinking aloud. They are not talking to you. They are working something out and you occasionally hand them a question.
 
@@ -98,7 +98,7 @@ async function retryShorter(client: Anthropic, input: Input, first: string): Pro
       ]),
     )
     .catch(upstreamError);
-  await spent(input, response.usage);
+  await spent(input, response);
   if (response.stop_reason === "refusal") throw refused(response);
   const text = textOf(response.content).trim();
   return wordCount(text) > wordLimit ? truncateToLimit(text) : text;
@@ -111,7 +111,7 @@ async function phraseOnce(client: Anthropic, input: Input): Promise<string> {
   const response = await client.beta.messages
     .create(params(input, [{ role: "user", content: userMessage(input) }]))
     .catch(upstreamError);
-  await spent(input, response.usage);
+  await spent(input, response);
   if (response.stop_reason === "refusal") throw refused(response);
   return finalText(client, input, textOf(response.content).trim());
 }
@@ -137,7 +137,7 @@ function phraseStream(client: Anthropic, input: Input): Response {
           if (forwarding) send("delta", { text: event.delta.text });
         }
         const message = await upstream.finalMessage();
-        await spent(input, message.usage);
+        await spent(input, message);
         if (message.stop_reason === "refusal") throw refused(message);
         send("done", { text: await finalText(client, input, text.trim()) });
       } catch (e) {

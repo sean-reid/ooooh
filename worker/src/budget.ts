@@ -6,7 +6,7 @@ export type Provider = "jev" | "anthropic" | "elevenlabs";
 
 const dailyLimit: Record<Provider, (env: Env) => number> = {
   jev: (env) => envNumber(env.JEV_DAILY_TOKENS, 20_000_000),
-  anthropic: (env) => envNumber(env.ANTHROPIC_DAILY_TOKENS, 2_000_000),
+  anthropic: (env) => envNumber(env.ANTHROPIC_DAILY_TOKENS, 700_000),
   elevenlabs: (env) => envNumber(env.ELEVENLABS_DAILY_CHARACTERS, 20_000),
 };
 
@@ -43,6 +43,24 @@ export async function charge(
   const used = await readCount(env.BUDGET, key);
   await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
 }
+
+/** Each family's list price over Opus's, so the Anthropic cap counts Opus-equivalent tokens. */
+const modelWeights: [family: string, weight: number][] = [
+  ["haiku", 0.025],
+  ["sonnet", 0.5],
+  ["opus", 1],
+];
+
+/** A model outside the table is charged as Opus, so a fallback never undercounts. */
+export const modelWeight = (model: string) =>
+  modelWeights.find(([family]) => model.includes(family))?.[1] ?? 1;
+
+export const chargeModel = (
+  env: Env,
+  model: string,
+  usage: { input_tokens: number; output_tokens: number },
+  now = new Date(),
+) => charge(env, "anthropic", modelWeight(model) * (usage.input_tokens + usage.output_tokens), now);
 
 /** One device may make this many provider-backed requests a minute. */
 export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {

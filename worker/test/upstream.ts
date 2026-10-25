@@ -105,11 +105,15 @@ export const haikuPatch = {
   remove: [],
 };
 
-const message = (text: string, usage = { input_tokens: 980, output_tokens: 120 }) => ({
+const message = (
+  text: string,
+  usage = { input_tokens: 980, output_tokens: 120 },
+  model = "claude-haiku-5-5",
+) => ({
   id: "msg_01",
   type: "message",
   role: "assistant",
-  model: "claude-haiku-5-5",
+  model,
   content: [{ type: "text", text }],
   stop_reason: "end_turn",
   stop_sequence: null,
@@ -156,18 +160,18 @@ export const opusNotes = {
 };
 
 export const opusReply = (notes: unknown = opusNotes) =>
-  message(JSON.stringify(notes), { input_tokens: 3100, output_tokens: 820 });
+  message(JSON.stringify(notes), { input_tokens: 3100, output_tokens: 820 }, "claude-opus-5-5");
 
 export const longSentence =
   "Which part of the queue versus the sync layer question feels least clear to you right now today?";
 export const shortSentence = "Which part feels least clear, the queue or the sync?";
 
 export const sonnetReply = (text: string) =>
-  message(text, { input_tokens: 640, output_tokens: 18 });
+  message(text, { input_tokens: 640, output_tokens: 18 }, "claude-sonnet-5-5");
 
 export const sonnetStream = (text: string) => {
   const events: Array<[string, unknown]> = [
-    ["message_start", { type: "message_start", message: { ...message(""), content: [] } }],
+    ["message_start", { type: "message_start", message: { ...sonnetReply(""), content: [] } }],
     [
       "content_block_start",
       { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } },

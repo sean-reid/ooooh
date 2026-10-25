@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { charge, checkBudget, checkDeviceRate } from "../src/budget";
+import { charge, chargeModel, checkBudget, checkDeviceRate, modelWeight } from "../src/budget";
 import { HttpError } from "../src/http";
 import { startSession } from "../src/routes/session";
 import { checkSession } from "../src/session";
@@ -75,6 +75,33 @@ describe("budget", () => {
     expect(err.body.provider).toBe("jev");
     expect(err.body.retryAfter).toBeGreaterThan(0);
     expect(err.body.retryAfter).toBeLessThanOrEqual(24 * 3600);
+  });
+
+  it("weighs tokens by model so the cap is Opus-equivalent, and 700,000 is the default", async () => {
+    expect(modelWeight("claude-opus-5-5")).toBe(1);
+    expect(modelWeight("claude-sonnet-5-5")).toBe(0.5);
+    expect(modelWeight("claude-haiku-5-5")).toBe(0.025);
+    expect(modelWeight("claude-opus-5-5-20260601")).toBe(1);
+    expect(modelWeight("something-new")).toBe(1);
+
+    const usage = { input_tokens: 3000, output_tokens: 1000 };
+    await chargeModel(env, "claude-haiku-5-5", usage);
+    expect(await env.BUDGET.get(`budget:anthropic:${today}`)).toBe("100");
+    await chargeModel(env, "claude-sonnet-5-5", usage);
+    expect(await env.BUDGET.get(`budget:anthropic:${today}`)).toBe("2100");
+    await chargeModel(env, "claude-opus-5-5", usage);
+    expect(await env.BUDGET.get(`budget:anthropic:${today}`)).toBe("6100");
+
+    await charge(env, "anthropic", 700_000 - 6100 - 1);
+    await expect(
+      checkBudget({ ...env, ANTHROPIC_DAILY_TOKENS: "" }, "anthropic"),
+    ).resolves.toBeUndefined();
+    await chargeModel(env, "claude-haiku-5-5", { input_tokens: 40, output_tokens: 0 });
+    const err = await checkBudget({ ...env, ANTHROPIC_DAILY_TOKENS: "" }, "anthropic").catch(
+      (e) => e,
+    );
+    expect(err.status).toBe(503);
+    expect(err.body).toMatchObject({ error: "budget", provider: "anthropic", limit: 700_000 });
   });
 
   it("ignores non-positive charges", async () => {

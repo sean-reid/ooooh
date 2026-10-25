@@ -1,5 +1,5 @@
 import { anthropicClient, credential, models, textOf, upstreamError } from "../anthropic";
-import { charge } from "../budget";
+import { chargeModel } from "../budget";
 import { HttpError, json, readBody } from "../http";
 import { compactState, existingIds, listNames, modes, segment, transcriptLines } from "../schema";
 import { array, obj, oneOf, optional, str, ValidationError } from "../validate";
@@ -91,7 +91,7 @@ export async function compact(request: Request, env: Env): Promise<Response> {
       output_config: { effort: "low", format: { type: "json_schema", schema: patchSchema } },
     })
     .catch(upstreamError);
-  await charge(env, "anthropic", response.usage.input_tokens + response.usage.output_tokens);
+  await chargeModel(env, response.model, response.usage);
 
   if (response.stop_reason === "max_tokens") {
     throw new HttpError(502, { error: "anthropic truncated", maxTokens: compactMaxTokens });
