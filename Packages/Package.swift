@@ -57,5 +57,11 @@ let package = Package(
     .testTarget(name: "ProxyTests", dependencies: ["Proxy"], resources: [.copy("Fixtures")]),
     .testTarget(name: "PersistenceTests", dependencies: ["Persistence"]),
     .testTarget(name: "SettingsTests", dependencies: ["Settings", "Session"]),
+    .testTarget(
+      name: "SettingsSnapshotTests",
+      dependencies: [
+        "Settings", "Persistence",
+        .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+      ], exclude: ["__Snapshots__"]),
   ]
 )

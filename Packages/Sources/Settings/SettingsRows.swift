@@ -77,13 +77,17 @@ struct ChoiceRow<Choice: Hashable>: View {
   var title: String
   var choices: [(value: Choice, title: String)]
   @Binding var selection: Choice
+  @Environment(\.dynamicTypeSize) private var typeSize
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       Text(title)
         .font(Typography.body)
         .foregroundStyle(Palette.ink)
-      HStack(spacing: 8) {
+      let layout =
+        typeSize.isAccessibilitySize
+        ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+      layout {
         ForEach(choices, id: \.value) { choice in
           let chosen = choice.value == selection
           Button {
