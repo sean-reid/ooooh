@@ -5,7 +5,16 @@
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
   "workers_dev": true,
-  "vars": { "CONFIG_VERSION": "1" },
+  "vars": {
+    "CONFIG_VERSION": "1",
+    // Daily caps per provider, counted from the usage each response reports. Pick for the deployment.
+    "JEV_DAILY_TOKENS": "20000000",
+    "ANTHROPIC_DAILY_TOKENS": "2000000",
+    "ELEVENLABS_DAILY_CHARACTERS": "20000",
+    "DEVICE_MINUTE_REQUESTS": "60",
+  },
+  // Counters for the caps above. `wrangler kv namespace create BUDGET` prints the id to paste here.
+  "kv_namespaces": [{ "binding": "BUDGET", "id": "set-at-deploy" }],
   // Secrets, set with `wrangler secret put <NAME>` and read locally from .dev.vars:
   //   TYPESAFE_API_KEY    Jev, POST /v1/decide
   //   ANTHROPIC_API_KEY   Haiku and Sonnet, POST /v1/compact and /v1/phrase
