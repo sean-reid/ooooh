@@ -1,9 +1,12 @@
 import { charge } from "../budget";
 import { json, readBody, requireSecret, HttpError } from "../http";
 import { askJev, type JevAnswer } from "../jev/client";
-import { questions, questionsVersion, type QuestionName } from "../jev/questions";
+import { cueQuestions, questions, questionsVersion, type QuestionName } from "../jev/questions";
 import { compactState, intervention, segment, transcriptLines } from "../schema";
 import { array, bool, num, obj, optional } from "../validate";
+
+/// Jev reads the last few utterances verbatim; everything older lives in the compact state.
+const recentWindow = 6;
 
 const body = obj({
   state: compactState,
@@ -49,7 +52,8 @@ export async function decide(request: Request, env: Env): Promise<Response> {
     state,
     lastIntervention: last ? { kind: last.kind, text: last.text, at: last.at } : null,
     signals: input.signals,
-    recentTranscript: transcriptLines(input.recentTranscript),
+    recentTranscript: transcriptLines(input.recentTranscript.slice(-recentWindow)),
+    earlierLinesInWindow: Math.max(0, input.recentTranscript.length - recentWindow),
   };
 
   const res = await askJev(key, jevState);
@@ -62,7 +66,13 @@ export async function decide(request: Request, env: Env): Promise<Response> {
     momentum: score("momentum", a.momentum),
     seemsFinished: noul("seemsFinished", a.seemsFinished),
     addressesApp: choice("addressesApp", a.addressesApp),
-  } satisfies Record<keyof typeof questions, unknown>;
+    cues: Object.fromEntries(
+      (Object.keys(cueQuestions) as (keyof typeof cueQuestions)[]).map((name) => [
+        name,
+        noul(name, a[name]).probability,
+      ]),
+    ),
+  };
 
   return json({
     answers,

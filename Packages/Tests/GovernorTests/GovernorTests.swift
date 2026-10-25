@@ -1,3 +1,4 @@
+import Foundation
 import State
 import Testing
 
@@ -20,6 +21,29 @@ import Testing
 
   func signals(at now: Double, pause: Double = 2.5, density: Double = 0.8) -> Signals {
     Signals(now: now, pauseLength: pause, speechDensity: density)
+  }
+
+  @Test func weightedCueCanOpenTheGateAndUnknownCuesDoNot() {
+    var g = Governor(config: .initial)
+    var a = answers(good: 0.2)
+    a.cues = ["hangingQuestion": 0.8]
+    #expect(g.momentScore(a) == 0.8)
+    #expect(g.decide(a, signals: signals(at: 10)) == .prompt(.clarify))
+    var unknown = answers(good: 0.2)
+    unknown.cues = ["somethingNew": 0.99]
+    #expect(g.momentScore(unknown) == 0.2)
+    var g2 = Governor(config: .initial)
+    #expect(g2.decide(unknown, signals: signals(at: 10)) == .wait)
+  }
+
+  @Test func decodesAnswersWithoutCues() throws {
+    let json = """
+      {"goodMoment":{"probability":0.1},"intervention":{"choice":"deepen","confidence":0.5},
+       "articulationDifficulty":{"score":2.5,"confidence":0.4},"momentum":{"score":3,"confidence":0.4},
+       "seemsFinished":{"probability":0.05},"addressesApp":{"choice":"none","confidence":0.9}}
+      """
+    let a = try JSONDecoder().decode(JevAnswers.self, from: Data(json.utf8))
+    #expect(a.cues.isEmpty)
   }
 
   @Test func waitsWhenFlowing() {

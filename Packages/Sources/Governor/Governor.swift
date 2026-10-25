@@ -49,6 +49,14 @@ public struct Governor: Sendable {
   }
 
   /// Every utterance end is a check. Pause ticks are throttled to the minimum interval.
+  /// The largest of goodMoment and each cue scaled by its configured weight.
+  public func momentScore(_ answers: JevAnswers) -> Double {
+    let cues = answers.cues.compactMap { name, probability -> Double? in
+      config.cueWeights[name].map { min(1, probability * $0) }
+    }
+    return max(answers.goodMoment.probability, cues.max() ?? 0)
+  }
+
   public func shouldCheck(signals: Signals, utteranceEnded: Bool) -> Bool {
     if utteranceEnded { return true }
     if let last = lastCheckAt, signals.now - last < config.minCheckInterval { return false }
@@ -79,7 +87,7 @@ public struct Governor: Sendable {
       return .askIfFinished
     }
 
-    guard answers.goodMoment.probability >= config.speak.probability,
+    guard momentScore(answers) >= config.speak.probability,
       answers.intervention.confidence >= config.speak.confidence
     else { return .wait }
 

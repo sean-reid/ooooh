@@ -11,6 +11,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public var endSilence: TimeInterval
   public var checkPause: TimeInterval
   public var minCheckInterval: TimeInterval
+  /// Weight per cue name. The moment score is the largest of goodMoment and each weighted cue.
+  public var cueWeights: [String: Double]
 
   public init(
     version: Int,
@@ -21,7 +23,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     densityWindow: TimeInterval,
     endSilence: TimeInterval,
     checkPause: TimeInterval,
-    minCheckInterval: TimeInterval
+    minCheckInterval: TimeInterval,
+    cueWeights: [String: Double] = [:]
   ) {
     self.version = version
     self.floor = floor
@@ -32,6 +35,21 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     self.endSilence = endSilence
     self.checkPause = checkPause
     self.minCheckInterval = minCheckInterval
+    self.cueWeights = cueWeights
+  }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    version = try c.decode(Int.self, forKey: .version)
+    floor = try c.decode(FloorRange.self, forKey: .floor)
+    speak = try c.decode(Thresholds.self, forKey: .speak)
+    finished = try c.decode(Thresholds.self, forKey: .finished)
+    command = try c.decode(Thresholds.self, forKey: .command)
+    densityWindow = try c.decode(TimeInterval.self, forKey: .densityWindow)
+    endSilence = try c.decode(TimeInterval.self, forKey: .endSilence)
+    checkPause = try c.decode(TimeInterval.self, forKey: .checkPause)
+    minCheckInterval = try c.decode(TimeInterval.self, forKey: .minCheckInterval)
+    cueWeights = try c.decodeIfPresent([String: Double].self, forKey: .cueWeights) ?? [:]
   }
 
   public struct FloorRange: Codable, Equatable, Sendable {
@@ -64,6 +82,10 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     densityWindow: 120,
     endSilence: 30,
     checkPause: 2,
-    minCheckInterval: 3
+    minCheckInterval: 3,
+    cueWeights: [
+      "hangingQuestion": 1.0, "repeatsPoint": 1.0, "trailsOff": 0.8, "contradictsEarlier": 1.0,
+      "unnamedDecision": 1.0,
+    ]
   )
 }

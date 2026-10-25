@@ -77,6 +77,11 @@ export const jevReply = {
       confidence: 0.97,
       probabilities: { none: 0.97, recall: 0.02, wrapUp: 0.01 },
     },
+    hangingQuestion: { type: "noul", noul: 0.61 },
+    repeatsPoint: { type: "noul", noul: 0.44 },
+    trailsOff: { type: "noul", noul: 0.12 },
+    contradictsEarlier: { type: "noul", noul: 0.07 },
+    unnamedDecision: { type: "noul", noul: 0.09 },
   },
   usage: { input_tokens: 412 },
 };
