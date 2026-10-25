@@ -102,7 +102,10 @@ final class SessionController {
 
   /// `carrying` seeds the state with an open thread from a past session.
   func start(_ source: Source, carrying thread: OpenThread? = nil) async {
-    guard stage == .idle else { return }
+    switch stage {
+    case .idle, .failed: break
+    case .starting, .running, .ended: return
+    }
     stage = .starting
     do {
       var levels: AsyncStream<Double>?
@@ -165,7 +168,7 @@ final class SessionController {
         },
       ]
     } catch {
-      stage = .failed(error.localizedDescription)
+      stage = .failed(StartFailure.message(for: error))
       try? environment.audio.deactivate()
     }
   }

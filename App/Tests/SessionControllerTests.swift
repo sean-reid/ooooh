@@ -296,6 +296,39 @@ import Transcription
     #expect(try await store.sessions().count == 2)
   }
 
+  @Test func aFailedStartLeavesTheOrbRestingAndCanBeTriedAgain() async throws {
+    let controller = SessionController(
+      environment: environment(nil, speaker: Recorder(), haptics: Counter()))
+    let missing = shortFixture.deletingLastPathComponent().appending(path: "missing.json")
+
+    await controller.start(.fixture(missing, speed: .infinity))
+    #expect(controller.stage == .failed(StartFailure.unavailable))
+    #expect(controller.phase == .resting)
+    #expect(controller.level == 0)
+    #expect(controller.startedAt == nil)
+    #expect(controller.notes == nil)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.result?.transcript.count == 17)
+  }
+
+  @Test func startFailuresReadAsPlainWords() {
+    #expect(
+      StartFailure.message(for: SpeechAnalyzerError.unsupportedLocale(Locale(identifier: "en_US")))
+        == "Listening isn't available on this device yet.")
+    #expect(
+      StartFailure.message(for: SpeechAnalyzerError.assetsNotInstalled(Locale(identifier: "en_US")))
+        == "Listening isn't available on this device yet.")
+    #expect(
+      StartFailure.message(for: CaptureError.microphoneDenied)
+        == "Allow the microphone in Settings to start.")
+    #expect(
+      StartFailure.message(for: CaptureError.speechDenied)
+        == "Allow the microphone in Settings to start.")
+    #expect(!StartFailure.message(for: SpeechAnalyzerError.noMicrophoneInput).contains("en_US"))
+  }
+
   final class Seen: @unchecked Sendable {
     var states: [CompactState] = []
   }
