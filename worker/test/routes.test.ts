@@ -259,7 +259,6 @@ describe("POST /v1/notes", () => {
     expectUpstream({ body: opusReply() });
     const env = {
       BUDGET: memoryKV(),
-      CONFIG_VERSION: "1",
       ANTHROPIC_API_KEY: "sk-key",
       REQUIRE_ATTESTATION: "false",
     } as Env;
@@ -290,7 +289,7 @@ describe("POST /v1/notes", () => {
 });
 
 describe("Anthropic credentials", () => {
-  const env = { BUDGET: memoryKV(), CONFIG_VERSION: "1", REQUIRE_ATTESTATION: "false" } as Env;
+  const env = { BUDGET: memoryKV(), REQUIRE_ATTESTATION: "false" } as Env;
   const request = () =>
     new Request("https://ooooh.test/v1/compact", {
       method: "POST",
