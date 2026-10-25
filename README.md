@@ -2,7 +2,7 @@
 
 An iPhone app for people who think better by talking but dislike speaking into silence. You talk for as long as you need. The app listens, keeps track, and stays quiet, except when it notices you circling, hesitating, or leaving an idea unresolved. Then it asks one short question and goes quiet again. When you stop, it turns the session into notes: ideas, decisions, questions, insights, actions, open threads, and the lines worth keeping.
 
-Transcription runs on the phone. The decision about when to speak is made by Jev, a model that returns typed answers rather than text. Prompts are phrased by Claude and spoken by ElevenLabs. A small Cloudflare Worker holds the keys and stores nothing.
+Transcription runs on the phone. The decision about when to speak is made by Jev, a model that returns typed answers rather than text. Prompts are phrased by Claude and spoken by ElevenLabs. A small Cloudflare Worker holds the provider keys and stores only each device's App Attest public key and its counters.
 
 iOS 26 or later, iPhone only.
 
@@ -39,12 +39,16 @@ The store has three configurations: `.inMemory` for tests, `.local` for a device
 
 ### Worker routes
 
-| Path               | Provider                         | Returns                                                                        |
-| ------------------ | -------------------------------- | ------------------------------------------------------------------------------ |
-| `POST /v1/decide`  | Jev (`jev-latest`)               | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens` |
-| `POST /v1/compact` | Claude Haiku                     | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`    |
-| `POST /v1/phrase`  | Claude Sonnet                    | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`      |
-| `POST /v1/speak`   | ElevenLabs (`eleven_v4_turbo`)   | `audio/mpeg` streamed as it is made, `x-character-count` in the headers        |
+| Path                     | Provider                       | Returns                                                                           |
+| ------------------------ | ------------------------------ | --------------------------------------------------------------------------------- |
+| `POST /v1/decide`        | Jev (`jev-latest`)             | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens`    |
+| `POST /v1/compact`       | Claude Haiku                   | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`       |
+| `POST /v1/phrase`        | Claude Sonnet                  | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`         |
+| `POST /v1/speak`         | ElevenLabs (`eleven_v4_turbo`) | `audio/mpeg` streamed as it is made, `x-character-count` in the headers           |
+| `GET /v1/challenge`      | none                           | `{ challenge }`, 32 random bytes in base64, good once for five minutes            |
+| `POST /v1/attest`        | none                           | 204 once the App Attest attestation checks out, 401 with a `reason` otherwise     |
+| `POST /v1/session/start` | none                           | `{ allowed, free, remainingFree, promptMinutes }` or `{ allowed: false, reason }` |
+| `POST /v1/session/end`   | none                           | 204, after `{ minutes }` is added to the month's usage                            |
 
 Bodies are JSON, capped at 256 KiB. A bad field comes back as 422 with the field named. A rate-limited provider comes back as 503 with `retryAfter` in seconds.
 
@@ -67,7 +71,19 @@ When a session ends the app posts the compact state and the whole transcript to 
 
 ### Caps
 
-Every provider-backed route runs behind two checks before it calls upstream. A per-device limit of `DEVICE_MINUTE_REQUESTS` requests a minute, keyed on the `x-device` header or the client IP, answers 429 with `retry-after`. A daily cap per provider, `JEV_DAILY_TOKENS`, `ANTHROPIC_DAILY_TOKENS`, and `ELEVENLABS_DAILY_CHARACTERS`, counted in the `BUDGET` KV namespace from the usage each response reports, answers 503 with the provider, the count, and seconds until the UTC day rolls over. The defaults in `wrangler.jsonc` are about a dollar a day per provider; change them per deployment, not in code. Create the namespace once with `wrangler kv namespace create BUDGET` and paste the id into `wrangler.jsonc`.
+Every provider-backed route runs behind two checks before it calls upstream. A per-device limit of `DEVICE_MINUTE_REQUESTS` requests a minute, keyed on the attested key id (or the `x-device` header, else the client IP, when attestation is off), answers 429 with `retry-after`. A daily cap per provider, `JEV_DAILY_TOKENS`, `ANTHROPIC_DAILY_TOKENS`, and `ELEVENLABS_DAILY_CHARACTERS`, counted in the `BUDGET` KV namespace from the usage each response reports, answers 503 with the provider, the count, and seconds until the UTC day rolls over. The defaults in `wrangler.jsonc` are about a dollar a day per provider; change them per deployment, not in code. Create the namespace once with `wrangler kv namespace create BUDGET` and paste the id into `wrangler.jsonc`.
+
+### Authentication
+
+There are no accounts; the device is the identity. A phone proves itself with App Attest once per install: it generates a key, fetches a challenge from `GET /v1/challenge`, asks Apple to attest the key over SHA256 of that challenge, and posts the key id, the attestation, and the challenge to `POST /v1/attest`. The Worker checks the certificate chain against Apple's App Attest root, the nonce, the key id against the certified key, the RP ID hash against `APP_ATTEST_APP_ID`, a zero counter, and the aaguid for `APP_ATTEST_ENVIRONMENT`, then stores the public key in KV under `device:<keyId>` with no expiry. From then on every provider and session request carries `x-device` with the key id and `x-assertion` with an assertion over SHA256 of the body, and the Worker checks the signature, the RP ID hash, and that the counter moved forward, answering 401 with `unknown-device`, `bad-assertion`, or `replay` when one fails. The rate limit above then counts against the verified key id. `/health` and `/v1/config` stay open.
+
+The vars in `wrangler.jsonc`: `REQUIRE_ATTESTATION` (`true`), `APP_ATTEST_APP_ID` (`C6UWR42ZAP.com.seanreid.ooooh`), `APP_ATTEST_ENVIRONMENT` (`production`, or `development` for a development-signed build), `FREE_SESSIONS_PER_MONTH` (3), and `FREE_PROMPT_MINUTES` (20). `APP_ATTEST_ROOT_PEM` replaces Apple's root with another PEM; the tests set it to a root they generate, a deployment leaves it unset.
+
+App Attest does not run on the simulator, so put `REQUIRE_ATTESTATION=false` in `worker/.dev.vars`. The routes then take `x-device` as a plain label and otherwise key on the client address, which is what `npm run dev` plus a simulator build needs. On the Swift side `ProxyClient.attestor(baseURL:session:)` returns `DeviceAttestation` when `DCAppAttestService.isSupported` and `SimulatorAttestor`, which sends nothing, otherwise. `DeviceAttestation` keeps the key id in the keychain, enrols on the first request, and enrols again with a fresh key when Apple reports the old one invalid.
+
+Sessions are free three times a month per device, 20 prompt minutes each, counted by UTC month. `POST /v1/session/start` decides and counts at the start, and `POST /v1/session/end` with `{ minutes }` records what the session used. `entitlement()` in `worker/src/entitlement.ts` answers `free` for every device until the StoreKit check replaces it; a device it reports as `paid` skips the count.
+
+The Worker tests build attestations and assertions in Apple's exact CBOR and X.509 layout from keys they generate, including a P-384 root in Apple's shape, and check that Apple's real root parses and is self-signed. Nothing runs against Apple itself, since the simulator cannot attest; the first end-to-end run is a device build against a deployed Worker.
 
 The Design package has snapshot tests that render the orb and the session screen with ImageRenderer and compare against the PNGs in `Packages/Tests/DesignTests/__Snapshots__`. `NotesSnapshotTests` does the same for the notes screen. They need UIKit, so run them on the simulator: `xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:DesignTests -only-testing:NotesSnapshotTests test`. Record on the iPhone 17 Pro simulator, since text rendering differs between devices. To re-record after a visual change, delete the PNGs you changed and run again, or run with `SIMCTL_CHILD_SNAPSHOT_TESTING_RECORD=all` in the environment; then look at the new PNGs before committing them. A failed comparison writes the rendered image and a diff to the path in `SIMCTL_CHILD_SNAPSHOT_ARTIFACTS`, which CI uploads as the `snapshot-failures` artifact.
 
