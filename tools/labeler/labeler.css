@@ -52,8 +52,8 @@ main {
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
-.utt.marked {
-  border-left: 3px solid var(--amber);
+.utt.marked time {
+  color: var(--amber);
 }
 .utt .tag {
   color: var(--amber);
