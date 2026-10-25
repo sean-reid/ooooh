@@ -42,17 +42,17 @@ public struct JevAnswers: Codable, Equatable, Sendable {
     }
   }
 
-  /// A rubric score from 1 to 5 with a confidence.
+  /// A rubric score from 1 to 5 with a confidence. Fractional, since Jev averages over the levels.
   public struct Score: Codable, Equatable, Sendable {
-    public var score: Int
+    public var score: Double
     public var confidence: Double
-    public init(_ score: Int, confidence: Double) {
+    public init(_ score: Double, confidence: Double) {
       self.score = score
       self.confidence = confidence
     }
 
     /// 0 for the lowest rubric step, 1 for the highest.
-    public var unit: Double { Double(score - 1) / 4 }
+    public var unit: Double { min(max((score - 1) / 4, 0), 1) }
   }
 
   public enum Command: String, Codable, Sendable {

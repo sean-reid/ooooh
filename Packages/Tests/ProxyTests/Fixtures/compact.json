@@ -1,0 +1,24 @@
+{
+  "patch": {
+    "currentThread": "Deciding between rebuilding the sync layer and patching the retry queue.",
+    "mode": "converging",
+    "recentTopics": [
+      "sync",
+      "queue",
+      "retries"
+    ],
+    "add": [
+      {
+        "list": "uncertainties",
+        "id": "queue-or-sync",
+        "text": "Unsure whether the queue or the sync layer is the real problem."
+      }
+    ],
+    "resolve": [],
+    "remove": []
+  },
+  "usage": {
+    "inputTokens": 980,
+    "outputTokens": 120
+  }
+}

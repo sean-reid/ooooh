@@ -1,0 +1,33 @@
+event: delta
+data: {"text":"Which "}
+
+event: delta
+data: {"text":"part "}
+
+event: delta
+data: {"text":"feels "}
+
+event: delta
+data: {"text":"least "}
+
+event: delta
+data: {"text":"clear, "}
+
+event: delta
+data: {"text":"the "}
+
+event: delta
+data: {"text":"queue "}
+
+event: delta
+data: {"text":"or "}
+
+event: delta
+data: {"text":"the "}
+
+event: delta
+data: {"text":"sync? "}
+
+event: done
+data: {"text":"Which part feels least clear, the queue or the sync?"}
+
