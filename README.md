@@ -25,6 +25,26 @@ npm run dev                            # wrangler dev on http://localhost:8787
 
 To record a fixture, run a debug build on a phone, tap "Record a fixture" at the bottom of the home screen, then Start. Talk, then Stop. A share sheet offers two files named from the session start, `yyyy-MM-dd-HHmmss.json` with the final segments and `yyyy-MM-dd-HHmmss.caf` with the microphone audio. They also stay in the app's Documents folder under `fixtures/`, visible in the Files app. Load the JSON into `tools/labeler/` to mark the moments, or replay it with `FixtureTranscriber`.
 
+### Worker routes
+
+| Path               | Provider           | Returns                                                                        |
+| ------------------ | ------------------ | ------------------------------------------------------------------------------ |
+| `POST /v1/decide`  | Jev (`jev-latest`) | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens` |
+| `POST /v1/compact` | Claude Haiku       | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`    |
+| `POST /v1/phrase`  | Claude Sonnet      | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`      |
+
+Bodies are JSON, capped at 256 KiB. A bad field comes back as 422 with the field named. A rate-limited provider comes back as 503 with `retryAfter` in seconds.
+
+The Worker reads two secrets. Set them once per deployment and put the same names in `worker/.dev.vars` for local runs:
+
+```sh
+cd worker
+wrangler secret put TYPESAFE_API_KEY
+wrangler secret put ANTHROPIC_API_KEY
+```
+
+`npm test` runs every route against a fake upstream and skips the three contract tests. With the keys in `.dev.vars` or the environment, the contract tests call each provider once with a small state and check the response shape. `WRITE_FIXTURES=1 npx vitest run --project node` rewrites `Packages/Tests/ProxyTests/Fixtures` from the fake upstream; `ProxyTests` decodes those files, so a shape change on either side fails one of the two suites.
+
 ## Layout
 
 - `App/` is the thin app target. Everything it does lives in a package.
