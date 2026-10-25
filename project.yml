@@ -58,6 +58,8 @@ targets:
       configs:
         Debug:
           OOOOH_WORKER_URL: http://localhost:8787
+        Release:
+          EXCLUDED_SOURCE_FILE_NAMES: decision.fixture.json
   oooohTests:
     type: bundle.unit-test
     platform: iOS
