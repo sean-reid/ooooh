@@ -102,13 +102,15 @@ public actor SessionStore {
         modelContext.delete(thread)
       }
     }
-    for item in notes.openThreads {
+    for (order, item) in notes.openThreads.enumerated() {
       if let thread = threads.first(where: { $0.sourceNoteItemSlug == item.id }) {
+        thread.order = order
         if !keptSlugs.contains(item.id) {
           thread.text = item.text
         }
       } else {
         let thread = StoredThread(text: item.text, sourceNoteItemSlug: item.id)
+        thread.order = order
         thread.resolved = item.resolved
         thread.sourceSession = session
         modelContext.insert(thread)

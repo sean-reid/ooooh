@@ -7,38 +7,40 @@ import Transcription
 @Suite struct PacedTranscriberTests {
   @Test func finalSegmentsArriveAtTheirEndTimes() async throws {
     let fixture = try SessionLoopTests().fixture()
-    let paced = PacedTranscriber(FixtureTranscriber(fixture: fixture), speed: 40)
-    let clock = ContinuousClock()
-    let start = clock.now
-    var arrivals: [(expected: TimeInterval, actual: TimeInterval)] = []
-    for await event in paced.events() {
-      switch event {
-      case .speechStarted(let at):
-        arrivals.append((at / 40, start.duration(to: clock.now).seconds))
-      case .segment(let segment):
-        arrivals.append((segment.end / 40, start.duration(to: clock.now).seconds))
-      default:
-        break
+    let clock = TestClock()
+    let paced = PacedTranscriber(FixtureTranscriber(fixture: fixture), speed: 40, clock: clock)
+    var iterator = paced.events().makeAsyncIterator()
+    var arrivals = 0
+    for segment in fixture.segments where segment.isFinal {
+      for expected in [segment.start, segment.end] {
+        let due = TestClock.Instant(offset: .seconds(expected / 40))
+        while clock.sleeping == 0 { await Task.yield() }
+        clock.advance(to: due)
+        let event = await iterator.next()
+        #expect(clock.now == due)
+        switch event {
+        case .speechStarted(let at): #expect(at == segment.start)
+        case .segment(let got): #expect(got.end == segment.end)
+        default: Issue.record("unexpected \(String(describing: event))")
+        }
+        arrivals += 1
       }
+      let ended = await iterator.next()
+      #expect(ended == .speechEnded(at: segment.end))
     }
-    #expect(arrivals.count == 34)
-    for (expected, actual) in arrivals {
-      #expect(actual >= expected - 0.001)
-      #expect(actual - expected < 0.15)
-    }
-    let total = start.duration(to: clock.now).seconds
-    #expect(total >= 87.8 / 40)
+    #expect(arrivals == 34)
+    #expect(await iterator.next() == .ended)
   }
 
-  @Test func infiniteSpeedNeverWaits() async throws {
+  @Test func infiniteSpeedNeverSleeps() async throws {
     let fixture = try SessionLoopTests().fixture()
-    let paced = PacedTranscriber(FixtureTranscriber(fixture: fixture), speed: .infinity)
-    let clock = ContinuousClock()
-    let elapsed = await clock.measure {
-      var count = 0
-      for await _ in paced.events() { count += 1 }
-      #expect(count == 52)
-    }
-    #expect(elapsed < .milliseconds(100))
+    let clock = TestClock()
+    let paced = PacedTranscriber(
+      FixtureTranscriber(fixture: fixture), speed: .infinity, clock: clock)
+    var count = 0
+    for await _ in paced.events() { count += 1 }
+    #expect(count == 52)
+    #expect(clock.now.offset == .zero)
+    #expect(clock.sleeping == 0)
   }
 }
