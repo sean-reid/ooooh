@@ -1,0 +1,60 @@
+{
+  "fixture": "late-night",
+  "labels": [
+    {
+      "utterance": 1,
+      "at": 16.676,
+      "kind": "leave"
+    },
+    {
+      "utterance": 3,
+      "at": 58.084,
+      "kind": "leave"
+    },
+    {
+      "utterance": 5,
+      "at": 111.761,
+      "kind": "leave"
+    },
+    {
+      "utterance": 7,
+      "at": 174.715,
+      "kind": "leave"
+    },
+    {
+      "utterance": 9,
+      "at": 208.545,
+      "kind": "leave"
+    },
+    {
+      "utterance": 12,
+      "at": 257.337,
+      "kind": "leave"
+    },
+    {
+      "utterance": 15,
+      "at": 320.583,
+      "kind": "leave"
+    },
+    {
+      "utterance": 17,
+      "at": 385.183,
+      "kind": "leave"
+    },
+    {
+      "utterance": 19,
+      "at": 436.244,
+      "kind": "leave"
+    },
+    {
+      "utterance": 20,
+      "at": 462.929,
+      "kind": "leave"
+    },
+    {
+      "utterance": 22,
+      "at": 501.914,
+      "kind": "finished"
+    }
+  ]
+}

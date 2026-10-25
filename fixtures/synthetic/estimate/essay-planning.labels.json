@@ -1,0 +1,20 @@
+{
+  "fixture": "essay-planning",
+  "labels": [
+    {
+      "utterance": 15,
+      "at": 178.57,
+      "kind": "deepen"
+    },
+    {
+      "utterance": 22,
+      "at": 265.016,
+      "kind": "summarize"
+    },
+    {
+      "utterance": 35,
+      "at": 401.538,
+      "kind": "finished"
+    }
+  ]
+}

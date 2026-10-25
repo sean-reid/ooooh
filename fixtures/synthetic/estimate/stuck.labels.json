@@ -1,0 +1,25 @@
+{
+  "fixture": "stuck",
+  "labels": [
+    {
+      "utterance": 9,
+      "at": 120.222,
+      "kind": "reflect"
+    },
+    {
+      "utterance": 11,
+      "at": 137.622,
+      "kind": "clarify"
+    },
+    {
+      "utterance": 27,
+      "at": 328.898,
+      "kind": "challenge"
+    },
+    {
+      "utterance": 33,
+      "at": 385.26,
+      "kind": "finished"
+    }
+  ]
+}

@@ -17,3 +17,6 @@ dist/
 data/
 .DS_Store
 worker-configuration.d.ts
+
+# Synthetic audio and say-timed fixtures are regenerated, not tracked
+fixtures/synthetic/audio/

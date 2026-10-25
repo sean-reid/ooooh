@@ -1,0 +1,172 @@
+{
+  "segments": [
+    {
+      "text": "Okay, the talk proposal. Deadline is Friday, it is three hundred words, and I have, um, nothing. I have a title I do not like.",
+      "start": 0,
+      "end": 9.915,
+      "isFinal": true
+    },
+    {
+      "text": "The talk is about the migration. The big one, the one that took a year and was supposed to take a quarter. Everyone has one of those but ours had the thing where we did it live with no downtime.",
+      "start": 10.715,
+      "end": 26.4,
+      "isFinal": true
+    },
+    {
+      "text": "So the hook is the no downtime part. Or, no. The hook is that it took four times longer and that was fine. That is the interesting part. That it was fine.",
+      "start": 27.1,
+      "end": 39.708,
+      "isFinal": true
+    },
+    {
+      "text": "Who is this for though. Like, who is sitting in the room.",
+      "start": 40.708,
+      "end": 45.623,
+      "isFinal": true
+    },
+    {
+      "text": "Um. Anyway. The three arguments I want to make. One, the estimate was wrong because we estimated the code and not the data. Two, going slow was cheaper than going fast, even though it looked more expensive on paper, because of the cost of a bad cutover.",
+      "start": 50.623,
+      "end": 69,
+      "isFinal": true
+    },
+    {
+      "text": "Three, the thing about telling people. We told stakeholders every two weeks and nobody panicked, versus the other team that went dark for a quarter and got cancelled.",
+      "start": 69.6,
+      "end": 80.669,
+      "isFinal": true
+    },
+    {
+      "text": "So, estimation, cost, communication. Those are the three. That is already a structure.",
+      "start": 81.569,
+      "end": 86.869,
+      "isFinal": true
+    },
+    {
+      "text": "The cost one is the one I think people will push back on. Because a year of three people is, um, it is a lot, and saying that was cheaper sounds like a rationalization.",
+      "start": 88.069,
+      "end": 101.446,
+      "isFinal": true
+    },
+    {
+      "text": "The argument is, a bad cutover would have cost us a week of downtime for the warehouse, which is, I worked this out once, about four hundred thousand in missed shipments. And three people for nine extra months is, like, three fifty. So slow was cheaper by fifty grand, even before you count the thing where nobody quit.",
+      "start": 102.146,
+      "end": 124.754,
+      "isFinal": true
+    },
+    {
+      "text": "Okay, that is good, that is the number I need in the proposal.",
+      "start": 125.754,
+      "end": 131.054,
+      "isFinal": true
+    },
+    {
+      "text": "Title. The current title is, Migrating Without Downtime, which is boring and also not the point. The point is slow was fine.",
+      "start": 135.054,
+      "end": 143.816,
+      "isFinal": true
+    },
+    {
+      "text": "Something like, It Took Four Times Longer And That Was Fine. Hm. Too long. The Year Long Quarter? Too cute.",
+      "start": 144.416,
+      "end": 152.408,
+      "isFinal": true
+    },
+    {
+      "text": "Slow Migrations Are Cheaper. That is a claim. People argue with claims, which means they come to the talk. Okay, that one for now.",
+      "start": 153.208,
+      "end": 162.739,
+      "isFinal": true
+    },
+    {
+      "text": "Now the three hundred words. Um. First paragraph is the setup, one quarter became one year, no downtime. Second paragraph is the three arguments. Third is who should come and what they leave with.",
+      "start": 163.839,
+      "end": 177.216,
+      "isFinal": true
+    },
+    {
+      "text": "Who should come. Right, that is the question I skipped. Um. Engineering managers, I think. People who have to defend a timeline to someone above them. Not the people doing the migration, the people explaining it.",
+      "start": 177.916,
+      "end": 192.062,
+      "isFinal": true
+    },
+    {
+      "text": "That changes the talk a bit. If it is for managers then the communication argument is the headline, not the cost one.",
+      "start": 192.962,
+      "end": 201.724,
+      "isFinal": true
+    },
+    {
+      "text": "No wait, that is a different question. The audience changes the order, not the content. The content is still the three things.",
+      "start": 203.024,
+      "end": 211.786,
+      "isFinal": true
+    },
+    {
+      "text": "Okay so, order for a manager audience. Communication first because that is their job, then cost because that is what they get asked, then estimation last because that is the lesson.",
+      "start": 212.586,
+      "end": 224.809,
+      "isFinal": true
+    },
+    {
+      "text": "Hang on, what did I say about the cost thing? The number. I had a number for how much slow saved and I have lost it.",
+      "start": 230.309,
+      "end": 240.609,
+      "isFinal": true
+    },
+    {
+      "text": "Right, fifty grand. Fifty grand and nobody quit. That is the line. Slow saved fifty grand and nobody quit.",
+      "start": 243.109,
+      "end": 250.717,
+      "isFinal": true
+    },
+    {
+      "text": "Um, I should be careful with the warehouse number in public. Four hundred thousand for a week of downtime is an internal estimate. I will say, roughly, a week of shipments, and let people do their own math.",
+      "start": 251.617,
+      "end": 266.532,
+      "isFinal": true
+    },
+    {
+      "text": "Okay. The estimation argument. The estimate was wrong because we estimated the code. The code was, honestly, the code was right, we did the code in a quarter. The data took the other three quarters.",
+      "start": 267.532,
+      "end": 281.294,
+      "isFinal": true
+    },
+    {
+      "text": "Because the data had eleven years of, um, of exceptions. Every edge case anyone ever handled by hand was in there as a weird row. And you cannot estimate that by reading the schema.",
+      "start": 281.894,
+      "end": 295.271,
+      "isFinal": true
+    },
+    {
+      "text": "So the lesson is, estimate the data by sampling it, not by reading the schema. Take a thousand rows, try to migrate them, count the failures. That is a half day and it would have told us.",
+      "start": 296.071,
+      "end": 310.602,
+      "isFinal": true
+    },
+    {
+      "text": "That is the most useful thing in the talk, probably. A half day of sampling would have turned a one quarter estimate into a four quarter estimate.",
+      "start": 311.802,
+      "end": 322.487,
+      "isFinal": true
+    },
+    {
+      "text": "Alright. I think I have what I need. Three arguments, order for managers, the fifty grand line, the sampling lesson, and a title that is a claim.",
+      "start": 326.987,
+      "end": 337.672,
+      "isFinal": true
+    },
+    {
+      "text": "Okay, let's wrap up.",
+      "start": 338.372,
+      "end": 340.21,
+      "isFinal": true
+    },
+    {
+      "text": "Yeah, that is it. I will write the three hundred words tomorrow morning.",
+      "start": 342.21,
+      "end": 347.51,
+      "isFinal": true
+    }
+  ]
+}
