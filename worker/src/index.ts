@@ -8,6 +8,7 @@ import { decide } from "./routes/decide";
 import { notesRoute } from "./routes/notes";
 import { phrase } from "./routes/phrase";
 import { attest, challenge } from "./routes/attest";
+import { endSession, startSession } from "./routes/session";
 import { speak } from "./routes/speak";
 
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
@@ -17,6 +18,8 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   "/v1/config": { GET: () => json(governorConfig) },
   "/v1/challenge": { GET: challenge },
   "/v1/attest": { POST: attest },
+  "/v1/session/start": { POST: attested(startSession) },
+  "/v1/session/end": { POST: attested(endSession) },
   "/v1/decide": { POST: attested(guarded("jev", decide)) },
   "/v1/compact": { POST: attested(guarded("anthropic", compact)) },
   "/v1/phrase": { POST: attested(guarded("anthropic", phrase)) },

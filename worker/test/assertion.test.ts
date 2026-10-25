@@ -144,6 +144,17 @@ describe("assertion middleware", () => {
     expect(upstream.pending()).toBe(0);
   });
 
+  it("guards the session routes the same way", async () => {
+    const body = "{}";
+    expect(await reason(await post("/v1/session/start", body, {}))).toBe("bad-assertion");
+    const res = await post("/v1/session/start", body, await assertionHeaders(device, body, 1));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ allowed: true, free: true, remainingFree: 2 });
+    expect(
+      await env.BUDGET.get(`sessions:${device.keyId}:${new Date().toISOString().slice(0, 7)}`),
+    ).toBe("1");
+  });
+
   it("leaves health and config open", async () => {
     expect((await call("/health")).status).toBe(200);
     expect((await call("/v1/config")).status).toBe(200);
