@@ -1,11 +1,6 @@
-import {
-  AttestationError,
-  fromBase64,
-  settingsFrom,
-  toBase64,
-  verifyAttestation,
-} from "../attest/verify";
 import { callerFrom } from "../attest/device";
+import { AttestationError, settingsFrom, verifyAttestation } from "../attest/verify";
+import { fromBase64, toBase64 } from "../bytes";
 import { deviceKey, unauthorized, type DeviceRecord } from "../attest/record";
 import { checkDeviceRate } from "../budget";
 import { HttpError, json, readBody } from "../http";

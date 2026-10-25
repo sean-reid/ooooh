@@ -1,12 +1,14 @@
-import { decodeCbor, field, isBytes, isList, isText, type Bytes } from "./cbor";
+import { equalBytes, sha256, toBase64, type Bytes } from "../bytes";
 import {
+  chainsTo,
   children,
-  ecdsaDerToRaw,
+  importSpki,
   parseCertificate,
   pemToDer,
   readDer,
   type Certificate,
-} from "./der";
+} from "../x509";
+import { decodeCbor, field, isBytes, isList, isText } from "./cbor";
 import { appleAppAttestRootPem } from "./root";
 
 export type AttestationFailure =
@@ -40,29 +42,6 @@ export const settingsFrom = (env: Env): AttestationSettings => ({
 
 const nonceExtension = "1.2.840.113635.100.8.2";
 
-export const sha256 = async (...parts: Bytes[]) => {
-  const total = parts.reduce((n, p) => n + p.length, 0);
-  const joined = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
-    joined.set(part, offset);
-    offset += part.length;
-  }
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", joined));
-};
-
-export const equalBytes = (a: Bytes, b: Bytes) =>
-  a.length === b.length && a.every((byte, i) => byte === b[i]);
-
-export const toBase64 = (bytes: Bytes) => btoa(String.fromCharCode(...bytes));
-export const fromBase64 = (text: string) => {
-  try {
-    return Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
-  } catch {
-    return null;
-  }
-};
-
 const aaguid = (environment: AttestationSettings["environment"]) => {
   const out = new Uint8Array(16);
   out.set(
@@ -70,31 +49,6 @@ const aaguid = (environment: AttestationSettings["environment"]) => {
   );
   return out;
 };
-
-const importSpki = (cert: Certificate) =>
-  crypto.subtle.importKey("spki", cert.spki, { name: "ECDSA", namedCurve: cert.curve }, true, [
-    "verify",
-  ]);
-
-export const signedBy = async (cert: Certificate, issuer: Certificate) => {
-  const key = await importSpki(issuer);
-  const size = issuer.curve === "P-256" ? 32 : 48;
-  return crypto.subtle.verify(
-    { name: "ECDSA", hash: cert.signatureHash },
-    key,
-    ecdsaDerToRaw(cert.signature, size),
-    cert.tbs,
-  );
-};
-
-async function verifyChain(chain: Certificate[], root: Certificate, now: Date) {
-  for (let i = 0; i < chain.length; i++) {
-    const cert = chain[i];
-    if (now < cert.notBefore || now > cert.notAfter) throw new AttestationError("bad-chain");
-    const issuer = chain[i + 1] ?? root;
-    if (!(await signedBy(cert, issuer))) throw new AttestationError("bad-chain");
-  }
-}
 
 /** The extension holds `SEQUENCE { [1] OCTET STRING nonce }`. */
 const nonceFrom = (cert: Certificate) => {
@@ -146,7 +100,7 @@ export async function verifyAttestation(
   }
 
   const root = parseCertificate(pemToDer(settings.rootPem ?? appleAppAttestRootPem));
-  await verifyChain(chain, root, now);
+  if (!(await chainsTo(chain, root, now))) throw new AttestationError("bad-chain");
 
   const credCert = chain[0];
   const nonce = await sha256(authData, await sha256(challenge));

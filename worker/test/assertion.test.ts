@@ -2,7 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import type { DeviceRecord } from "../src/attest/record";
-import { sha256, toBase64 } from "../src/attest/verify";
+import { sha256, toBase64 } from "../src/bytes";
 import {
   assertionHeaders,
   buildAssertion,

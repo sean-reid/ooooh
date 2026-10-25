@@ -1,5 +1,6 @@
 // Enough of RFC 8949 to read an App Attest attestation or assertion: definite lengths only.
-export type Bytes = Uint8Array<ArrayBuffer>;
+import type { Bytes } from "../bytes";
+
 export type Cbor = number | Bytes | string | boolean | null | Cbor[] | Map<Cbor, Cbor>;
 
 export class CborError extends Error {}

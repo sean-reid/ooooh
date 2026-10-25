@@ -1,7 +1,8 @@
-import { decodeCbor, field, isBytes, type Bytes } from "./cbor";
-import { ecdsaDerToRaw } from "./der";
+import { equalBytes, sha256, type Bytes } from "../bytes";
+import { ecdsaDerToRaw } from "../x509";
+import { decodeCbor, field, isBytes } from "./cbor";
 import type { DeviceRecord } from "./record";
-import { equalBytes, sha256, type AttestationSettings } from "./verify";
+import type { AttestationSettings } from "./verify";
 
 export type AssertionFailure = "bad-assertion" | "replay";
 

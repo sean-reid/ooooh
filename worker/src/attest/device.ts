@@ -1,7 +1,8 @@
+import { fromBase64, sha256 } from "../bytes";
 import { readBytes } from "../http";
 import { AssertionError, verifyAssertion } from "./assertion";
 import { deviceKey, unauthorized, type DeviceRecord } from "./record";
-import { fromBase64, settingsFrom, sha256 } from "./verify";
+import { settingsFrom } from "./verify";
 
 export type DeviceHandler = (
   request: Request,
