@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy policy, ooooh</title>
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body class="doc">
+    <div class="wrap">
+      <header>
+        <a class="back" href="./">ooooh</a>
+        <h1>Privacy policy</h1>
+        <p class="updated">
+          Last updated <time datetime="2026-10-25">October 25, 2026</time>
+        </p>
+      </header>
+
+      <main>
+        <p>
+          ooooh is an iPhone app made by me, Sean Reid. This page says what the
+          app does with your words, where they go, and what I can and can't see.
+          It's short because there isn't much to tell.
+        </p>
+
+        <h2>What I collect</h2>
+        <p>
+          Nothing that identifies you. The app has no accounts. You never give
+          it a name, an email address, or a password. The device is the
+          identity: Apple's App Attest proves to my server that a request comes
+          from a real copy of the app on a real iPhone, and StoreKit proves
+          whether that device has a subscription.
+        </p>
+        <p>
+          My server keeps counters: how many requests it served, how many
+          minutes, how many prompts, and how many times a provider failed. It
+          also keeps a monthly count of free sessions per device, keyed on an
+          App Attest key identifier, and a per-device count of requests in the
+          last minute that expires within minutes. The key identifier is a
+          random value Apple issues to your copy of the app. I can't turn it
+          back into you.
+        </p>
+
+        <h2>Where your words go and why</h2>
+        <p>
+          Your speech is transcribed on the phone by Apple's speech framework.
+          The audio never leaves the device.
+        </p>
+        <p>
+          The transcript text and a compact structured summary of the session
+          go, as text, through a server I run on Cloudflare Workers to three
+          providers. Each one gets what it needs for one job:
+        </p>
+        <ul>
+          <li>
+            TypeSafe AI runs the Jev model. It reads the transcript and the
+            summary and decides whether the app should speak.
+          </li>
+          <li>
+            Anthropic runs Claude. It maintains the summary, phrases each
+            question, and writes the notes at the end.
+          </li>
+          <li>ElevenLabs turns each question into speech.</li>
+        </ul>
+        <p>
+          My server stores none of this. It passes the request through, adds one
+          to a counter, and forgets it. Each provider handles the text under its
+          own terms. I don't know how long each one keeps it, and I'd rather
+          tell you that than guess.
+        </p>
+
+        <h2>What stays on your phone</h2>
+        <p>
+          Raw audio is discarded when a session ends. If you turn on the keep
+          switch for a session, the audio stays in the app's storage on your
+          phone and nowhere else. Notes, transcripts, and settings are stored on
+          the device with SwiftData.
+        </p>
+
+        <h2>iCloud</h2>
+        <p>
+          Notes, transcripts, and settings sync through your own iCloud account
+          using CloudKit. That data sits in your iCloud, under your Apple
+          account and Apple's terms. I have no access to it.
+        </p>
+
+        <h2>Subscriptions</h2>
+        <p>
+          Three sessions a month are free. After that the app offers a
+          subscription through the App Store at $6.99 a month or $49.99 a year.
+          Apple bills you and Apple refunds you, under Apple's terms. I learn
+          that a device has a subscription and nothing about how you paid.
+        </p>
+
+        <h2>Analytics</h2>
+        <p>
+          Crash reports and performance metrics reach me through Apple's
+          MetricKit and Xcode crash reporting, under the analytics settings on
+          your iPhone. If you've turned off sharing with app developers, I get
+          nothing. There is no third-party analytics SDK in the app.
+        </p>
+
+        <h2>Your controls</h2>
+        <p>
+          From settings you can delete one session, delete everything, or export
+          everything as Markdown. Deleting removes the data from your phone and
+          from your iCloud. My server has nothing to delete except the aggregate
+          counters, which aren't linked to a person.
+        </p>
+
+        <h2>Children</h2>
+        <p>
+          You must be 13 or older to use ooooh. The app is not directed at
+          children, and I don't knowingly collect anything from them.
+        </p>
+
+        <h2>Changes</h2>
+        <p>
+          If the app starts doing something different with your data, I'll
+          update this page and the date at the top before the change ships.
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          Sean Reid,
+          <a href="mailto:hello@ooooh.app"
+            >hello@ooooh.app</a
+          >.
+        </p>
+      </main>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <a href="./">ooooh</a>
+        <a href="terms.html">Terms</a>
+        <span class="made">Made by Sean Reid</span>
+      </div>
+    </footer>
+  </body>
+</html>
