@@ -51,10 +51,24 @@ public struct Governor: Sendable {
   /// Every utterance end is a check. Pause ticks are throttled to the minimum interval.
   /// The largest of goodMoment and each cue scaled by its configured weight.
   public func momentScore(_ answers: JevAnswers) -> Double {
-    let cues = answers.cues.compactMap { name, probability -> Double? in
-      config.cueWeights[name].map { min(1, probability * $0) }
+    moment(answers).score
+  }
+
+  /// The score and the cue that produced it, nil when goodMoment itself is the largest.
+  func moment(_ answers: JevAnswers) -> (score: Double, cue: String?) {
+    var best: (score: Double, cue: String?) = (answers.goodMoment.probability, nil)
+    for (name, weight) in config.cueWeights {
+      guard let probability = answers.cues[name] else { continue }
+      let score = min(1, probability * weight)
+      if score > best.score { best = (score, name) }
     }
-    return max(answers.goodMoment.probability, cues.max() ?? 0)
+    return best
+  }
+
+  /// The kind to ask: the opening cue's kind when configured, else Jev's intervention choice.
+  public func kind(for answers: JevAnswers) -> InterventionKind {
+    if let cue = moment(answers).cue, let kind = config.cueKinds[cue] { return kind }
+    return answers.intervention.choice
   }
 
   public func shouldCheck(signals: Signals, utteranceEnded: Bool) -> Bool {
@@ -96,6 +110,6 @@ public struct Governor: Sendable {
     }
 
     lastPromptAt = signals.now
-    return .prompt(answers.intervention.choice)
+    return .prompt(kind(for: answers))
   }
 }

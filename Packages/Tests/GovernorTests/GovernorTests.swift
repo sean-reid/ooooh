@@ -25,10 +25,11 @@ import Testing
 
   @Test func weightedCueCanOpenTheGateAndUnknownCuesDoNot() {
     var g = Governor(config: .initial)
-    var a = answers(good: 0.2)
-    a.cues = ["hangingQuestion": 0.8]
-    #expect(g.momentScore(a) == 0.8)
-    #expect(g.decide(a, signals: signals(at: 10)) == .prompt(.clarify))
+    var a = answers(good: 0.2, kind: .summarize)
+    a.cues = ["trailsOff": 0.7]
+    #expect(abs(g.momentScore(a) - 0.966) < 0.001)
+    #expect(g.kind(for: a) == .deepen)
+    #expect(g.decide(a, signals: signals(at: 10)) == .prompt(.deepen))
     var unknown = answers(good: 0.2)
     unknown.cues = ["somethingNew": 0.99]
     #expect(g.momentScore(unknown) == 0.2)

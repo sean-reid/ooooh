@@ -111,7 +111,9 @@ func dump(_ run: Run, _ result: SessionResult) {
       a.intervention.confidence, a.articulationDifficulty.score, a.momentum.score,
       a.seemsFinished.probability, a.addressesApp.choice.rawValue, a.addressesApp.confidence,
       labeled(at: at), String(describing: decision))
-    print(line)
+    let cues = a.cues.sorted { $0.key < $1.key }
+      .map { String(format: "%@=%.2f", $0.key, $0.value) }.joined(separator: " ")
+    print(line + (cues.isEmpty ? "" : " cues " + cues))
   }
 }
 

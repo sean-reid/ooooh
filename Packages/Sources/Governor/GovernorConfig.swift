@@ -1,4 +1,5 @@
 import Foundation
+import State
 
 /// Thresholds and ranges. Served by the Worker, cached on device, versioned.
 public struct GovernorConfig: Codable, Equatable, Sendable {
@@ -13,6 +14,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public var minCheckInterval: TimeInterval
   /// Weight per cue name. The moment score is the largest of goodMoment and each weighted cue.
   public var cueWeights: [String: Double]
+  /// The kind to ask when a cue opens the gate. Falls back to the intervention choice.
+  public var cueKinds: [String: InterventionKind]
 
   public init(
     version: Int,
@@ -24,7 +27,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     endSilence: TimeInterval,
     checkPause: TimeInterval,
     minCheckInterval: TimeInterval,
-    cueWeights: [String: Double] = [:]
+    cueWeights: [String: Double] = [:],
+    cueKinds: [String: InterventionKind] = [:]
   ) {
     self.version = version
     self.floor = floor
@@ -36,6 +40,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     self.checkPause = checkPause
     self.minCheckInterval = minCheckInterval
     self.cueWeights = cueWeights
+    self.cueKinds = cueKinds
   }
 
   public init(from decoder: Decoder) throws {
@@ -50,6 +55,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     checkPause = try c.decode(TimeInterval.self, forKey: .checkPause)
     minCheckInterval = try c.decode(TimeInterval.self, forKey: .minCheckInterval)
     cueWeights = try c.decodeIfPresent([String: Double].self, forKey: .cueWeights) ?? [:]
+    cueKinds = try c.decodeIfPresent([String: InterventionKind].self, forKey: .cueKinds) ?? [:]
   }
 
   public struct FloorRange: Codable, Equatable, Sendable {
@@ -76,16 +82,14 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public static let initial = GovernorConfig(
     version: 1,
     floor: FloorRange(min: 30, max: 120),
-    speak: Thresholds(probability: 0.75, confidence: 0.6),
+    speak: Thresholds(probability: 0.9, confidence: 0),
     finished: Thresholds(probability: 0.9, confidence: 0.7),
     command: Thresholds(probability: 0.9, confidence: 0.7),
     densityWindow: 120,
     endSilence: 30,
     checkPause: 2,
     minCheckInterval: 3,
-    cueWeights: [
-      "hangingQuestion": 1.0, "repeatsPoint": 1.0, "trailsOff": 0.8, "contradictsEarlier": 1.0,
-      "unnamedDecision": 1.0,
-    ]
+    cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
+    cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]
   )
 }
