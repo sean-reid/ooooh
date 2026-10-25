@@ -31,6 +31,15 @@ public actor SessionLoop {
     }
   }
 
+  /// A decision waiting for the pause to hold. Phrasing runs while it waits.
+  struct Arm {
+    var kind: ArmedPrompt
+    var due: TimeInterval
+    var text: Task<String, Never>?
+    /// The governor before the decision, restored when speech cuts the arm short.
+    var governor: Governor
+  }
+
   let config: GovernorConfig
   let policy: CompactionPolicy
   let deps: Dependencies
@@ -43,6 +52,7 @@ public actor SessionLoop {
   var checkIndex = 0
   var lastCompactionAt: TimeInterval = 0
   var lastSpeechEnd: TimeInterval = 0
+  var arm: Arm?
   var ended = false
 
   public init(
@@ -55,6 +65,9 @@ public actor SessionLoop {
     self.governor = Governor(config: config)
     self.state = state
   }
+
+  /// When the armed decision speaks, nil while nothing is armed.
+  public var armDue: TimeInterval? { arm?.due }
 
   /// Consumes the whole stream and returns what happened.
   public func run(_ transcriber: any Transcriber) async -> SessionResult {
@@ -70,9 +83,10 @@ public actor SessionLoop {
 
   func handle(_ event: TranscriptEvent) async {
     switch event {
-    case .speechStarted:
-      break
+    case .speechStarted(let at):
+      await resolveArm(speechAt: at)
     case .segment(let segment):
+      await resolveArm(speechAt: segment.start)
       guard segment.isFinal else { return }
       transcript.append(segment)
       uncompacted.append(segment)
@@ -89,12 +103,30 @@ public actor SessionLoop {
   /// A pause the client measured with no new speech. The fixture driver calls this
   /// for the gap after each segment; the live client calls it on a timer.
   public func pause(until now: TimeInterval) async {
+    await speakArmed(by: now)
     guard !ended else { return }
     let pause = now - lastSpeechEnd
     await check(at: now, pause: pause, utteranceEnded: false)
   }
 
+  /// Speaks the armed decision when `now` has reached its due time.
+  public func speakArmed(by now: TimeInterval) async {
+    guard let arm, now >= arm.due else { return }
+    await speak(arm)
+  }
+
+  /// Speech at `at` either came after the due time, so the prompt spoke first, or cuts the arm short.
+  func resolveArm(speechAt at: TimeInterval) async {
+    guard let arm else { return }
+    if at >= arm.due {
+      await speak(arm)
+    } else {
+      cancel(arm, at: at)
+    }
+  }
+
   func check(at now: TimeInterval, pause: TimeInterval, utteranceEnded: Bool) async {
+    guard arm == nil else { return }
     let signals = Signals(
       now: now, pauseLength: pause, speechDensity: density(at: now),
       awaitingFinishedReply: governor.finishedAskedAt != nil)
@@ -104,6 +136,7 @@ public actor SessionLoop {
       state: state, recentTranscript: uncompacted, signals: signals, checkIndex: checkIndex)
     checkIndex += 1
     guard let answers = try? await deps.decisions.check(input) else { return }
+    let before = governor
     let decision = governor.decide(answers, signals: signals)
     records.append(.check(at: now, index: input.checkIndex, answers: answers, decision: decision))
 
@@ -111,11 +144,9 @@ public actor SessionLoop {
     case .wait:
       break
     case .prompt(let kind):
-      let text = (try? await deps.phraser.phrase(kind, state: state, recent: uncompacted)) ?? ""
-      state.lastIntervention = .init(kind: kind, text: text, at: now)
-      records.append(.prompt(at: now, kind: kind, text: text))
+      await arm(.intervention(kind), at: now, restoring: before)
     case .askIfFinished:
-      records.append(.askedIfFinished(at: now))
+      await arm(.finishedQuestion, at: now, restoring: before)
     case .endSession:
       await end(at: now, byUser: false)
     case .command(let command):
@@ -126,9 +157,44 @@ public actor SessionLoop {
     }
   }
 
+  /// Holds the decision until the pause since the last utterance end reaches the arming delay.
+  func arm(_ kind: ArmedPrompt, at now: TimeInterval, restoring governor: Governor) async {
+    var text: Task<String, Never>?
+    if case .intervention(let kind) = kind {
+      let (state, recent, phraser) = (state, uncompacted, deps.phraser)
+      text = Task { (try? await phraser.phrase(kind, state: state, recent: recent)) ?? "" }
+    }
+    let due = max(lastSpeechEnd + config.armingDelay, now)
+    arm = Arm(kind: kind, due: due, text: text, governor: governor)
+    records.append(.promptArmed(at: now, kind: kind))
+    await speakArmed(by: now)
+  }
+
+  func speak(_ arm: Arm) async {
+    self.arm = nil
+    switch arm.kind {
+    case .intervention(let kind):
+      let text = await arm.text?.value ?? ""
+      state.lastIntervention = .init(kind: kind, text: text, at: arm.due)
+      records.append(.prompt(at: arm.due, kind: kind, text: text))
+    case .finishedQuestion:
+      records.append(.askedIfFinished(at: arm.due))
+    }
+  }
+
+  func cancel(_ arm: Arm, at now: TimeInterval) {
+    self.arm = nil
+    arm.text?.cancel()
+    governor = arm.governor
+    records.append(.promptCancelled(at: now))
+  }
+
   /// Folds whatever is still raw into the state, then closes the session.
   func end(at now: TimeInterval, byUser: Bool) async {
     guard !ended else { return }
+    if let arm {
+      cancel(arm, at: now)
+    }
     if !uncompacted.isEmpty {
       await compactIfDue(at: now, force: true)
     }

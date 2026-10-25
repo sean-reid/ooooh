@@ -50,24 +50,30 @@ import Transcription
     }
     #expect(prompts.count == 1)
     #expect(prompts.first?.0 == "What sits underneath that?")
-    #expect(prompts.first?.1 == 14.0)
+    #expect(prompts.first?.1 == 15.5)
   }
 
   @Test func timerFiresPauseChecksWhileNoSpeechArrives() async throws {
     var config = GovernorConfig.initial
     config.checkPause = 0.5
     config.minCheckInterval = 0.25
+    let clock = TestClock()
     let (events, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
     let open = OpenTranscriber(stream: events)
     let live = LiveSessionLoop(
-      config: config, dependencies: base.deps(SilentDecisionProvider()), transcriber: open)
+      config: config, dependencies: base.deps(SilentDecisionProvider()), transcriber: open,
+      clock: clock)
     await live.start()
+    var iterator = live.events().makeAsyncIterator()
     continuation.yield(.speechStarted(at: 0))
     continuation.yield(.segment(Segment(text: "one", start: 0, end: 0.5, isFinal: true)))
     continuation.yield(.speechEnded(at: 0.5))
-    try await Task.sleep(for: .seconds(1.8))
+    _ = await iterator.next(until: \.isSpeechEnded)
+    while clock.sleeping == 0 { await Task.yield() }
+    clock.advance(to: .init(offset: .seconds(2.3)))
+    while clock.sleeping == 0 { await Task.yield() }
     await live.end()
-    let result = try result(of: await collect(live))
+    let result = try result(of: await iterator.rest())
 
     let pauses = result.records.compactMap { record -> TimeInterval? in
       if case .check(let at, _, _, let decision) = record, at > 0.5, decision == .wait {
@@ -76,11 +82,7 @@ import Transcription
         nil
       }
     }
-    #expect(pauses.count >= 3)
-    #expect(pauses.first.map { abs($0 - 1.0) < 0.001 } == true)
-    for (a, b) in zip(pauses, pauses.dropFirst()) {
-      #expect(abs(b - a - 0.25) < 0.001)
-    }
+    #expect(pauses == [1.0, 1.25, 1.5, 1.75, 2.0, 2.25])
     #expect(result.records.last == .ended(at: 0.5, byUser: true))
   }
 
@@ -133,4 +135,20 @@ struct OpenTranscriber: Transcriber {
   let stream: AsyncStream<TranscriptEvent>
   func events() -> AsyncStream<TranscriptEvent> { stream }
   func stop() async {}
+}
+
+extension AsyncStream<SessionEvent>.Iterator {
+  /// Reads up to and including the first event the predicate accepts, or to the end.
+  mutating func next(until accept: (SessionEvent) -> Bool) async -> [SessionEvent] {
+    var seen: [SessionEvent] = []
+    while let event = await next() {
+      seen.append(event)
+      if accept(event) { break }
+    }
+    return seen
+  }
+
+  mutating func rest() async -> [SessionEvent] {
+    await next(until: { _ in false })
+  }
 }

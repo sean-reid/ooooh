@@ -56,15 +56,17 @@ import Transcription
       dependencies: deps(firing(.deepen, afterUtteranceEnding: 14.0)))
     #expect(result.prompts.count == 1)
     #expect(result.prompts.first?.kind == .deepen)
-    #expect(result.prompts.first?.at == 14.0)
+    #expect(result.prompts.first?.at == 15.5)
     #expect(result.state.lastIntervention?.text == "What sits underneath that?")
+    #expect(result.records.contains(.promptArmed(at: 14.0, kind: .intervention(.deepen))))
   }
 
   @Test func wrapsUpAfterFinishedThenSilence() async throws {
     let result = await FixtureDriver.run(
       fixture: try fixture(), config: .initial,
       dependencies: deps(firing(.clarify, afterUtteranceEnding: -1, finishedAt: 87.8)))
-    #expect(result.finishedAsks == [87.8])
+    #expect(result.records.contains(.promptArmed(at: 87.8, kind: .finishedQuestion)))
+    #expect(result.finishedAsks == [89.3])
     guard case .ended(let at, let byUser) = result.records.last! else {
       Issue.record("session did not end")
       return

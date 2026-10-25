@@ -3,15 +3,17 @@ import Governor
 import State
 import Transcription
 
-/// Runs a loop against a transcriber on the wall clock. The gaps between
-/// utterances get the pause checks `FixtureDriver` inserts: a timer fires them
-/// when the clock is ahead of the transcriber, and the next utterance catches
-/// up any that the clock did not reach, so a fixture at any speed yields the
-/// records the driver would.
+/// Runs a loop against a transcriber on a clock. The gaps between utterances
+/// get the pause checks `FixtureDriver` inserts: a timer fires them when the
+/// clock is ahead of the transcriber, and the next utterance catches up any
+/// that the clock did not reach, so a fixture at any speed yields the records
+/// the driver would. The same timer speaks an armed decision when its pause
+/// has held.
 public actor LiveSessionLoop {
   let loop: SessionLoop
   let transcriber: any Transcriber
   let config: GovernorConfig
+  let clock: LoopClock
   let levels: AsyncStream<Double>?
   let offline: AsyncStream<Bool>?
   let stream: AsyncStream<SessionEvent>
@@ -21,16 +23,17 @@ public actor LiveSessionLoop {
   private var forwarders: [Task<Void, Never>] = []
   private var timer: Task<Void, Never>?
   private var nextTick: TimeInterval?
+  private var armDue: TimeInterval?
   private var emitted = 0
   private var loopEnded = false
   private var completed = false
-  private var startedAt: ContinuousClock.Instant?
+  private var startedAt: Duration?
 
-  public init(
+  public init<C: Clock>(
     config: GovernorConfig, policy: CompactionPolicy = .standard,
     dependencies: SessionLoop.Dependencies, transcriber: any Transcriber,
-    levels: AsyncStream<Double>? = nil, offline: AsyncStream<Bool>? = nil
-  ) {
+    levels: AsyncStream<Double>? = nil, offline: AsyncStream<Bool>? = nil, clock: C
+  ) where C.Duration == Duration {
     let (stream, continuation) = AsyncStream.makeStream(of: SessionEvent.self)
     var dependencies = dependencies
     dependencies.phraser = AnnouncingPhraser(base: dependencies.phraser) { kind in
@@ -39,17 +42,28 @@ public actor LiveSessionLoop {
     self.loop = SessionLoop(config: config, policy: policy, dependencies: dependencies)
     self.transcriber = transcriber
     self.config = config
+    self.clock = LoopClock(clock)
     self.levels = levels
     self.offline = offline
     self.stream = stream
     self.continuation = continuation
   }
 
+  public init(
+    config: GovernorConfig, policy: CompactionPolicy = .standard,
+    dependencies: SessionLoop.Dependencies, transcriber: any Transcriber,
+    levels: AsyncStream<Double>? = nil, offline: AsyncStream<Bool>? = nil
+  ) {
+    self.init(
+      config: config, policy: policy, dependencies: dependencies, transcriber: transcriber,
+      levels: levels, offline: offline, clock: ContinuousClock())
+  }
+
   public nonisolated func events() -> AsyncStream<SessionEvent> { stream }
 
   public func start() {
     guard consumer == nil, !completed else { return }
-    startedAt = .now
+    startedAt = clock.now()
     consumer = Task { await consume() }
     if let levels {
       forwarders.append(
@@ -79,6 +93,8 @@ public actor LiveSessionLoop {
         await catchUp(before: at)
         cancelTimer()
         continuation.yield(.speechStarted(at: at))
+        await loop.handle(event)
+        await drain()
       case .segment(let segment):
         if segment.isFinal {
           await catchUp(before: segment.start)
@@ -88,7 +104,8 @@ public actor LiveSessionLoop {
         await drain()
         if segment.isFinal, !loopEnded {
           continuation.yield(.utterance(segment))
-          schedule(from: segment.end)
+          nextTick = segment.end + config.checkPause
+          scheduleTimer()
         }
       case .speechEnded(let at):
         await loop.handle(event)
@@ -101,32 +118,33 @@ public actor LiveSessionLoop {
     await complete()
   }
 
-  private func schedule(from end: TimeInterval) {
-    nextTick = end + config.checkPause
-    arm()
-  }
-
-  private func arm() {
+  /// Sleeps until the earlier of the next pause check and the armed decision's due time.
+  private func scheduleTimer() {
     timer?.cancel()
-    guard let tick = nextTick, let startedAt else { return }
+    guard let due = [nextTick, armDue].compactMap({ $0 }).min(), let startedAt else { return }
     timer = Task {
-      let elapsed = startedAt.duration(to: .now)
-      let wait = tick - elapsed.seconds
-      if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+      let deadline = startedAt + .seconds(due)
+      if deadline > clock.now() { try? await clock.sleep(deadline) }
       guard !Task.isCancelled else { return }
-      await fire(tick)
+      await fire(due)
     }
   }
 
-  private func fire(_ tick: TimeInterval) async {
-    guard !completed, nextTick == tick else { return }
-    nextTick = tick + config.minCheckInterval
-    await loop.pause(until: tick)
-    await drain()
+  private func fire(_ due: TimeInterval) async {
+    guard !completed else { return }
+    if armDue == due {
+      await loop.speakArmed(by: due)
+      await drain()
+    }
+    if nextTick == due {
+      nextTick = due + config.minCheckInterval
+      await loop.pause(until: due)
+      await drain()
+    }
     if loopEnded {
       await complete()
     } else {
-      arm()
+      scheduleTimer()
     }
   }
 
@@ -146,18 +164,23 @@ public actor LiveSessionLoop {
   }
 
   private func drain() async {
-    let (records, state) = await loop.snapshot()
-    guard !completed, records.count > emitted else { return }
-    let fresh = records[emitted...]
-    emitted = records.count
+    let snapshot = await loop.snapshot()
+    armDue = snapshot.armDue
+    guard !completed, snapshot.records.count > emitted else { return }
+    let fresh = snapshot.records[emitted...]
+    emitted = snapshot.records.count
     for record in fresh {
       switch record {
+      case .promptArmed(let at, let kind):
+        continuation.yield(.promptArmed(at: at, kind: kind))
+      case .promptCancelled(let at):
+        continuation.yield(.promptCancelled(at: at))
       case .prompt(let at, let kind, let text):
         continuation.yield(.promptRequested(kind: kind, text: text, at: at))
       case .askedIfFinished(let at):
         continuation.yield(.askedIfFinished(at: at))
       case .compaction(let at, _):
-        continuation.yield(.compactionApplied(state, at: at))
+        continuation.yield(.compactionApplied(snapshot.state, at: at))
       case .ended:
         loopEnded = true
       case .check, .command, .compactionRejected:
@@ -179,15 +202,20 @@ public actor LiveSessionLoop {
 }
 
 extension SessionLoop {
-  func snapshot() -> (records: [SessionRecord], state: CompactState) {
-    (records, state)
+  func snapshot() -> (records: [SessionRecord], state: CompactState, armDue: TimeInterval?) {
+    (records, state, armDue)
   }
 }
 
-extension Duration {
-  var seconds: TimeInterval {
-    let parts = components
-    return TimeInterval(parts.seconds) + TimeInterval(parts.attoseconds) / 1e18
+/// Any clock, read as the offset since it was wrapped, so tests drive the loop with a clock they advance by hand.
+struct LoopClock: Sendable {
+  let now: @Sendable () -> Duration
+  let sleep: @Sendable (Duration) async throws -> Void
+
+  init<C: Clock>(_ clock: C) where C.Duration == Duration {
+    let origin = clock.now
+    now = { origin.duration(to: clock.now) }
+    sleep = { try await clock.sleep(until: origin.advanced(by: $0), tolerance: nil) }
   }
 }
 
@@ -199,6 +227,7 @@ struct AnnouncingPhraser: Phraser {
   func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
     -> String
   {
+    try Task.checkCancellation()
     announce(kind)
     return try await base.phrase(kind, state: state, recent: recent)
   }
