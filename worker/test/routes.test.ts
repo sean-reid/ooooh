@@ -22,6 +22,7 @@ import {
   type Reply,
 } from "./upstream";
 import worker from "../src/index";
+import { speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
@@ -454,6 +455,7 @@ describe("POST /v1/speak", () => {
       `https://api.elevenlabs.io/v1/text-to-speech/${voice}/stream?output_format=mp3_44100_64`,
     );
     expect(sent.headers["xi-api-key"]).toBe("test-elevenlabs");
+    expect(sent.headers["content-type"]).toBe("application/json");
     expect(bodyOf(sent)).toEqual({
       text: speakBody.text,
       model_id: "eleven_v4_turbo",
@@ -523,5 +525,56 @@ describe("POST /v1/speak", () => {
     const res = await post("/v1/speak", speakBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "elevenlabs", status: 401 });
+  });
+
+  const speakRequest = () =>
+    new Request("https://ooooh.test/v1/speak", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(speakBody),
+    });
+
+  it("returns 503 when the headers do not arrive within the deadline", async () => {
+    expectUpstream({ hangs: true });
+    const started = Date.now();
+    await expect(
+      speakWith({ fetchMs: 100, stallMs: 1000 })(speakRequest(), env),
+    ).rejects.toMatchObject({
+      status: 503,
+      body: { error: "elevenlabs unavailable", retryAfter: 1 },
+    });
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it("cancels the upstream and errors the client stream when the audio stalls", async () => {
+    let cancelled: unknown = null;
+    const silent = new ReadableStream<Uint8Array>({
+      cancel(reason) {
+        cancelled = reason;
+      },
+    });
+    expectUpstream({ body: silent, headers: { "content-type": "audio/mpeg" } });
+    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env);
+    expect(res.status).toBe(200);
+    const started = Date.now();
+    await expect(res.arrayBuffer()).rejects.toMatchObject({ name: "TimeoutError" });
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(cancelled).toMatchObject({ name: "TimeoutError" });
+  });
+
+  it("keeps streaming while chunks keep arriving inside the stall window", async () => {
+    const half = audioBytes.length / 2;
+    const paced = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(audioBytes.slice(0, half));
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        controller.enqueue(audioBytes.slice(half));
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        controller.close();
+      },
+    });
+    expectUpstream({ body: paced, headers: { "content-type": "audio/mpeg" } });
+    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env);
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(audioBytes);
   });
 });
