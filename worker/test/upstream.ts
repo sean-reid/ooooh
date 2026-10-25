@@ -39,6 +39,10 @@ export const compactBody = { state, transcript: segments };
 export const phraseBody = { kind: "clarify", state, recent: segments };
 
 export const notesBody = { state, transcript: segments };
+export const speakBody = { text: "Which part feels least clear, the queue or the sync?" };
+
+// Stands in for an MP3 body. The Worker passes bytes through without looking at them.
+export const audioBytes = Uint8Array.from({ length: 2048 }, (_, i) => (i * 37 + 11) % 256);
 
 export const jevReply = {
   answers: {
@@ -185,7 +189,11 @@ export const sonnetStream = (text: string) => {
     .join("");
 };
 
-export type Reply = { status?: number; body: unknown; headers?: Record<string, string> };
+export type Reply = {
+  status?: number;
+  body: unknown;
+  headers?: Record<string, string>;
+};
 
 export type Seen = { url: string; headers: Record<string, string>; body: string };
 
@@ -208,7 +216,12 @@ export function fakeUpstream(replies: Reply[]): FakeUpstream {
     });
     const reply = queue.shift();
     if (!reply) throw new Error(`unexpected upstream request to ${request.url}`);
-    const body = typeof reply.body === "string" ? reply.body : JSON.stringify(reply.body);
+    const body =
+      typeof reply.body === "string"
+        ? reply.body
+        : reply.body instanceof Uint8Array
+          ? new Uint8Array(reply.body)
+          : JSON.stringify(reply.body);
     return new Response(body, {
       status: reply.status ?? 200,
       headers: { "content-type": "application/json", ...reply.headers },

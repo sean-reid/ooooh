@@ -99,3 +99,4 @@ schemes:
         - oooohUITests
         - package: Packages/DesignTests
         - package: Packages/NotesSnapshotTests
+        - package: Packages/AudioTests

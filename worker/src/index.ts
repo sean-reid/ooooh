@@ -6,6 +6,7 @@ import { compact } from "./routes/compact";
 import { decide } from "./routes/decide";
 import { notesRoute } from "./routes/notes";
 import { phrase } from "./routes/phrase";
+import { speak } from "./routes/speak";
 
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
 
@@ -16,6 +17,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   "/v1/compact": { POST: guarded("anthropic", compact) },
   "/v1/phrase": { POST: guarded("anthropic", phrase) },
   "/v1/notes": { POST: guarded("anthropic", notesRoute) },
+  "/v1/speak": { POST: guarded("elevenlabs", speak) },
 };
 
 export default {

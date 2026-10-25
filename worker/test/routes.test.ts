@@ -1,6 +1,7 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  audioBytes,
   bodyOf,
   compactBody,
   decideBody,
@@ -16,6 +17,7 @@ import {
   shortSentence,
   sonnetReply,
   sonnetStream,
+  speakBody,
   type FakeUpstream,
   type Reply,
 } from "./upstream";
@@ -341,5 +343,98 @@ describe("POST /v1/phrase", () => {
     const deltas = events.filter((e) => e.event === "delta").map((e) => e.data.text);
     expect(deltas.join("").trim()).toBe(shortSentence);
     expect(events.at(-1)).toEqual({ event: "done", data: { text: shortSentence } });
+  });
+});
+
+describe("POST /v1/speak", () => {
+  const voice = "SAz9YHcvj6GT2YYXdXww";
+  const audio = (headers: Record<string, string> = {}): Reply => ({
+    body: audioBytes,
+    headers: { "content-type": "audio/mpeg", ...headers },
+  });
+
+  it("streams the audio through, charges the character count, and never caches", async () => {
+    expectUpstream(audio({ "x-character-count": "52", "request-id": "req_01" }));
+    const key = `budget:elevenlabs:${new Date().toISOString().slice(0, 10)}`;
+    const before = Number((await env.BUDGET.get(key)) ?? 0);
+
+    const res = await post("/v1/speak", speakBody);
+    expect(Number(await env.BUDGET.get(key)) - before).toBe(52);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("audio/mpeg");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(res.headers.get("x-character-count")).toBe("52");
+    expect(res.headers.get("request-id")).toBe("req_01");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(audioBytes);
+
+    const sent = upstream.requests[0];
+    expect(sent.url).toBe(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voice}/stream?output_format=mp3_44100_64`,
+    );
+    expect(sent.headers["xi-api-key"]).toBe("test-elevenlabs");
+    expect(bodyOf(sent)).toEqual({
+      text: speakBody.text,
+      model_id: "eleven_v4_turbo",
+      voice_settings: { stability: 0.6, similarity_boost: 0.75 },
+    });
+  });
+
+  it("counts the characters itself when the upstream header is missing", async () => {
+    expectUpstream(audio());
+    const res = await post("/v1/speak", speakBody);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-character-count")).toBe(String(speakBody.text.length));
+  });
+
+  it("caps the text at 400 characters and names the field", async () => {
+    expectUpstream();
+    const expected = { error: "invalid", field: "text", expected: "1 to 400 characters" };
+    const long = await post("/v1/speak", { text: "a".repeat(401) });
+    expect(long.status).toBe(422);
+    expect(await long.json()).toEqual(expected);
+    const blank = await post("/v1/speak", { text: "   " });
+    expect(blank.status).toBe(422);
+    expect(await blank.json()).toEqual(expected);
+    const missing = await post("/v1/speak", {});
+    expect(missing.status).toBe(422);
+    expect(await missing.json()).toEqual({ error: "invalid", field: "text", expected: "string" });
+  });
+
+  it("accepts exactly 400 characters", async () => {
+    expectUpstream(audio());
+    const res = await post("/v1/speak", { text: "a".repeat(400) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-character-count")).toBe("400");
+  });
+
+  it("backs off once on 429 then succeeds", async () => {
+    expectUpstream({ status: 429, body: { detail: "busy" } }, audio());
+
+    const started = Date.now();
+    const res = await post("/v1/speak", speakBody);
+    expect(res.status).toBe(200);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(250);
+    expect(upstream.requests).toHaveLength(2);
+  });
+
+  it("backs off once on 429 then returns 503 with retryAfter", async () => {
+    const limited: Reply = {
+      status: 429,
+      body: { detail: "busy" },
+      headers: { "retry-after": "7" },
+    };
+    expectUpstream(limited, limited);
+
+    const res = await post("/v1/speak", speakBody);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "elevenlabs unavailable", retryAfter: 7 });
+    expect(upstream.requests).toHaveLength(2);
+  });
+
+  it("returns 502 with the upstream status on other failures", async () => {
+    expectUpstream({ status: 401, body: { detail: { status: "invalid_api_key" } } });
+    const res = await post("/v1/speak", speakBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ error: "elevenlabs", status: 401 });
   });
 });

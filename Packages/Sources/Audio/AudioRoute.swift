@@ -6,3 +6,8 @@ public enum AudioRoute: Equatable, Sendable {
 
   public var prefersQuietMode: Bool { self == .speaker }
 }
+
+/// The one rule for voice versus text: a prompt is spoken unless the route prefers quiet mode.
+public func shouldSpeak(route: AudioRoute) -> Bool {
+  !route.prefersQuietMode
+}

@@ -35,21 +35,24 @@ The store has three configurations: `.inMemory` for tests, `.local` for a device
 
 ### Worker routes
 
-| Path               | Provider           | Returns                                                                        |
-| ------------------ | ------------------ | ------------------------------------------------------------------------------ |
-| `POST /v1/decide`  | Jev (`jev-latest`) | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens` |
-| `POST /v1/compact` | Claude Haiku       | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`    |
-| `POST /v1/phrase`  | Claude Sonnet      | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`      |
-| `POST /v1/notes`   | Claude Opus        | `notes` shaped like `SessionNotes`, `usage.inputTokens`, `usage.outputTokens`  |
+| Path               | Provider                         | Returns                                                                        |
+| ------------------ | -------------------------------- | ------------------------------------------------------------------------------ |
+| `POST /v1/decide`  | Jev (`jev-latest`)               | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens` |
+| `POST /v1/compact` | Claude Haiku                     | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`    |
+| `POST /v1/phrase`  | Claude Sonnet                    | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`      |
+| `POST /v1/speak`   | ElevenLabs (`eleven_v4_turbo`)   | `audio/mpeg` streamed as it is made, `x-character-count` in the headers        |
 
 Bodies are JSON, capped at 256 KiB. A bad field comes back as 422 with the field named. A rate-limited provider comes back as 503 with `retryAfter` in seconds.
 
-The Worker reads two secrets. Set them once per deployment and put the same names in `worker/.dev.vars` for local runs:
+`/v1/speak` takes `{ text }` of 1 to 400 characters and answers with `mp3_44100_64`: 8 KB per second of speech, and the phone starts playing from the first kilobyte, so it costs a sixth of raw PCM for the same start time. The voice is `ELEVENLABS_VOICE_ID` in `wrangler.jsonc` vars, River by default; set another id there or per deployment. The model is v4 Turbo, which starts streaming in about 0.3 s like Flash and costs the same, with v4 voice quality; it ignores the speed setting, so pace comes from the words.
+
+The Worker reads three secrets. Set them once per deployment and put the same names in `worker/.dev.vars` for local runs:
 
 ```sh
 cd worker
 wrangler secret put TYPESAFE_API_KEY
 wrangler secret put ANTHROPIC_API_KEY
+wrangler secret put ELEVENLABS_API_KEY
 ```
 
 For local development with a short-lived OAuth token instead of a stored key, set `ANTHROPIC_AUTH_TOKEN` in `.dev.vars`. It is sent as a bearer with the `oauth-2025-04-20` beta, and when both are set the token wins.
