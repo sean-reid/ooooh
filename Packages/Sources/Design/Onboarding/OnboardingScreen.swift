@@ -27,7 +27,11 @@ public struct OnboardingScreen: View {
 
   public var body: some View {
     VStack(spacing: 0) {
-      if scrolls {
+      if !typeSize.isAccessibilitySize {
+        Spacer(minLength: 0)
+        content.layoutPriority(1)
+        Spacer(minLength: 0)
+      } else if scrolls {
         ScrollView { content }
       } else {
         GeometryReader { _ in content.fixedSize(horizontal: false, vertical: true) }.clipped()
