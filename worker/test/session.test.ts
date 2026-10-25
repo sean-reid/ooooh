@@ -1,6 +1,5 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { entitlement } from "../src/entitlement";
 import { HttpError } from "../src/http";
 import { endSession, startSession } from "../src/routes/session";
 
@@ -92,11 +91,5 @@ describe("free sessions", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ allowed: true, remainingFree: 2 });
     expect(await env.BUDGET.get(`sessions:sim:${new Date().toISOString().slice(0, 7)}`)).toBe("1");
-  });
-});
-
-describe("entitlement", () => {
-  it("is free for every device until StoreKit lands", async () => {
-    expect(await entitlement("any", env)).toBe("free");
   });
 });

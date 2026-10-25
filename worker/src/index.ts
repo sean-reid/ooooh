@@ -5,6 +5,7 @@ import { governorConfig } from "./config";
 import { HttpError, json, methodNotAllowed, notFound } from "./http";
 import { compact } from "./routes/compact";
 import { decide } from "./routes/decide";
+import { submitEntitlement } from "./routes/entitlement";
 import { notesRoute } from "./routes/notes";
 import { phrase } from "./routes/phrase";
 import { attest, challenge } from "./routes/attest";
@@ -20,6 +21,7 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   "/v1/attest": { POST: attest },
   "/v1/session/start": { POST: attested(startSession) },
   "/v1/session/end": { POST: attested(endSession) },
+  "/v1/entitlement": { POST: attested(submitEntitlement) },
   "/v1/decide": { POST: attested(guarded("jev", decide)) },
   "/v1/compact": { POST: attested(guarded("anthropic", compact)) },
   "/v1/phrase": { POST: attested(guarded("anthropic", phrase)) },
