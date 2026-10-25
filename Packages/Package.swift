@@ -13,6 +13,7 @@ let package = Package(
     .library(name: "Audio", targets: ["Audio"]),
     .library(name: "Proxy", targets: ["Proxy"]),
     .library(name: "Session", targets: ["Session"]),
+    .library(name: "Persistence", targets: ["Persistence"]),
     .executable(name: "eval", targets: ["eval"]),
     .executable(name: "render-icon", targets: ["render-icon"]),
   ],
@@ -28,6 +29,7 @@ let package = Package(
     .target(name: "Audio"),
     .target(name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
+    .target(name: "Persistence", dependencies: ["State", "Notes", "Session", "Transcription"]),
     .executableTarget(name: "eval", dependencies: ["Session"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
     .testTarget(
