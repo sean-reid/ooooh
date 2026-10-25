@@ -96,3 +96,23 @@ test("the Catmull-Rom path is closed and passes through every point", () => {
   const [, , , , lastX, lastY] = segments.at(-1);
   assert.deepEqual([lastX, lastY], points[0]);
 });
+
+test("every page declares the favicon, touch icon, and manifest, and the files exist", () => {
+  for (const page of ["index.html", "privacy.html", "terms.html"]) {
+    const html = readFileSync(join(here, page), "utf8");
+    assert.match(html, /rel="icon"[^>]*href="images\/icon-32.png"/);
+    assert.match(
+      html,
+      /rel="apple-touch-icon"[^>]*href="images\/icon-180.png"/,
+    );
+    assert.match(html, /rel="manifest" href="site.webmanifest"/);
+  }
+  for (const file of [
+    "images/icon-32.png",
+    "images/icon-180.png",
+    "images/icon-512.png",
+    "site.webmanifest",
+  ]) {
+    assert.ok(existsSync(join(here, file)), file);
+  }
+});
