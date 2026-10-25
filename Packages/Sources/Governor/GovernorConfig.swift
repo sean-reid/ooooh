@@ -81,10 +81,10 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   /// Starting point before any calibration. The eval replaces these numbers.
   public static var initial: GovernorConfig {
     GovernorConfig(
-      version: 1,
+      version: 3,
       floor: FloorRange(min: 30, max: 120),
       speak: Thresholds(probability: 0.9, confidence: 0),
-      finished: Thresholds(probability: 0.9, confidence: 0.7),
+      finished: Thresholds(probability: 0.6, confidence: 0.7),
       command: Thresholds(probability: 0.9, confidence: 0.7),
       densityWindow: 120,
       endSilence: 30,
