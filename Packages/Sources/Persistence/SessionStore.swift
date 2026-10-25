@@ -38,8 +38,8 @@ public actor SessionStore {
     return session.id
   }
 
-  /// Replaces the generated items with new ones. Items the user edited stay,
-  /// and a thread keeps its resolved state when the new notes still carry it.
+  /// Replaces the generated items and the summary with new ones. Items the user edited
+  /// stay, and a thread keeps its resolved state when the new notes still carry it.
   public func attachNotes(_ notes: SessionNotes, to sessionID: UUID) throws {
     let session = try session(sessionID)
     try attach(notes, to: session)
@@ -119,6 +119,7 @@ public actor SessionStore {
     if !notes.title.isEmpty {
       session.title = notes.title
     }
+    session.summary = notes.summary
     try refreshOpenThreadCount(session)
   }
 

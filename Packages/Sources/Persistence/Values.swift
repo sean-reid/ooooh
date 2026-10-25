@@ -7,15 +7,18 @@ import Transcription
 public struct SessionSummary: Sendable, Equatable, Identifiable {
   public var id: UUID
   public var title: String
+  public var summary: String?
   public var startedAt: Date
   public var duration: TimeInterval
   public var openThreadCount: Int
 
   public init(
-    id: UUID, title: String, startedAt: Date, duration: TimeInterval, openThreadCount: Int
+    id: UUID, title: String, summary: String? = nil, startedAt: Date, duration: TimeInterval,
+    openThreadCount: Int
   ) {
     self.id = id
     self.title = title
+    self.summary = summary
     self.startedAt = startedAt
     self.duration = duration
     self.openThreadCount = openThreadCount

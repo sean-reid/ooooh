@@ -22,8 +22,40 @@ import Transcription
     #expect(detail.state == result.state)
     #expect(detail.modeAtEnd == result.state.mode)
     #expect(detail.notes == Support.notes)
+    #expect(detail.summary.summary == nil)
     #expect(detail.summary.openThreadCount == 2)
     #expect(detail.audioPath == nil)
+  }
+
+  @Test func aSummaryWithNoItemsRoundTrips() async throws {
+    let store = try Support.store()
+    let notes = SessionNotes(
+      title: "A quick one", summary: "Two minutes on where the hummingbird feeder goes.")
+    let id = try await store.save(result: try await Support.shortResult(), notes: notes, title: "")
+
+    #expect(try await store.notes(for: id) == notes)
+    let detail = try #require(try await store.detail(id))
+    #expect(detail.notes == notes)
+    #expect(detail.items.isEmpty)
+    #expect(try await store.sessions().map(\.summary) == [notes.summary])
+    #expect(try await store.search("Hummingbird").map(\.id) == [id])
+  }
+
+  @Test func regeneratedNotesReplaceTheSummary() async throws {
+    let store = try Support.store()
+    let id = try await store.save(
+      result: try await Support.shortResult(), notes: Support.notes, title: "")
+    #expect(try await store.sessions().map(\.summary) == [nil])
+
+    var notes = Support.notes
+    notes.summary = "Pricing in one paragraph."
+    try await store.attachNotes(notes, to: id)
+    #expect(try await store.notes(for: id)?.summary == "Pricing in one paragraph.")
+    #expect(try await store.search("paragraph").map(\.id) == [id])
+
+    try await store.attachNotes(Support.notes, to: id)
+    #expect(try await store.notes(for: id) == Support.notes)
+    #expect(try await store.search("paragraph").isEmpty)
   }
 
   @Test func notesAttachedLaterReplaceOnlyUneditedItems() async throws {
@@ -203,5 +235,47 @@ import Transcription
       ])
     #expect(documents[0].contents == Support.notes.markdown(date: first, timeZone: utc))
     #expect(documents[1].contents == "# No notes yet\n\nOctober 26, 2026\n")
+  }
+
+  @Test func exportPutsTheSummaryUnderTheTitle() async throws {
+    let store = try Support.store()
+    let result = try await Support.shortResult()
+    let utc = TimeZone(identifier: "UTC")!
+    let first = Date(timeIntervalSince1970: 1_792_900_000)
+    try await store.save(
+      result: result,
+      notes: SessionNotes(
+        title: "A quick one", summary: "Two minutes on the feeder.",
+        openThreads: [NoteItem(id: "t1", text: "Window or porch")]),
+      title: "", startedAt: first)
+    try await store.save(
+      result: result, notes: SessionNotes(title: "Shorter", summary: "One thought, no list."),
+      title: "", startedAt: first + 86_400)
+    try await store.save(
+      result: result, notes: Support.notes, title: "", startedAt: first + 172_800)
+
+    let documents = try await store.exportMarkdown(timeZone: utc)
+    #expect(
+      documents.map(\.filename) == [
+        "2026-10-25-034640-a-quick-one.md", "2026-10-26-034640-shorter.md",
+        "2026-10-27-034640-pricing-and-the-free-tier.md",
+      ])
+    #expect(
+      documents[0].contents == """
+        # A quick one
+
+        October 25, 2026
+
+        Two minutes on the feeder.
+
+        ## Open threads
+
+        - Window or porch
+
+        """)
+    #expect(documents[1].contents == "# Shorter\n\nOctober 26, 2026\n\nOne thought, no list.\n")
+    #expect(
+      documents[2].contents.hasPrefix(
+        "# Pricing and the free tier\n\nOctober 27, 2026\n\n## Ideas\n"))
   }
 }
