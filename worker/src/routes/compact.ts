@@ -19,7 +19,7 @@ export const patchSchema = {
   type: "object",
   properties: {
     currentThread: { type: ["string", "null"] },
-    mode: { type: ["string", "null"], enum: [...modes, null] },
+    mode: { anyOf: [{ type: "string", enum: [...modes] }, { type: "null" }] },
     recentTopics: { type: ["array", "null"], items: { type: "string" } },
     add: {
       type: "array",
