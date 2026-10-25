@@ -27,8 +27,6 @@ The app reads the Worker base URL from the `OOOOH_WORKER_URL` build setting, whi
 
 The home screen has one Start button. Debug builds add a Demo button that replays `fixtures/synthetic/estimate/decision.fixture.json` through the whole pipeline at 1x, which is how the app runs on the simulator; launching with `-demo 1` taps it for you. The session screen is the orb, the elapsed time, and the last prompt. When the Worker is unreachable the session keeps listening and shows one line saying so, and no prompts fire until it is back.
 
-`site/` is the landing page with the privacy policy and terms, plain HTML with no build step, published to https://sean-reid.github.io/ooooh/ by `.github/workflows/pages.yml` on every push to main that touches it.
-
 `site/` is the landing page with the privacy policy and terms, plain HTML with no build step, published to https://ooooh.app/ by `.github/workflows/pages.yml` on every push to main that touches it.
 
 To record a fixture, run a debug build on a phone, tap "Record a fixture" at the bottom of the home screen, then Start. Talk, then Stop. A share sheet offers two files named from the session start, `yyyy-MM-dd-HHmmss.json` with the final segments and `yyyy-MM-dd-HHmmss.caf` with the microphone audio. They also stay in the app's Documents folder under `fixtures/`, visible in the Files app. Load the JSON into `tools/labeler/` to mark the moments, or replay it with `FixtureTranscriber`.
