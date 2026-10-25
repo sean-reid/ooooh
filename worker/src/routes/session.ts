@@ -20,7 +20,7 @@ export async function startSession(
   device: string,
   now = new Date(),
 ): Promise<Response> {
-  if ((await entitlement(device, env)) === "paid") return json({ allowed: true, free: false });
+  if ((await entitlement(device, env, now)) === "paid") return json({ allowed: true, free: false });
   const key = sessionsKey(device, now);
   const used = await read(env.BUDGET, key);
   const limit = freeSessionsPerMonth(env);

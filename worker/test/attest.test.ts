@@ -2,9 +2,9 @@ import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import worker from "../src/index";
 import type { DeviceRecord } from "../src/attest/record";
-import { parseCertificate, pemToDer } from "../src/attest/der";
 import { appleAppAttestRootPem } from "../src/attest/root";
-import { fromBase64, signedBy, toBase64 } from "../src/attest/verify";
+import { fromBase64, toBase64 } from "../src/bytes";
+import { parseCertificate, pemToDer, signedBy } from "../src/x509";
 import { buildAttestation, makeDevice, makeRoot, type Device, type TestRoot } from "./appattest";
 
 let authority: TestRoot;

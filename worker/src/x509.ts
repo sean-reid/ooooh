@@ -1,5 +1,5 @@
 // Enough of DER to walk an X.509 certificate: tags, lengths, and the fields the chain check needs.
-import type { Bytes } from "./cbor";
+import type { Bytes } from "./bytes";
 
 export class DerError extends Error {}
 
@@ -146,4 +146,30 @@ export function ecdsaDerToRaw(der: Bytes, size: number): Bytes {
   place(r.content, 0);
   place(s.content, size);
   return out;
+}
+
+export const importSpki = (cert: Certificate) =>
+  crypto.subtle.importKey("spki", cert.spki, { name: "ECDSA", namedCurve: cert.curve }, true, [
+    "verify",
+  ]);
+
+export const signedBy = async (cert: Certificate, issuer: Certificate) => {
+  const key = await importSpki(issuer);
+  const size = issuer.curve === "P-256" ? 32 : 48;
+  return crypto.subtle.verify(
+    { name: "ECDSA", hash: cert.signatureHash },
+    key,
+    ecdsaDerToRaw(cert.signature, size),
+    cert.tbs,
+  );
+};
+
+/** Every certificate valid at `at` and signed by the next one, the last by `root`. */
+export async function chainsTo(chain: Certificate[], root: Certificate, at: Date) {
+  for (let i = 0; i < chain.length; i++) {
+    const cert = chain[i];
+    if (at < cert.notBefore || at > cert.notAfter) return false;
+    if (!(await signedBy(cert, chain[i + 1] ?? root))) return false;
+  }
+  return true;
 }
