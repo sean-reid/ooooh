@@ -48,7 +48,7 @@
         // bin/rotate-secret prints a KEY_ROTATED_AT_<NAME> line to add here after each rotation.
       },
       // `wrangler kv namespace create BUDGET --env production` prints the id to paste here.
-      "kv_namespaces": [{ "binding": "BUDGET", "id": "set-at-deploy" }],
+      "kv_namespaces": [{ "binding": "BUDGET", "id": "f2d21eda63ed44c5a0350e9d94ccf8c4" }],
     },
   },
 }
