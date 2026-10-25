@@ -11,17 +11,17 @@ public struct Assertion: Sendable, Equatable {
   }
 }
 
-/// Proves a request came from this install. `bodyHash` is SHA256 of the bytes being sent.
+/// Proves a request came from this install. `clientDataHash` is `ClientData.hash` for the request.
 public protocol Attestor: Sendable {
   /// Nil means the request goes out with no attestation headers.
-  func assertion(bodyHash: Data) async throws -> Assertion?
+  func assertion(clientDataHash: Data) async throws -> Assertion?
 }
 
 /// App Attest does not run on the simulator; the Worker there has `REQUIRE_ATTESTATION=false`.
 public struct SimulatorAttestor: Attestor {
   public init() {}
 
-  public func assertion(bodyHash: Data) async throws -> Assertion? { nil }
+  public func assertion(clientDataHash: Data) async throws -> Assertion? { nil }
 }
 
 /// The two wire shapes shared with the Worker's `/v1/challenge` and `/v1/attest`.
