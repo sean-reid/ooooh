@@ -79,17 +79,19 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   }
 
   /// Starting point before any calibration. The eval replaces these numbers.
-  public static let initial = GovernorConfig(
-    version: 1,
-    floor: FloorRange(min: 30, max: 120),
-    speak: Thresholds(probability: 0.9, confidence: 0),
-    finished: Thresholds(probability: 0.9, confidence: 0.7),
-    command: Thresholds(probability: 0.9, confidence: 0.7),
-    densityWindow: 120,
-    endSilence: 30,
-    checkPause: 2,
-    minCheckInterval: 3,
-    cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
-    cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]
-  )
+  public static var initial: GovernorConfig {
+    GovernorConfig(
+      version: 1,
+      floor: FloorRange(min: 30, max: 120),
+      speak: Thresholds(probability: 0.9, confidence: 0),
+      finished: Thresholds(probability: 0.9, confidence: 0.7),
+      command: Thresholds(probability: 0.9, confidence: 0.7),
+      densityWindow: 120,
+      endSilence: 30,
+      checkPause: 2,
+      minCheckInterval: 3,
+      cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
+      cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]
+    )
+  }
 }
