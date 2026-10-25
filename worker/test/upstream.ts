@@ -194,11 +194,13 @@ export const sonnetStream = (text: string) => {
     .join("");
 };
 
-export type Reply = {
-  status?: number;
-  body: unknown;
-  headers?: Record<string, string>;
-};
+export type Reply =
+  | {
+      status?: number;
+      body: unknown;
+      headers?: Record<string, string>;
+    }
+  | { hangs: true };
 
 export type Seen = { url: string; headers: Record<string, string>; body: string };
 
@@ -208,7 +210,7 @@ export type FakeUpstream = {
   pending: () => number;
 };
 
-// Replies in order, one per outbound request, whatever the origin.
+// Replies in order, one per outbound request, whatever the origin. A reply that hangs rejects when the request signal aborts.
 export function fakeUpstream(replies: Reply[]): FakeUpstream {
   const queue = [...replies];
   const requests: Seen[] = [];
@@ -221,8 +223,13 @@ export function fakeUpstream(replies: Reply[]): FakeUpstream {
     });
     const reply = queue.shift();
     if (!reply) throw new Error(`unexpected upstream request to ${request.url}`);
+    if ("hangs" in reply) {
+      return new Promise<Response>((_, reject) => {
+        request.signal.addEventListener("abort", () => reject(request.signal.reason));
+      });
+    }
     const body =
-      typeof reply.body === "string"
+      typeof reply.body === "string" || reply.body instanceof ReadableStream
         ? reply.body
         : reply.body instanceof Uint8Array
           ? new Uint8Array(reply.body)

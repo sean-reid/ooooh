@@ -1,15 +1,20 @@
-import { ElevenLabsClient, ElevenLabsError } from "@elevenlabs/elevenlabs-js";
 import { charge } from "../budget";
 import { HttpError, maxRetryWaitMs, readBody, requireSecret, retryAfterFrom, sleep } from "../http";
 import { obj, str, ValidationError, type Validator } from "../validate";
 
 export const speech = {
+  endpoint: "https://api.elevenlabs.io/v1/text-to-speech",
   model: "eleven_v4_turbo",
   outputFormat: "mp3_44100_64",
   contentType: "audio/mpeg",
   maxCharacters: 400,
-  settings: { stability: 0.6, similarityBoost: 0.75 },
+  settings: { stability: 0.6, similarity_boost: 0.75 },
 } as const;
+
+export type Deadlines = { fetchMs: number; stallMs: number };
+
+/** A 400-character line renders in a few seconds: 20 s for the whole call, 10 s for any gap in the audio. */
+export const deadlines: Deadlines = { fetchMs: 20_000, stallMs: 10_000 };
 
 const retryDelayMs = 250;
 
@@ -23,58 +28,91 @@ const line: Validator<string> = (v, p) => {
 
 const body = obj({ text: line });
 
-const retryAfterSeconds = (e: ElevenLabsError) =>
-  retryAfterFrom(e.rawResponse?.headers.get("retry-after"));
+const isTimeout = (e: unknown) => e instanceof DOMException && e.name === "TimeoutError";
 
-const upstreamError = (e: unknown): never => {
-  if (!(e instanceof ElevenLabsError)) throw e;
-  if (e.statusCode === 429) {
-    throw new HttpError(503, { error: "elevenlabs unavailable", retryAfter: retryAfterSeconds(e) });
+const unavailable = (retryAfter: number) =>
+  new HttpError(503, { error: "elevenlabs unavailable", retryAfter });
+
+const synthesize = async (apiKey: string, voice: string, text: string, fetchMs: number) => {
+  const url = `${speech.endpoint}/${encodeURIComponent(voice)}/stream?output_format=${speech.outputFormat}`;
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "content-type": "application/json" },
+      body: JSON.stringify({ text, model_id: speech.model, voice_settings: speech.settings }),
+      signal: AbortSignal.timeout(fetchMs),
+    });
+  } catch (e) {
+    if (isTimeout(e)) throw unavailable(1);
+    throw e;
   }
+};
+
+const upstreamError = async (res: Response): Promise<never> => {
+  const detail = await res.text();
+  if (res.status === 429) throw unavailable(retryAfterFrom(res.headers.get("retry-after")));
   throw new HttpError(502, {
     error: "elevenlabs",
-    status: e.statusCode,
-    detail: e.message.slice(0, 500),
+    status: res.status,
+    detail: detail.slice(0, 500),
   });
 };
 
-const synthesize = (client: ElevenLabsClient, voice: string, text: string) =>
-  client.textToSpeech
-    .stream(
-      voice,
-      {
-        text,
-        modelId: speech.model,
-        outputFormat: speech.outputFormat,
-        voiceSettings: speech.settings,
-      },
-      { maxRetries: 0 },
-    )
-    .withRawResponse();
-
-export async function speak(request: Request, env: Env): Promise<Response> {
-  const { text } = await readBody(request, body);
-  const apiKey = requireSecret(env.ELEVENLABS_API_KEY, "ELEVENLABS_API_KEY");
-  const voice = requireSecret(env.ELEVENLABS_VOICE_ID, "ELEVENLABS_VOICE_ID");
-  const client = new ElevenLabsClient({ apiKey, timeoutInSeconds: 30 });
-
-  const { data, rawResponse } = await synthesize(client, voice, text).catch(async (e: unknown) => {
-    if (!(e instanceof ElevenLabsError) || e.statusCode !== 429) return upstreamError(e);
-    const header = e.rawResponse?.headers.get("retry-after");
-    const waitMs = header ? retryAfterFrom(header) * 1000 : retryDelayMs;
-    if (waitMs > maxRetryWaitMs) return upstreamError(e);
-    await sleep(waitMs);
-    return synthesize(client, voice, text).catch(upstreamError);
+/** Passes the audio through and errors the client stream when no chunk arrives within `stallMs`. */
+const watched = (audio: ReadableStream<Uint8Array>, stallMs: number) => {
+  const reader = audio.getReader();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const stalled = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new DOMException("audio stalled", "TimeoutError")),
+          stallMs,
+        );
+      });
+      try {
+        const { done, value } = await Promise.race([reader.read(), stalled]);
+        if (done) controller.close();
+        else controller.enqueue(value);
+      } catch (e) {
+        await reader.cancel(e).catch(() => undefined);
+        controller.error(e);
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    cancel: (reason) => reader.cancel(reason),
   });
+};
 
-  const characters = Number(rawResponse.headers.get("x-character-count")) || text.length;
-  await charge(env, "elevenlabs", characters);
-  const headers: Record<string, string> = {
-    "content-type": speech.contentType,
-    "cache-control": "no-store",
-    "x-character-count": String(characters),
+export const speakWith =
+  ({ fetchMs, stallMs }: Deadlines) =>
+  async (request: Request, env: Env): Promise<Response> => {
+    const { text } = await readBody(request, body);
+    const apiKey = requireSecret(env.ELEVENLABS_API_KEY, "ELEVENLABS_API_KEY");
+    const voice = requireSecret(env.ELEVENLABS_VOICE_ID, "ELEVENLABS_VOICE_ID");
+
+    let res = await synthesize(apiKey, voice, text, fetchMs);
+    if (res.status === 429) {
+      const header = res.headers.get("retry-after");
+      const waitMs = header ? retryAfterFrom(header) * 1000 : retryDelayMs;
+      if (waitMs > maxRetryWaitMs) return upstreamError(res);
+      await res.body?.cancel();
+      await sleep(waitMs);
+      res = await synthesize(apiKey, voice, text, fetchMs);
+    }
+    if (!res.ok) return upstreamError(res);
+
+    const characters = Number(res.headers.get("x-character-count")) || text.length;
+    await charge(env, "elevenlabs", characters);
+    const headers: Record<string, string> = {
+      "content-type": speech.contentType,
+      "cache-control": "no-store",
+      "x-character-count": String(characters),
+    };
+    const requestId = res.headers.get("request-id");
+    if (requestId) headers["request-id"] = requestId;
+    return new Response(res.body && watched(res.body, stallMs), { headers });
   };
-  const requestId = rawResponse.headers.get("request-id");
-  if (requestId) headers["request-id"] = requestId;
-  return new Response(data, { headers });
-}
+
+export const speak = speakWith(deadlines);
