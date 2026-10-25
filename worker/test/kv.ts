@@ -2,8 +2,9 @@
 export class MemoryKV {
   private store = new Map<string, string>();
 
-  async get(key: string): Promise<string | null> {
-    return this.store.get(key) ?? null;
+  async get(key: string, type?: "text" | "json"): Promise<unknown> {
+    const value = this.store.get(key) ?? null;
+    return type === "json" && value !== null ? JSON.parse(value) : value;
   }
 
   async put(key: string, value: string): Promise<void> {

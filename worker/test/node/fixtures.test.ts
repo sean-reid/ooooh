@@ -38,12 +38,18 @@ export const testEnv: Env = {
   REQUIRE_ATTESTATION: "false",
 };
 
-const call = async (path: string, body: unknown, replies: Reply[], accept = "application/json") => {
+const call = async (
+  path: string,
+  body: unknown,
+  replies: Reply[],
+  accept = "application/json",
+  device?: string,
+) => {
   const upstream = fakeUpstream(replies);
   vi.stubGlobal("fetch", upstream.fetch);
   const request = new Request(`https://ooooh.test${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json", accept },
+    headers: { "content-type": "application/json", accept, ...(device && { "x-device": device }) },
     body: JSON.stringify(body),
   });
   const response = await worker.fetch(request, testEnv);
@@ -114,6 +120,39 @@ describe("ProxyTests fixtures", () => {
       );
     }
     compare(resolve(fixturesDir, "app-account-token.json"), JSON.stringify(cases, null, 2) + "\n");
+  });
+
+  const startSession = (device: string) =>
+    call("/v1/session/start", {}, [], "application/json", device).then(JSON.parse);
+
+  it("session-start-free.json is the first session of the month", async () => {
+    const actual = await startSession("fixture-free");
+    compare(
+      resolve(fixturesDir, "session-start-free.json"),
+      JSON.stringify(actual, null, 2) + "\n",
+    );
+  });
+
+  it("session-start-paid.json is a device with a live entitlement", async () => {
+    const expiresDate = new Date("2099-01-01T00:00:00Z").getTime();
+    await testEnv.BUDGET.put(
+      "entitlement:fixture-paid",
+      JSON.stringify({ expiresDate, verifiedAt: Date.now() }),
+    );
+    const actual = await startSession("fixture-paid");
+    compare(
+      resolve(fixturesDir, "session-start-paid.json"),
+      JSON.stringify(actual, null, 2) + "\n",
+    );
+  });
+
+  it("session-start-refused.json is the fourth session of the month", async () => {
+    for (let i = 0; i < 3; i++) await startSession("fixture-refused");
+    const actual = await startSession("fixture-refused");
+    compare(
+      resolve(fixturesDir, "session-start-refused.json"),
+      JSON.stringify(actual, null, 2) + "\n",
+    );
   });
 
   it("phrase.sse matches the streamed route", async () => {
