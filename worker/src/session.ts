@@ -1,4 +1,5 @@
-import { envNumber } from "./http";
+import { entitlement } from "./entitlement";
+import { envNumber, HttpError } from "./http";
 
 export const freeSessionsPerMonth = (env: Env) => envNumber(env.FREE_SESSIONS_PER_MONTH, 3);
 export const freePromptMinutes = (env: Env) => envNumber(env.FREE_PROMPT_MINUTES, 20);
@@ -21,3 +22,30 @@ export const openSession = (device: string, env: Env) =>
   env.BUDGET.get<SessionRecord>(sessionKey(device), "json");
 
 export const readCount = async (kv: KVNamespace, key: string) => Number((await kv.get(key)) ?? 0);
+
+/** What a free session's prompt minutes cover: prompts stop at the allowance, the rest runs while the session is open. */
+export type Window = "prompt-minutes" | "whole-session";
+
+export const noSession = (reason: string) => new HttpError(402, { error: "no-session", reason });
+
+/** Refuses a device with no open session and no paid record, and a prompt once a free session's minutes are spent. */
+export async function checkSession(
+  device: string,
+  env: Env,
+  window: Window,
+  now = new Date(),
+): Promise<void> {
+  const session = await openSession(device, env);
+  if (!session) {
+    if ((await entitlement(device, env, now)) === "paid") return;
+    const used = await readCount(env.BUDGET, sessionsKey(device, now));
+    throw noSession(used >= freeSessionsPerMonth(env) ? "free-used" : "not-started");
+  }
+  if (
+    session.free &&
+    window === "prompt-minutes" &&
+    now.getTime() - session.startedAt >= session.promptMinutes * 60_000
+  ) {
+    throw noSession("minutes-used");
+  }
+}

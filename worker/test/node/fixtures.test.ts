@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
@@ -90,6 +90,11 @@ const signedRequest = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ProxyTests fixtures", () => {
+  beforeAll(async () => {
+    const request = new Request("https://ooooh.test/v1/session/start", { method: "POST" });
+    expect((await worker.fetch(request, testEnv)).status).toBe(200);
+  });
+
   for (const { name, path, body, replies } of cases) {
     it(`${name}.json matches what the route emits`, async () => {
       const actual = JSON.parse(await call(path, body, replies));

@@ -2,6 +2,7 @@ import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import type { DeviceRecord } from "../src/attest/record";
+import { startSession } from "../src/routes/session";
 import { sha256, toBase64 } from "../src/bytes";
 import {
   assertionHeaders,
@@ -63,6 +64,11 @@ beforeEach(async () => {
     createdAt: new Date().toISOString(),
   };
   await env.BUDGET.put(`device:${device.keyId}`, JSON.stringify(record));
+  await startSession(
+    new Request("https://ooooh.test/v1/session/start", { method: "POST" }),
+    env,
+    device.keyId,
+  );
 });
 
 describe("assertion middleware", () => {
@@ -216,6 +222,10 @@ describe("assertion middleware", () => {
   it("skips verification when REQUIRE_ATTESTATION is false", async () => {
     upstream = fakeUpstream([{ body: jevReply }]);
     vi.stubGlobal("fetch", upstream.fetch);
+    await SELF.fetch("https://ooooh.test/v1/session/start", {
+      method: "POST",
+      headers: { "x-device": "simulator" },
+    });
     const res = await SELF.fetch("https://ooooh.test/v1/decide", {
       method: "POST",
       headers: { "content-type": "application/json", "x-device": "simulator" },

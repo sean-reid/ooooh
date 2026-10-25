@@ -23,9 +23,9 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
   "/v1/session/end": { POST: attested(endSession) },
   "/v1/entitlement": { POST: attested(submitEntitlement) },
   "/v1/decide": { POST: attested(guarded("jev", decide)) },
-  "/v1/compact": { POST: attested(guarded("anthropic", compact)) },
+  "/v1/compact": { POST: attested(guarded("anthropic", compact, "whole-session")) },
   "/v1/phrase": { POST: attested(guarded("anthropic", phrase)) },
-  "/v1/notes": { POST: attested(guarded("anthropic", notesRoute)) },
+  "/v1/notes": { POST: attested(guarded("anthropic", notesRoute, "whole-session")) },
   "/v1/speak": { POST: attested(guarded("elevenlabs", speak)) },
 };
 

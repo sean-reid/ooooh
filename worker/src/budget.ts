@@ -1,5 +1,6 @@
 import type { DeviceHandler } from "./attest/device";
 import { envNumber, HttpError } from "./http";
+import { checkSession, readCount, type Window } from "./session";
 
 export type Provider = "jev" | "anthropic" | "elevenlabs";
 
@@ -16,12 +17,10 @@ const secondsToMidnight = (now: Date) => {
   return Math.max(1, Math.ceil((next - now.getTime()) / 1000));
 };
 
-const read = async (kv: KVNamespace, key: string) => Number((await kv.get(key)) ?? 0);
-
 /** Refuses when today's spend for the provider has reached its cap. */
 export async function checkBudget(env: Env, provider: Provider, now = new Date()): Promise<void> {
   const limit = dailyLimit[provider](env);
-  const used = await read(env.BUDGET, `budget:${provider}:${day(now)}`);
+  const used = await readCount(env.BUDGET, `budget:${provider}:${day(now)}`);
   if (used >= limit) {
     const retryAfter = secondsToMidnight(now);
     throw new HttpError(
@@ -41,7 +40,7 @@ export async function charge(
 ): Promise<void> {
   if (!(amount > 0)) return;
   const key = `budget:${provider}:${day(now)}`;
-  const used = await read(env.BUDGET, key);
+  const used = await readCount(env.BUDGET, key);
   await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
 }
 
@@ -50,7 +49,7 @@ export async function checkDeviceRate(device: string, env: Env, now = new Date()
   const limit = envNumber(env.DEVICE_MINUTE_REQUESTS, 60);
   const minute = Math.floor(now.getTime() / 60_000);
   const key = `rate:${device}:${minute}`;
-  const used = await read(env.BUDGET, key);
+  const used = await readCount(env.BUDGET, key);
   if (used >= limit) {
     const retryAfter = 60 - Math.floor((now.getTime() % 60_000) / 1000);
     throw new HttpError(
@@ -62,13 +61,15 @@ export async function checkDeviceRate(device: string, env: Env, now = new Date()
   await env.BUDGET.put(key, String(used + 1), { expirationTtl: 120 });
 }
 
-/** Wraps a route so the device and budget checks run before any upstream call. */
+/** Wraps a route so the session, device, and budget checks run before any upstream call. */
 export const guarded =
   (
     provider: Provider,
     handler: (request: Request, env: Env) => Promise<Response> | Response,
+    window: Window = "prompt-minutes",
   ): DeviceHandler =>
   async (request, env, device) => {
+    await checkSession(device, env, window);
     await checkDeviceRate(device, env);
     await checkBudget(env, provider);
     return handler(request, env);

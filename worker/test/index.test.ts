@@ -1,5 +1,5 @@
 import { SELF } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 describe("worker", () => {
   it("reports health", async () => {
@@ -30,17 +30,29 @@ describe("worker", () => {
 });
 
 describe("request guards", () => {
+  beforeEach(async () => {
+    const res = await SELF.fetch("https://ooooh.test/v1/session/start", {
+      method: "POST",
+      headers: { "x-device": "guards" },
+    });
+    expect(res.status).toBe(200);
+  });
+
   it("rejects a body over 256 KiB", async () => {
     const res = await SELF.fetch("https://ooooh.test/v1/decide", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-device": "guards" },
       body: JSON.stringify({ state: {}, pad: "x".repeat(256 * 1024) }),
     });
     expect(res.status).toBe(413);
   });
 
   it("rejects a body that is not json", async () => {
-    const res = await SELF.fetch("https://ooooh.test/v1/decide", { method: "POST", body: "{" });
+    const res = await SELF.fetch("https://ooooh.test/v1/decide", {
+      method: "POST",
+      headers: { "x-device": "guards" },
+      body: "{",
+    });
     expect(res.status).toBe(422);
   });
 });

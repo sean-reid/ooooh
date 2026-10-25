@@ -1,5 +1,5 @@
 import { env, SELF } from "cloudflare:test";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   audioBytes,
   bodyOf,
@@ -28,9 +28,15 @@ import { memoryKV } from "./kv";
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   SELF.fetch(`https://ooooh.test${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    headers: { "content-type": "application/json", "x-device": "routes", ...headers },
     body: JSON.stringify(body),
   });
+
+const startRequest = () => new Request("https://ooooh.test/v1/session/start", { method: "POST" });
+
+beforeEach(async () => {
+  expect((await post("/v1/session/start", {})).status).toBe(200);
+});
 
 const today = new Date().toISOString().slice(0, 10);
 const spent = async () => Number((await env.BUDGET.get(`budget:anthropic:${today}`)) ?? 0);
@@ -327,6 +333,7 @@ describe("POST /v1/notes", () => {
       ANTHROPIC_API_KEY: "sk-key",
       REQUIRE_ATTESTATION: "false",
     } as Env;
+    await worker.fetch(startRequest(), env);
     const res = await worker.fetch(
       new Request("https://ooooh.test/v1/notes", {
         method: "POST",
@@ -355,6 +362,9 @@ describe("POST /v1/notes", () => {
 
 describe("Anthropic credentials", () => {
   const env = { BUDGET: memoryKV(), REQUIRE_ATTESTATION: "false" } as Env;
+  beforeAll(async () => {
+    await worker.fetch(startRequest(), env);
+  });
   const request = () =>
     new Request("https://ooooh.test/v1/compact", {
       method: "POST",
