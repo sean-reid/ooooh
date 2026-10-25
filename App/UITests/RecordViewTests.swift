@@ -21,7 +21,7 @@ final class RecordViewTests: XCTestCase {
   @MainActor
   private func captureRecordView(named name: String, arguments: [String]) {
     let app = XCUIApplication()
-    app.launchArguments += arguments
+    app.launchArguments += ["-onboardingComplete", "1"] + arguments
     app.launch()
 
     let open = app.buttons["Record a fixture"]

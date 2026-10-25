@@ -1,4 +1,5 @@
 import AVFAudio
+import Design
 import Speech
 
 enum CaptureError: LocalizedError {
@@ -10,11 +11,18 @@ enum CaptureError: LocalizedError {
     case .speechDenied: "Speech recognition was denied. Allow it in Settings and try again."
     }
   }
+
+  var denial: CaptureDenial {
+    switch self {
+    case .microphoneDenied: .microphone
+    case .speechDenied: .speechRecognition
+    }
+  }
 }
 
 /// Asks for the microphone and speech recognition, in that order.
 enum CapturePermissions {
-  static func request() async throws {
+  static func request() async throws(CaptureError) {
     guard await AVAudioApplication.requestRecordPermission() else {
       throw CaptureError.microphoneDenied
     }

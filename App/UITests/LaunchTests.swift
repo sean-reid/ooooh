@@ -4,6 +4,7 @@ final class LaunchTests: XCTestCase {
   @MainActor
   func testLaunchShowsListener() {
     let app = XCUIApplication()
+    app.launchArguments += ["-onboardingComplete", "1"]
     app.launch()
     XCTAssertTrue(app.staticTexts["ooooh"].waitForExistence(timeout: 5))
     XCTAssertTrue(
