@@ -347,7 +347,7 @@ describe("POST /v1/phrase", () => {
 });
 
 describe("POST /v1/speak", () => {
-  const voice = "nPczCjzI2devNBz1zQrb";
+  const voice = "SAz9YHcvj6GT2YYXdXww";
   const audio = (headers: Record<string, string> = {}): Reply => ({
     body: audioBytes,
     headers: { "content-type": "audio/mpeg", ...headers },
@@ -374,8 +374,8 @@ describe("POST /v1/speak", () => {
     expect(sent.headers["xi-api-key"]).toBe("test-elevenlabs");
     expect(bodyOf(sent)).toEqual({
       text: speakBody.text,
-      model_id: "eleven_flash_v2_5",
-      voice_settings: { stability: 0.6, similarity_boost: 0.75, speed: 0.95 },
+      model_id: "eleven_v4_turbo",
+      voice_settings: { stability: 0.6, similarity_boost: 0.75 },
     });
   });
 

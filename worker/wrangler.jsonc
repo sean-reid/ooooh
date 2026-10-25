@@ -13,8 +13,8 @@
     "ANTHROPIC_DAILY_TOKENS": "2000000",
     "ELEVENLABS_DAILY_CHARACTERS": "20000",
     "DEVICE_MINUTE_REQUESTS": "60",
-    // Brian, a pre-made ElevenLabs voice: deep, resonant, unhurried. Override per deployment.
-    "ELEVENLABS_VOICE_ID": "nPczCjzI2devNBz1zQrb",
+    // River, a pre-made ElevenLabs voice: neutral, calm, conversational. Override per deployment.
+    "ELEVENLABS_VOICE_ID": "SAz9YHcvj6GT2YYXdXww",
   },
   // Counters for the caps above. `wrangler kv namespace create BUDGET` prints the id to paste here.
   "kv_namespaces": [{ "binding": "BUDGET", "id": "set-at-deploy" }],

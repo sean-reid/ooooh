@@ -32,12 +32,11 @@ To record a fixture, run a debug build on a phone, tap "Record a fixture" at the
 | `POST /v1/decide`  | Jev (`jev-latest`)               | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens` |
 | `POST /v1/compact` | Claude Haiku                     | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`    |
 | `POST /v1/phrase`  | Claude Sonnet                    | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`      |
-| `POST /v1/speak`   | ElevenLabs (`eleven_flash_v2_5`) | `audio/mpeg` streamed as it is made, `x-character-count` in the headers        |
-| `POST /v1/notes`   | Claude Opus                      | `notes` shaped like `SessionNotes`, `usage.inputTokens`, `usage.outputTokens`  |
+| `POST /v1/speak`   | ElevenLabs (`eleven_v4_turbo`)   | `audio/mpeg` streamed as it is made, `x-character-count` in the headers        |
 
 Bodies are JSON, capped at 256 KiB. A bad field comes back as 422 with the field named. A rate-limited provider comes back as 503 with `retryAfter` in seconds.
 
-`/v1/speak` takes `{ text }` of 1 to 400 characters and answers with `mp3_44100_64`: 8 KB per second of speech, and the phone starts playing from the first kilobyte, so it costs a sixth of raw PCM for the same start time. The voice is `ELEVENLABS_VOICE_ID` in `wrangler.jsonc` vars, Brian by default; set another id there or per deployment.
+`/v1/speak` takes `{ text }` of 1 to 400 characters and answers with `mp3_44100_64`: 8 KB per second of speech, and the phone starts playing from the first kilobyte, so it costs a sixth of raw PCM for the same start time. The voice is `ELEVENLABS_VOICE_ID` in `wrangler.jsonc` vars, River by default; set another id there or per deployment. The model is v4 Turbo, which starts streaming in about 0.3 s like Flash and costs the same, with v4 voice quality; it ignores the speed setting, so pace comes from the words.
 
 The Worker reads three secrets. Set them once per deployment and put the same names in `worker/.dev.vars` for local runs:
 

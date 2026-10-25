@@ -4,11 +4,11 @@ import { HttpError, readBody, requireSecret, sleep } from "../http";
 import { obj, str, ValidationError, type Validator } from "../validate";
 
 export const speech = {
-  model: "eleven_flash_v2_5",
+  model: "eleven_v4_turbo",
   outputFormat: "mp3_44100_64",
   contentType: "audio/mpeg",
   maxCharacters: 400,
-  settings: { stability: 0.6, similarityBoost: 0.75, speed: 0.95 },
+  settings: { stability: 0.6, similarityBoost: 0.75 },
 } as const;
 
 const retryDelayMs = 250;
