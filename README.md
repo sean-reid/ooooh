@@ -60,7 +60,7 @@ The app icon is rendered from the orb painter, so the icon and the listening ind
 - `App/` is the thin app target. Everything it does lives in a package.
 - `Packages/` holds Audio, Transcription, State, Governor, Notes, Design, and Proxy as one Swift package.
 - `worker/` is the Cloudflare Worker that serves the governor config and proxies the providers.
-- `tools/labeler/` is a static page for marking good moments in a recorded session. Open `index.html` in a browser, load a fixture, export labels.
+- `tools/labeler/` is a static page for marking good moments in a recorded session. Open `index.html` in Safari (Chrome blocks module scripts from the file system, so serve the directory with `python3 -m http.server -d tools/labeler` there), then load a fixture and its recording or drop both files on the page; the phone's `.caf` is decoded in the page, `.m4a` and `.wav` play natively. Arrow keys move between utterances and one key labels the current one (c clarify, d deepen, r reflect, e decide, s summarize, h challenge, f finished, l leave, q recall, w wrapUp, x clears), Enter plays it, space plays and pauses the whole recording with a playhead following through the list, and Export writes `<name>.labels.json`. `node --test tools/labeler/*.test.mjs` runs the CAF parser and export tests.
 - `tools/synth/` turns the scripts in `fixtures/synthetic/scripts/` into audio, fixtures, and labels.
 
 ## Eval
