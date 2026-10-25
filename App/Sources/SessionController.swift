@@ -52,7 +52,6 @@ final class SessionController {
   private var isSpeaking = false
   private var live: LiveSessionLoop?
   private var observers: [Task<Void, Never>] = []
-  private var speechHold: Task<Void, Never>?
   private var delivery: Task<Void, Never>?
   private var offlineChange: Task<Void, Never>?
   private let environment: Environment
@@ -96,7 +95,7 @@ final class SessionController {
         try await microphone.start()
         transcriber = microphone
       case .fixture(let url, let speed):
-        transcriber = try FixtureTranscriber(contentsOf: url, speed: speed)
+        transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
       }
       quietMode = environment.audio.route().prefersQuietMode
 
@@ -161,10 +160,9 @@ final class SessionController {
     case .speechLevel(let level):
       measuredLevel = level
     case .speechStarted:
-      speechHold?.cancel()
       isHearingSpeech = true
-    case .speechEnded(let at):
-      holdSpeech(until: at)
+    case .speechEnded:
+      isHearingSpeech = false
     case .utterance:
       break
     case .promptPending:
@@ -182,21 +180,6 @@ final class SessionController {
       scheduleOffline(offline)
     case .ended(let result):
       finish(with: result)
-    }
-  }
-
-  /// A fixture reports an utterance's end with its start, so the level stays up until the clock gets there.
-  private func holdSpeech(until end: TimeInterval) {
-    speechHold?.cancel()
-    let remaining = end - elapsed(at: .now)
-    guard remaining > 0 else {
-      isHearingSpeech = false
-      return
-    }
-    speechHold = Task {
-      try? await Task.sleep(for: .seconds(remaining))
-      guard !Task.isCancelled else { return }
-      isHearingSpeech = false
     }
   }
 
@@ -234,7 +217,6 @@ final class SessionController {
 
   private func finish(with result: SessionResult) {
     delivery?.cancel()
-    speechHold?.cancel()
     offlineChange?.cancel()
     environment.speaker.stop()
     for observer in observers { observer.cancel() }
