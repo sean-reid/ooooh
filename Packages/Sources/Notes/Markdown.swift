@@ -1,10 +1,11 @@
 import Foundation
 
 extension SessionNotes {
-  public func markdown(date: Date, calendar: Calendar = .current) -> String {
-    var out = "# \(title)\n\n"
-    out += date.formatted(.dateTime.year().month(.wide).day().locale(Locale(identifier: "en_US")))
-    out += "\n"
+  public func markdown(date: Date, timeZone: TimeZone = .current) -> String {
+    var style = Date.FormatStyle.dateTime.year().month(.wide).day()
+    style.timeZone = timeZone
+    style.locale = Locale(identifier: "en_US")
+    var out = "# \(title)\n\n" + date.formatted(style) + "\n"
     for section in sections {
       out += "\n## \(section.name)\n\n"
       for item in section.items {
