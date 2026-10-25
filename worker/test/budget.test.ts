@@ -19,6 +19,18 @@ beforeEach(async () => {
 });
 
 describe("budget", () => {
+  it("keeps the default cap when the var is not a positive number", async () => {
+    await charge(env, "jev", 20_000_000);
+    for (const bad of ["abc", "", "-5", "NaN"]) {
+      const err = await checkBudget({ ...env, JEV_DAILY_TOKENS: bad }, "jev").catch((e) => e);
+      expect(err, bad).toBeInstanceOf(HttpError);
+      expect(err.status, bad).toBe(503);
+    }
+    await expect(
+      checkBudget({ ...env, JEV_DAILY_TOKENS: "30000000" }, "jev"),
+    ).resolves.toBeUndefined();
+  });
+
   it("adds charges and refuses at the daily cap with a retry time", async () => {
     await charge(env, "jev", 1200);
     await charge(env, "jev", 800);

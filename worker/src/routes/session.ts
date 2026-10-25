@@ -1,9 +1,9 @@
 import { entitlement } from "../entitlement";
-import { json, readBody } from "../http";
+import { envNumber, json, readBody } from "../http";
 import { num, obj } from "../validate";
 
-export const freeSessionsPerMonth = (env: Env) => Number(env.FREE_SESSIONS_PER_MONTH ?? 3);
-export const freePromptMinutes = (env: Env) => Number(env.FREE_PROMPT_MINUTES ?? 20);
+export const freeSessionsPerMonth = (env: Env) => envNumber(env.FREE_SESSIONS_PER_MONTH, 3);
+export const freePromptMinutes = (env: Env) => envNumber(env.FREE_PROMPT_MINUTES, 20);
 
 const month = (now: Date) => now.toISOString().slice(0, 7);
 const keepSeconds = 62 * 24 * 3600;
