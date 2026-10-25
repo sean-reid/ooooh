@@ -10,9 +10,10 @@
     <header>
       <h1>ooooh labeler</h1>
       <p>
-        Open a fixture, click an utterance where a prompt would have been
-        welcome, pick the kind. Click again to clear. Export writes the labels
-        file the eval reads.
+        Open a fixture and its recording, or drop both files here. Click an
+        utterance or move with the arrow keys, then press the kind's key. Space
+        plays and pauses the recording, Enter plays the current utterance, x
+        clears its label. Export writes the labels file the eval reads.
       </p>
       <div class="controls">
         <label
@@ -21,23 +22,19 @@
         <label
           >Labels <input id="labels" type="file" accept="application/json"
         /></label>
+        <label
+          >Audio
+          <input id="audio" type="file" accept=".caf,.m4a,.wav,.mp3,audio/*"
+        /></label>
         <button id="export" disabled>Export labels</button>
         <span id="status"></span>
+        <span id="clock"></span>
       </div>
     </header>
-    <main id="transcript"></main>
-    <template id="kinds">
-      <div class="kinds">
-        <button data-kind="clarify">clarify</button>
-        <button data-kind="deepen">deepen</button>
-        <button data-kind="reflect">reflect</button>
-        <button data-kind="decide">decide</button>
-        <button data-kind="summarize">summarize</button>
-        <button data-kind="challenge">challenge</button>
-        <button data-kind="finished">finished</button>
-        <button data-kind="leave">leave alone</button>
-      </div>
-    </template>
+    <main>
+      <div id="transcript"></div>
+      <div id="playhead" hidden></div>
+    </main>
     <script type="module" src="labeler.js"></script>
   </body>
 </html>
