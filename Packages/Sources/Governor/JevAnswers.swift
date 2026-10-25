@@ -9,6 +9,8 @@ public struct JevAnswers: Codable, Equatable, Sendable {
   public var momentum: Score
   public var seemsFinished: Noul
   public var addressesApp: Choice<Command>
+  /// Atomic yes/no cues about the last few utterances, by name. Empty from older Workers.
+  public var cues: [String: Double]
 
   public init(
     goodMoment: Noul,
@@ -16,7 +18,8 @@ public struct JevAnswers: Codable, Equatable, Sendable {
     articulationDifficulty: Score,
     momentum: Score,
     seemsFinished: Noul,
-    addressesApp: Choice<Command>
+    addressesApp: Choice<Command>,
+    cues: [String: Double] = [:]
   ) {
     self.goodMoment = goodMoment
     self.intervention = intervention
@@ -24,6 +27,18 @@ public struct JevAnswers: Codable, Equatable, Sendable {
     self.momentum = momentum
     self.seemsFinished = seemsFinished
     self.addressesApp = addressesApp
+    self.cues = cues
+  }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    goodMoment = try c.decode(Noul.self, forKey: .goodMoment)
+    intervention = try c.decode(Choice<InterventionKind>.self, forKey: .intervention)
+    articulationDifficulty = try c.decode(Score.self, forKey: .articulationDifficulty)
+    momentum = try c.decode(Score.self, forKey: .momentum)
+    seemsFinished = try c.decode(Noul.self, forKey: .seemsFinished)
+    addressesApp = try c.decode(Choice<Command>.self, forKey: .addressesApp)
+    cues = try c.decodeIfPresent([String: Double].self, forKey: .cues) ?? [:]
   }
 
   /// A yes/no probability.

@@ -1,11 +1,15 @@
 import Foundation
 import Governor
+import Proxy
 import Session
 import Transcription
 
 // eval <fixture.json> <labels.json> [--config c.json] [--answers a.jsonl]
 // eval --corpus <dir> [--config c.json] [--answers-dir <dir>] [--require-perfect]
+// eval --corpus <dir> --live <worker url> --record-dir <dir>
 //
+// --live asks the real Jev through the Worker at every check, writes one JSON
+// line per answer under --record-dir, and scores the run with the real floor.
 // Without answers the oracle runs with the floor off, so the loop and the scorer
 // are checked against each other and a session must score 1.00 everywhere.
 
@@ -52,10 +56,23 @@ func corpus(in directory: String, answersDir: String?) throws -> [Run] {
   }
 }
 
+let liveURL = option("--live").map { URL(string: $0)! }
+let recordDir = option("--record-dir")
+
 func evaluate(_ run: Run, config base: GovernorConfig) async throws -> EvalReport {
   var config = base
   let decisions: any DecisionProvider
-  if let answers = run.answers {
+  var recorder: RecordingDecisionProvider?
+  if let liveURL {
+    guard let recordDir else { fail("--live needs --record-dir") }
+    try FileManager.default.createDirectory(
+      atPath: recordDir, withIntermediateDirectories: true)
+    let live = JevDecisionProvider(client: ProxyClient(baseURL: liveURL))
+    let recording = try RecordingDecisionProvider(
+      live, writingTo: URL(filePath: "\(recordDir)/\(run.name).jsonl"))
+    recorder = recording
+    decisions = recording
+  } else if let answers = run.answers {
     decisions = try RecordedDecisionProvider(contentsOf: URL(filePath: answers))
   } else {
     config.floor = .init(min: 0, max: 0)
@@ -65,7 +82,39 @@ func evaluate(_ run: Run, config base: GovernorConfig) async throws -> EvalRepor
     fixture: run.fixture, config: config,
     dependencies: .init(
       decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()))
+  if args.contains("--dump") {
+    dump(run, result)
+  }
+  if let recorder {
+    try await recorder.close()
+    let checks = await recorder.count
+    FileHandle.standardError.write(Data("  \(run.name): \(checks) checks recorded\n".utf8))
+  }
   return EvalReport.score(result, against: run.labels)
+}
+
+/// One line per check: time, answers, and whether a label sits within one utterance before it.
+func dump(_ run: Run, _ result: SessionResult) {
+  let ends = result.transcript.map(\.end).sorted()
+  func labeled(at: TimeInterval) -> String {
+    for label in run.labels.labels where label.at <= at {
+      let between = ends.filter { $0 > label.at && $0 <= at }.count
+      if between <= EvalReport.tolerance { return label.kind }
+    }
+    return "-"
+  }
+  for record in result.records {
+    guard case .check(let at, _, let a, let decision) = record else { continue }
+    let line = String(
+      format: "%@ %7.1f good %.2f %@ %.2f diff %.2f mom %.2f fin %.2f cmd %@ %.2f label %@ -> %@",
+      run.name, at, a.goodMoment.probability, a.intervention.choice.rawValue,
+      a.intervention.confidence, a.articulationDifficulty.score, a.momentum.score,
+      a.seemsFinished.probability, a.addressesApp.choice.rawValue, a.addressesApp.confidence,
+      labeled(at: at), String(describing: decision))
+    let cues = a.cues.sorted { $0.key < $1.key }
+      .map { String(format: "%@=%.2f", $0.key, $0.value) }.joined(separator: " ")
+    print(line + (cues.isEmpty ? "" : " cues " + cues))
+  }
 }
 
 let config =
@@ -88,7 +137,10 @@ if let directory = option("--corpus") {
   ]
 }
 
-let mode = runs.allSatisfy { $0.answers == nil } ? "oracle, floor off" : "recorded answers"
+let mode =
+  liveURL != nil
+  ? "live Jev, real floor"
+  : runs.allSatisfy { $0.answers == nil } ? "oracle, floor off" : "recorded answers"
 print("config v\(config.version)  \(mode)")
 
 var reports: [EvalReport] = []

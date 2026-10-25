@@ -1,4 +1,5 @@
 import Foundation
+import State
 
 /// Thresholds and ranges. Served by the Worker, cached on device, versioned.
 public struct GovernorConfig: Codable, Equatable, Sendable {
@@ -11,6 +12,10 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public var endSilence: TimeInterval
   public var checkPause: TimeInterval
   public var minCheckInterval: TimeInterval
+  /// Weight per cue name. The moment score is the largest of goodMoment and each weighted cue.
+  public var cueWeights: [String: Double]
+  /// The kind to ask when a cue opens the gate. Falls back to the intervention choice.
+  public var cueKinds: [String: InterventionKind]
 
   public init(
     version: Int,
@@ -21,7 +26,9 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     densityWindow: TimeInterval,
     endSilence: TimeInterval,
     checkPause: TimeInterval,
-    minCheckInterval: TimeInterval
+    minCheckInterval: TimeInterval,
+    cueWeights: [String: Double] = [:],
+    cueKinds: [String: InterventionKind] = [:]
   ) {
     self.version = version
     self.floor = floor
@@ -32,6 +39,23 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     self.endSilence = endSilence
     self.checkPause = checkPause
     self.minCheckInterval = minCheckInterval
+    self.cueWeights = cueWeights
+    self.cueKinds = cueKinds
+  }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    version = try c.decode(Int.self, forKey: .version)
+    floor = try c.decode(FloorRange.self, forKey: .floor)
+    speak = try c.decode(Thresholds.self, forKey: .speak)
+    finished = try c.decode(Thresholds.self, forKey: .finished)
+    command = try c.decode(Thresholds.self, forKey: .command)
+    densityWindow = try c.decode(TimeInterval.self, forKey: .densityWindow)
+    endSilence = try c.decode(TimeInterval.self, forKey: .endSilence)
+    checkPause = try c.decode(TimeInterval.self, forKey: .checkPause)
+    minCheckInterval = try c.decode(TimeInterval.self, forKey: .minCheckInterval)
+    cueWeights = try c.decodeIfPresent([String: Double].self, forKey: .cueWeights) ?? [:]
+    cueKinds = try c.decodeIfPresent([String: InterventionKind].self, forKey: .cueKinds) ?? [:]
   }
 
   public struct FloorRange: Codable, Equatable, Sendable {
@@ -55,15 +79,19 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   }
 
   /// Starting point before any calibration. The eval replaces these numbers.
-  public static let initial = GovernorConfig(
-    version: 1,
-    floor: FloorRange(min: 30, max: 120),
-    speak: Thresholds(probability: 0.75, confidence: 0.6),
-    finished: Thresholds(probability: 0.9, confidence: 0.7),
-    command: Thresholds(probability: 0.9, confidence: 0.7),
-    densityWindow: 120,
-    endSilence: 30,
-    checkPause: 2,
-    minCheckInterval: 3
-  )
+  public static var initial: GovernorConfig {
+    GovernorConfig(
+      version: 1,
+      floor: FloorRange(min: 30, max: 120),
+      speak: Thresholds(probability: 0.9, confidence: 0),
+      finished: Thresholds(probability: 0.9, confidence: 0.7),
+      command: Thresholds(probability: 0.9, confidence: 0.7),
+      densityWindow: 120,
+      endSilence: 30,
+      checkPause: 2,
+      minCheckInterval: 3,
+      cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
+      cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]
+    )
+  }
 }

@@ -58,8 +58,15 @@ describe("POST /v1/decide", () => {
         momentum: { score: 2.8, confidence: 0.58 },
         seemsFinished: { probability: 0.04 },
         addressesApp: { choice: "none", confidence: 0.97 },
+        cues: {
+          hangingQuestion: 0.61,
+          repeatsPoint: 0.44,
+          trailsOff: 0.12,
+          contradictsEarlier: 0.07,
+          unnamedDecision: 0.09,
+        },
       },
-      questionsVersion: 1,
+      questionsVersion: 2,
       usage: { jevInputTokens: 412 },
     });
 
@@ -70,10 +77,15 @@ describe("POST /v1/decide", () => {
     expect(Object.keys(sent.questions as object).sort()).toEqual([
       "addressesApp",
       "articulationDifficulty",
+      "contradictsEarlier",
       "goodMoment",
+      "hangingQuestion",
       "intervention",
       "momentum",
+      "repeatsPoint",
       "seemsFinished",
+      "trailsOff",
+      "unnamedDecision",
     ]);
     const state = sent.state as { recentTranscript: string; signals: { pauseLength: number } };
     expect(state.recentTranscript.split("\n")).toHaveLength(2);

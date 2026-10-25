@@ -21,9 +21,16 @@
     "addressesApp": {
       "choice": "none",
       "confidence": 0.97
+    },
+    "cues": {
+      "hangingQuestion": 0.61,
+      "repeatsPoint": 0.44,
+      "trailsOff": 0.12,
+      "contradictsEarlier": 0.07,
+      "unnamedDecision": 0.09
     }
   },
-  "questionsVersion": 1,
+  "questionsVersion": 2,
   "usage": {
     "jevInputTokens": 412
   }
