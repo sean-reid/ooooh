@@ -4,6 +4,7 @@ import State
 /// The structured output of a session. Every item points back at the transcript.
 public struct SessionNotes: Codable, Equatable, Sendable {
   public var title: String
+  public var summary: String?
   public var ideas: [NoteItem]
   public var decisions: [NoteItem]
   public var questions: [NoteItem]
@@ -14,6 +15,7 @@ public struct SessionNotes: Codable, Equatable, Sendable {
 
   public init(
     title: String,
+    summary: String? = nil,
     ideas: [NoteItem] = [],
     decisions: [NoteItem] = [],
     questions: [NoteItem] = [],
@@ -23,6 +25,7 @@ public struct SessionNotes: Codable, Equatable, Sendable {
     quotes: [NoteItem] = []
   ) {
     self.title = title
+    self.summary = summary
     self.ideas = ideas
     self.decisions = decisions
     self.questions = questions
@@ -57,6 +60,16 @@ public struct NoteItem: Codable, Equatable, Identifiable, Sendable {
     self.span = span
     self.edited = edited
     self.resolved = resolved
+  }
+
+  /// The Worker sends `id`, `text`, and `span`; the editing flags are the app's.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    id = try container.decode(String.self, forKey: .id)
+    text = try container.decode(String.self, forKey: .text)
+    span = try container.decodeIfPresent(TranscriptSpan.self, forKey: .span)
+    edited = try container.decodeIfPresent(Bool.self, forKey: .edited) ?? false
+    resolved = try container.decodeIfPresent(Bool.self, forKey: .resolved) ?? false
   }
 }
 
