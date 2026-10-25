@@ -1,0 +1,30 @@
+{
+  "answers": {
+    "goodMoment": {
+      "probability": 0.82
+    },
+    "intervention": {
+      "choice": "clarify",
+      "confidence": 0.71
+    },
+    "articulationDifficulty": {
+      "score": 3.35,
+      "confidence": 0.64
+    },
+    "momentum": {
+      "score": 2.8,
+      "confidence": 0.58
+    },
+    "seemsFinished": {
+      "probability": 0.04
+    },
+    "addressesApp": {
+      "choice": "none",
+      "confidence": 0.97
+    }
+  },
+  "questionsVersion": 1,
+  "usage": {
+    "jevInputTokens": 412
+  }
+}
