@@ -40,7 +40,7 @@ jobs:
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm test
-      - run: node --test ../site/site.test.mjs
+      - run: node --test ../site/site.test.mjs ../tools/synth/*.test.mjs ../tools/labeler/*.test.mjs
       - run: npm run build
       - run: npm audit --audit-level=high
 
@@ -57,12 +57,12 @@ jobs:
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath ui.xcresult
-          -only-testing:oooohUITests test
+          -only-testing:oooohUITests -only-testing:oooohTests test
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath design.xcresult
-          -only-testing:DesignTests test
+          -only-testing:DesignTests -only-testing:NotesSnapshotTests -only-testing:AudioTests test
         env:
           SIMCTL_CHILD_SNAPSHOT_ARTIFACTS: ${{ github.workspace }}/snapshot-failures
       - uses: actions/upload-artifact@v7
