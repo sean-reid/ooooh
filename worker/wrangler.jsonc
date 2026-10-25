@@ -22,10 +22,14 @@
     "APP_ATTEST_APP_ID": "C6UWR42ZAP.com.seanreid.ooooh",
     // "development" accepts keys from development-signed builds (aaguid appattestdevelop).
     "APP_ATTEST_ENVIRONMENT": "production",
+    // StoreKit: POST /v1/entitlement accepts a transaction only for this bundle id and environment.
+    "APP_BUNDLE_ID": "com.seanreid.ooooh",
+    // "Sandbox" for TestFlight and sandbox testers, "Production" for the store.
+    "APP_STORE_ENVIRONMENT": "Production",
     "FREE_SESSIONS_PER_MONTH": "3",
     "FREE_PROMPT_MINUTES": "20",
   },
-  // Counters for the caps above, attested device keys, challenges, and free-session counts. Local runs count in a Miniflare namespace, so this id is a label.
+  // Counters for the caps above, attested device keys, challenges, free-session counts, and verified entitlements. Local runs count in a Miniflare namespace, so this id is a label.
   "kv_namespaces": [{ "binding": "BUDGET", "id": "local" }],
   // Secrets, set with `wrangler secret put <NAME> --env production` and read locally from .dev.vars:
   //   TYPESAFE_API_KEY    Jev, POST /v1/decide

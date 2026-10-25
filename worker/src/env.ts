@@ -13,6 +13,9 @@ declare global {
     APP_ATTEST_ENVIRONMENT?: string;
     APP_ATTEST_ROOT_PEM?: string;
     REQUIRE_ATTESTATION?: string;
+    APP_BUNDLE_ID?: string;
+    APP_STORE_ENVIRONMENT?: string;
+    APPLE_ROOT_PEM?: string;
     FREE_SESSIONS_PER_MONTH?: string;
     FREE_PROMPT_MINUTES?: string;
   }
