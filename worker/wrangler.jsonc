@@ -15,8 +15,16 @@
     "DEVICE_MINUTE_REQUESTS": "60",
     // River, a pre-made ElevenLabs voice: neutral, calm, conversational. Override per deployment.
     "ELEVENLABS_VOICE_ID": "SAz9YHcvj6GT2YYXdXww",
+    // App Attest: every provider and session route needs an assertion from an attested key.
+    // The simulator cannot attest, so .dev.vars sets REQUIRE_ATTESTATION=false for local runs.
+    "REQUIRE_ATTESTATION": "true",
+    "APP_ATTEST_APP_ID": "C6UWR42ZAP.com.seanreid.ooooh",
+    // "development" accepts keys from development-signed builds (aaguid appattestdevelop).
+    "APP_ATTEST_ENVIRONMENT": "production",
+    "FREE_SESSIONS_PER_MONTH": "3",
+    "FREE_PROMPT_MINUTES": "20",
   },
-  // Counters for the caps above. `wrangler kv namespace create BUDGET` prints the id to paste here.
+  // Counters for the caps above, attested device keys, challenges, and free-session counts. `wrangler kv namespace create BUDGET` prints the id to paste here.
   "kv_namespaces": [{ "binding": "BUDGET", "id": "set-at-deploy" }],
   // Secrets, set with `wrangler secret put <NAME>` and read locally from .dev.vars:
   //   TYPESAFE_API_KEY    Jev, POST /v1/decide

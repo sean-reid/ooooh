@@ -26,7 +26,8 @@ export const notFound = () => new HttpError(404, { error: "not found" });
 export const methodNotAllowed = (allow: string) =>
   new HttpError(405, { error: "method not allowed" }, { allow });
 
-export async function readBody<T>(request: Request, validator: Validator<T>): Promise<T> {
+/** The body as bytes, refused past `MAX_BODY_BYTES` before and after reading. */
+export async function readBytes(request: Request): Promise<ArrayBuffer> {
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_BODY_BYTES) {
     throw new HttpError(413, { error: "body too large", limit: MAX_BODY_BYTES });
@@ -35,6 +36,11 @@ export async function readBody<T>(request: Request, validator: Validator<T>): Pr
   if (bytes.byteLength > MAX_BODY_BYTES) {
     throw new HttpError(413, { error: "body too large", limit: MAX_BODY_BYTES });
   }
+  return bytes;
+}
+
+export async function readBody<T>(request: Request, validator: Validator<T>): Promise<T> {
+  const bytes = await readBytes(request);
   let parsed: unknown;
   try {
     parsed = JSON.parse(new TextDecoder().decode(bytes));

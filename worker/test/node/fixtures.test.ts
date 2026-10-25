@@ -32,6 +32,7 @@ export const testEnv: Env = {
   TYPESAFE_API_KEY: "test-jev",
   ANTHROPIC_API_KEY: "test-anthropic",
   ELEVENLABS_API_KEY: "test-elevenlabs",
+  REQUIRE_ATTESTATION: "false",
 };
 
 const call = async (path: string, body: unknown, replies: Reply[], accept = "application/json") => {

@@ -42,7 +42,7 @@ public struct SonnetPhraser: Phraser {
     AsyncThrowingStream { continuation in
       let task = Task {
         do {
-          let request = try client.request(
+          let request = try await client.request(
             "v1/phrase", body: body(kind, state, recent), accept: "text/event-stream")
           let (bytes, response) = try await client.session.bytes(for: request)
           try ProxyError.check(response, data: Data())
