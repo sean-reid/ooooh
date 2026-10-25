@@ -44,5 +44,6 @@ let package = Package(
       name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
     .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
     .testTarget(name: "ProxyTests", dependencies: ["Proxy"], resources: [.copy("Fixtures")]),
+    .testTarget(name: "PersistenceTests", dependencies: ["Persistence"]),
   ]
 )
