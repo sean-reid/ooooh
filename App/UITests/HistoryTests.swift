@@ -22,7 +22,8 @@ final class HistoryTests: XCTestCase {
   @MainActor
   private func runHistory(named name: String, arguments: [String]) {
     let app = XCUIApplication()
-    app.launchArguments += ["-reset-store", "1", "-seed-history", "1"] + arguments
+    app.launchArguments +=
+      ["-onboardingComplete", "1", "-reset-store", "1", "-seed-history", "1"] + arguments
     app.launch()
 
     let card = app.otherElements["home.carryover"]

@@ -21,7 +21,7 @@ final class SessionViewTests: XCTestCase {
   @MainActor
   private func runDemo(named name: String, arguments: [String]) {
     let app = XCUIApplication()
-    app.launchArguments += ["-onboardingComplete", "1"] + arguments
+    app.launchArguments += ["-onboardingComplete", "1"] + Worker.launchArguments + arguments
     app.launch()
 
     let demo = app.buttons["home.demo"]
