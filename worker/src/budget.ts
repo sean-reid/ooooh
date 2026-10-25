@@ -1,3 +1,4 @@
+import type { DeviceHandler } from "./attest/device";
 import { HttpError } from "./http";
 
 export type Provider = "jev" | "anthropic" | "elevenlabs";
@@ -45,10 +46,8 @@ export async function charge(
 }
 
 /** One device may make this many provider-backed requests a minute. */
-export async function checkDeviceRate(request: Request, env: Env, now = new Date()): Promise<void> {
+export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {
   const limit = Number(env.DEVICE_MINUTE_REQUESTS ?? 60);
-  const device =
-    request.headers.get("x-device") ?? request.headers.get("cf-connecting-ip") ?? "unknown";
   const minute = Math.floor(now.getTime() / 60_000);
   const key = `rate:${device}:${minute}`;
   const used = await read(env.BUDGET, key);
@@ -65,9 +64,12 @@ export async function checkDeviceRate(request: Request, env: Env, now = new Date
 
 /** Wraps a route so the device and budget checks run before any upstream call. */
 export const guarded =
-  (provider: Provider, handler: (request: Request, env: Env) => Promise<Response> | Response) =>
-  async (request: Request, env: Env) => {
-    await checkDeviceRate(request, env);
+  (
+    provider: Provider,
+    handler: (request: Request, env: Env) => Promise<Response> | Response,
+  ): DeviceHandler =>
+  async (request, env, device) => {
+    await checkDeviceRate(device, env);
     await checkBudget(env, provider);
     return handler(request, env);
   };

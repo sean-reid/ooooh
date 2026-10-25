@@ -16,13 +16,17 @@ settings:
 packages:
   Packages:
     path: Packages
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing
+    from: 1.19.7
 targets:
   ooooh:
     type: application
     platform: iOS
     sources:
       - App/Sources
-      - App/Resources
+      - path: App/Resources
+        excludes: [Products.storekit]
     dependencies:
       - package: Packages
         product: Design
@@ -38,6 +42,8 @@ targets:
         product: Audio
       - package: Packages
         product: Proxy
+      - package: Packages
+        product: Billing
     info:
       path: App/Resources/Info.plist
       properties:
@@ -74,6 +80,22 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh.tests
+  BillingTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: App/BillingTests
+        excludes: [__Snapshots__]
+      - path: App/Resources/Products.storekit
+        buildPhase: resources
+    dependencies:
+      - target: ooooh
+      - package: SnapshotTesting
+        product: SnapshotTesting
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh.billingtests
   oooohUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -91,13 +113,16 @@ schemes:
         ooooh: all
         oooohTests: [test]
         oooohUITests: [test]
+        BillingTests: [test]
     run:
       config: Debug
+      storeKitConfiguration: App/Resources/Products.storekit
     test:
       config: Debug
       targets:
         - oooohTests
         - oooohUITests
+        - BillingTests
         - package: Packages/DesignTests
         - package: Packages/NotesSnapshotTests
         - package: Packages/AudioTests

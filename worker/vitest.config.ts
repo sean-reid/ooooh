@@ -2,10 +2,12 @@ import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 // Stand-ins so the workers project never reaches a real provider. Real keys stay in .dev.vars for the node project.
+// Attestation is off here like local dev; the attest suites turn it on per request with their own root.
 const testSecrets = {
   TYPESAFE_API_KEY: "test-jev",
   ANTHROPIC_API_KEY: "test-anthropic",
   ELEVENLABS_API_KEY: "test-elevenlabs",
+  REQUIRE_ATTESTATION: "false",
 };
 
 export default defineConfig({
