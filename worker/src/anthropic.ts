@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { HttpError } from "./http";
+import { HttpError, retryAfterFrom } from "./http";
 
 export const models = {
   compact: "claude-haiku-5-5",
@@ -32,7 +32,7 @@ export const anthropicClient = (cred: Credential, options: { timeout?: number } 
 
 export const upstreamError = (e: unknown): never => {
   if (e instanceof Anthropic.RateLimitError) {
-    const retryAfter = Number(e.headers?.get("retry-after") ?? 5);
+    const retryAfter = retryAfterFrom(e.headers?.get("retry-after"));
     throw new HttpError(503, { error: "anthropic unavailable", retryAfter });
   }
   if (e instanceof Anthropic.APIError) {
