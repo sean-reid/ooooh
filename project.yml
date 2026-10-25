@@ -22,7 +22,8 @@ targets:
     platform: iOS
     sources:
       - App/Sources
-      - App/Resources
+      - path: App/Resources
+        excludes: [Products.storekit]
     dependencies:
       - package: Packages
         product: Design
@@ -92,6 +93,7 @@ schemes:
         oooohUITests: [test]
     run:
       config: Debug
+      storeKitConfiguration: App/Resources/Products.storekit
     test:
       config: Debug
       targets:
