@@ -12,7 +12,7 @@ describe("worker", () => {
     const res = await SELF.fetch("https://ooooh.test/v1/config");
     expect(res.status).toBe(200);
     const body = (await res.json()) as { version: number; floor: { min: number; max: number } };
-    expect(body.version).toBe(1);
+    expect(body.version).toBe(2);
     expect(body.floor).toEqual({ min: 30, max: 120 });
   });
 
