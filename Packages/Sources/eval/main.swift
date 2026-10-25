@@ -7,6 +7,7 @@ import Transcription
 // eval <fixture.json> <labels.json> [--config c.json] [--answers a.jsonl]
 // eval --corpus <dir> [--config c.json] [--answers-dir <dir>] [--require-perfect]
 // eval --corpus <dir> --live <worker url> --record-dir <dir>
+// Any form takes --arming-delay <seconds> to override the config's, 0 to speak at the decision.
 //
 // --live asks the real Jev through the Worker at every check, writes one JSON
 // line per answer under --record-dir, and scores the run with the real floor.
@@ -117,8 +118,14 @@ func dump(_ run: Run, _ result: SessionResult) {
   }
 }
 
-let config =
+var config =
   try option("--config").map { try load(GovernorConfig.self, $0) } ?? .initial
+if let delay = option("--arming-delay") {
+  guard let seconds = TimeInterval(delay), seconds >= 0 else {
+    fail("--arming-delay takes seconds, 0 or more")
+  }
+  config.armingDelay = seconds
+}
 
 var runs: [Run]
 if let directory = option("--corpus") {
@@ -141,7 +148,7 @@ let mode =
   liveURL != nil
   ? "live Jev, real floor"
   : runs.allSatisfy { $0.answers == nil } ? "oracle, floor off" : "recorded answers"
-print("config v\(config.version)  \(mode)")
+print("config v\(config.version)  arming \(config.armingDelay) s  \(mode)")
 
 var reports: [EvalReport] = []
 for run in runs {

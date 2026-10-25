@@ -70,6 +70,8 @@ public struct EvalReport: Equatable, Sendable {
   public var intrusions: Int
   /// Prompts the speaker would have talked over: the next utterance began inside the speak window.
   public var collisions: Int = 0
+  /// Decisions that armed and were cut short by speech before they spoke.
+  public var cancelled: Int = 0
 
   /// Seconds from a decision to the end of the spoken prompt: 1.5 s to the first syllable plus about 3 s of speech.
   public static let speakWindow: TimeInterval = 4.5
@@ -90,6 +92,8 @@ public struct EvalReport: Equatable, Sendable {
       out.finished.add(report.finished)
       out.commands.add(report.commands)
       out.intrusions += report.intrusions
+      out.collisions += report.collisions
+      out.cancelled += report.cancelled
       for (name, kind) in report.byKind {
         out.byKind[name, default: Kind()].add(kind)
       }
@@ -178,14 +182,33 @@ public struct EvalReport: Equatable, Sendable {
       leaves.contains { utterancesBetween($0.at, prompt.at) == 0 && $0.at <= prompt.at }
     }.count
     let starts = result.transcript.map(\.start).sorted()
-    let collisions = result.prompts.filter { prompt in
-      guard let next = starts.first(where: { $0 > prompt.at }) else { return false }
-      return next - prompt.at < speakWindow
+    let collisions = result.spokenDecisions.filter { decidedAt in
+      guard let next = starts.first(where: { $0 > decidedAt }) else { return false }
+      return next - decidedAt < speakWindow
     }.count
 
     return EvalReport(
       byKind: byKind, overall: overall, finished: finished, commands: commands,
-      intrusions: intrusions, collisions: collisions)
+      intrusions: intrusions, collisions: collisions, cancelled: result.cancelledArms.count)
+  }
+}
+
+extension SessionResult {
+  /// When each spoken prompt was decided: the arm when it had one, else the prompt itself.
+  var spokenDecisions: [TimeInterval] {
+    var armed: TimeInterval?
+    var out: [TimeInterval] = []
+    for record in records {
+      switch record {
+      case .promptArmed(let at, .intervention): armed = at
+      case .promptArmed(_, .finishedQuestion), .promptCancelled: armed = nil
+      case .prompt(let at, _, _):
+        out.append(armed ?? at)
+        armed = nil
+      default: break
+      }
+    }
+    return out
   }
 }
 
@@ -201,7 +224,7 @@ extension EvalReport {
     for (name, kind) in byKind.sorted(by: { $0.key < $1.key }) {
       out.append(line(name, kind))
     }
-    out.append("intrusions \(intrusions)  collisions \(collisions)")
+    out.append("intrusions \(intrusions)  collisions \(collisions)  cancelled \(cancelled)")
     return out.joined(separator: "\n")
   }
 }

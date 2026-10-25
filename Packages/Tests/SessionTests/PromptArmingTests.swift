@@ -199,6 +199,32 @@ import Transcription
     }
     #expect(checks == [0.5, 3.5, 8.5, 11.5])
   }
+
+  @Test func armingCutsCollisionsOnTheShortFixture() async throws {
+    let fixture = try base.fixture()
+    let labels = Labels(fixture: "short", labels: [])
+    func collisions(delay: TimeInterval) async -> (collisions: Int, cancelled: Int, prompts: Int) {
+      var config = GovernorConfig.initial
+      config.floor = .init(min: 0, max: 0)
+      config.armingDelay = delay
+      let every = ScriptedDecisionProvider { input in
+        var answers = JevAnswers.quiet
+        if input.signals.pauseLength == 0 {
+          answers.goodMoment = .init(0.95)
+          answers.intervention = .init(.deepen, confidence: 0.9)
+        }
+        return answers
+      }
+      let result = await FixtureDriver.run(
+        fixture: fixture, config: config, dependencies: base.deps(every))
+      let report = EvalReport.score(result, against: labels)
+      return (report.collisions, report.cancelled, result.prompts.count)
+    }
+    let before = await collisions(delay: 0)
+    let after = await collisions(delay: 1.5)
+    #expect(before == (collisions: 15, cancelled: 0, prompts: 17))
+    #expect(after == (collisions: 8, cancelled: 7, prompts: 10))
+  }
 }
 
 extension SessionEvent {
