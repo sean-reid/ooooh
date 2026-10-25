@@ -54,15 +54,10 @@ test("every checked-in script validates, is 3 to 8 minutes of speech, and pauses
       `${name} pause out of range`,
     );
     const slow = Math.max(...pauses) >= 20;
-    const shortGaps = pauses.filter((p) => p <= 1.5).length;
+    const midGaps = pauses.filter((p) => p >= 1.5 && p <= 3).length;
     assert.ok(
-      shortGaps >= pauses.length / (slow ? 5 : 2),
-      `${name} needs ${slow ? "some" : "mostly"} short gaps`,
-    );
-    const minutes = (speech + pauseSeconds(script)) / 60;
-    assert.ok(
-      pauses.filter((p) => p >= 3 && p <= 8).length >= minutes / 2,
-      `${name} needs thinking pauses`,
+      midGaps >= pauses.length / (slow ? 5 : 2),
+      `${name} needs ${slow ? "some" : "mostly"} gaps of 1.5 to 3 s`,
     );
     const finished = script.utterances
       .map((u, i) => (u.label === "finished" ? i : -1))
@@ -76,6 +71,60 @@ test("every checked-in script validates, is 3 to 8 minutes of speech, and pauses
       /\b(um|uh)\b/i.test(script.utterances.map((u) => u.text).join(" ")),
       `${name} has no fillers`,
     );
+  }
+});
+
+test("speech fills 55 to 75 percent of every session, late night lower", () => {
+  for (const [name, script] of Object.entries(scripts)) {
+    const speech = speechSeconds(script);
+    const density = speech / (speech + pauseSeconds(script));
+    const floor = name === "late-night" ? 0.3 : 0.55;
+    assert.ok(
+      density >= floor && density <= 0.75,
+      `${name} is ${(density * 100).toFixed(0)}% speech`,
+    );
+  }
+});
+
+test("a pause of 4 s or more falls in every two minutes of every session", () => {
+  for (const [name, script] of Object.entries(scripts)) {
+    let clock = 0;
+    const starts = [];
+    for (const u of script.utterances) {
+      clock += estimateDuration(u.text);
+      if (u.pauseAfter >= 4) starts.push(clock);
+      clock += u.pauseAfter;
+    }
+    const points = [0, ...starts, clock];
+    const widest = Math.max(...points.slice(1).map((p, i) => p - points[i]));
+    assert.ok(
+      widest <= 120,
+      `${name} goes ${widest.toFixed(0)} s without a 4 s pause`,
+    );
+  }
+});
+
+test("every intervention label sits before a gap of at least 5 s", () => {
+  for (const [name, script] of Object.entries(scripts)) {
+    script.utterances.forEach((u, i) => {
+      if (!u.label || u.label === "leave" || u.label === "finished") return;
+      assert.ok(
+        u.pauseAfter >= 5,
+        `${name} utterance ${i} (${u.label}) has a ${u.pauseAfter} s gap`,
+      );
+    });
+  }
+});
+
+test("every leave sits before a gap of at least 15 s", () => {
+  for (const [name, script] of Object.entries(scripts)) {
+    script.utterances.forEach((u, i) => {
+      if (u.label !== "leave") return;
+      assert.ok(
+        u.pauseAfter >= 15,
+        `${name} utterance ${i} (leave) has a ${u.pauseAfter} s gap`,
+      );
+    });
   }
 });
 
@@ -110,9 +159,9 @@ test("decision carries an early clarify, a decide, and a summarize after a long 
   assert.ok(indexOfLabel(s, "decide") > indexOfLabel(s, "clarify"));
   const summarize = indexOfLabel(s, "summarize");
   assert.ok(summarize > 0);
-  const runBefore = s.utterances.slice(summarize - 6, summarize + 1);
+  const runBefore = s.utterances.slice(summarize - 6, summarize);
   assert.ok(
-    runBefore.every((u) => u.pauseAfter <= 1.5),
+    runBefore.every((u) => u.pauseAfter <= 3),
     "the run before summarize has no long pauses",
   );
 });

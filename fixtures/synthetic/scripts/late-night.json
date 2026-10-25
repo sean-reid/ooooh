@@ -2,28 +2,119 @@
   "name": "late-night",
   "summary": "Half past one in the morning, lying in the dark, turning over whether to leave a job that is fine. Very slow, short whispery phrases, pauses of twenty to forty seconds between many of them. The pauses are thinking, not stopping, and the governor must not read them as the end. Labels: leave on every long pause, ten of them; finished only on the last line, when the speaker says they are going to sleep. No other prompt is welcome at this hour.",
   "utterances": [
-    { "text": "Okay. Quietly. It is, um, one thirty something. Everyone is asleep and I am doing this again.", "pauseAfter": 3.0 },
-    { "text": "I cannot sleep because of the job thing again. Third night this week, I think. Maybe fourth.", "pauseAfter": 22.0, "label": "leave", "note": "Twenty two seconds. Thinking, not done." },
-    { "text": "It is a fine job. That is the problem. If it were bad this would be easy, I would just go, people leave bad jobs every day.", "pauseAfter": 1.5 },
-    { "text": "It is fine. The people are fine. The money is fine. The commute is fine. Fine fine fine.", "pauseAfter": 28.0, "label": "leave", "note": "Long pause after the fine refrain. Leave it." },
-    { "text": "What I actually want is, um. I do not know. Something where I make a thing. Where at the end of the week there is a thing that was not there before and I can point at it.", "pauseAfter": 2.0 },
-    { "text": "Right now at the end of the week there are, like, nine documents nobody will read and a meeting about the documents.", "pauseAfter": 35.0, "label": "leave", "note": "Thirty five seconds. Still awake, still thinking. Not finished." },
-    { "text": "I had that for a while, the making thing. The first year. The dashboard, the import tool, the thing for the warehouse people. That was, I was tired but I was tired in the good way.", "pauseAfter": 1.2 },
-    { "text": "And then I got good at it and they moved me to, um, to coordinating it. Which is what happens. You get good at the thing and they take the thing away.", "pauseAfter": 24.0, "label": "leave", "note": "Twenty four seconds after the promotion line. Leave it." },
-    { "text": "So maybe it is more about, like.", "pauseAfter": 5.0 },
-    { "text": "No, I lost it.", "pauseAfter": 20.0, "label": "leave", "note": "The thought slipped and the speaker is reaching for it. Any prompt now would knock it further away." },
-    { "text": "Oh. It was, the making thing. Whether I could do that here. Like, in this job. Instead of leaving. Whether that is even a thing I could ask for.", "pauseAfter": 1.2 },
-    { "text": "Probably. Nobody has said no. Nobody has said anything, because I have not asked. I have just been, um, quietly resentful for about eight months.", "pauseAfter": 4.0 },
-    { "text": "I have not asked. Huh.", "pauseAfter": 30.0, "label": "leave", "note": "Thirty seconds after noticing they never asked. The important realization of the night." },
-    { "text": "Why have I not asked.", "pauseAfter": 2.0 },
-    { "text": "Because if I ask and they say yes then I have to actually do it and it might be bad. I might be rusty. And if I just leave, I never find out it might be bad, I just get to be the person who left for something better.", "pauseAfter": 1.5 },
-    { "text": "That is, um. That is a dumb reason. But it is the reason. I am pretty sure that is the reason.", "pauseAfter": 38.0, "label": "leave", "note": "Thirty eight seconds, the longest of the session. Not finished." },
-    { "text": "Okay so the thing to do is not quit. The thing to do is ask. Ask for the, the build thing, the one from the summer that got shelved, the inventory one. Nobody owns it. It is just sitting there.", "pauseAfter": 1.0 },
-    { "text": "Ask Priya. Thursday, the one on one. Just say it. I want to build the inventory thing, half my week, for a quarter, and see.", "pauseAfter": 24.0, "label": "leave", "note": "Twenty four seconds. The speaker has a plan and is turning it over." },
-    { "text": "And if she says no, then I know something I did not know, and then the leaving question is a real question instead of a, a two in the morning question.", "pauseAfter": 3.0 },
-    { "text": "And if she says yes, then I am scared for a different reason, which, honestly, I would take. I would rather be scared of a thing than tired of nothing.", "pauseAfter": 26.0, "label": "leave", "note": "Twenty six seconds. Still not the end, there is one more thing." },
-    { "text": "Okay.", "pauseAfter": 21.0, "label": "leave", "note": "Twenty one seconds after okay. The speaker is drifting toward sleep but has one more thing." },
-    { "text": "One more thing. Write it down. Right now, on the phone, because I will not remember any of this in the morning, I never do. Ask Priya Thursday about the inventory thing. Half the week. One quarter.", "pauseAfter": 2.0 },
-    { "text": "Done. Okay. Sleep.", "pauseAfter": 3.0, "label": "finished", "note": "The real end. Everything before it was a pause." }
+    {
+      "text": "Okay. Quietly. It is, um, one thirty something. Everyone is asleep and I am doing this again.",
+      "pauseAfter": 4
+    },
+    {
+      "text": "I cannot sleep because of the job thing again. Third night this week, I think. Maybe fourth.",
+      "pauseAfter": 22,
+      "label": "leave",
+      "note": "Twenty two seconds. Thinking, not done."
+    },
+    {
+      "text": "It is a fine job. That is the problem. If it were bad this would be easy, I would just go, people leave bad jobs every day.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "It is fine. The people are fine. The money is fine. The commute is fine. Fine fine fine.",
+      "pauseAfter": 28,
+      "label": "leave",
+      "note": "Long pause after the fine refrain. Leave it."
+    },
+    {
+      "text": "What I actually want is, um. I do not know. Something where I make a thing. Where at the end of the week there is a thing that was not there before and I can point at it.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Right now at the end of the week there are, like, nine documents nobody will read and a meeting about the documents.",
+      "pauseAfter": 35,
+      "label": "leave",
+      "note": "Thirty five seconds. Still awake, still thinking. Not finished."
+    },
+    {
+      "text": "I had that for a while, the making thing. The first year. The dashboard, the import tool, the thing for the warehouse people. That was, I was tired but I was tired in the good way.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And then I got good at it and they moved me to, um, to coordinating it. Which is what happens. You get good at the thing and they take the thing away.",
+      "pauseAfter": 24,
+      "label": "leave",
+      "note": "Twenty four seconds after the promotion line. Leave it."
+    },
+    {
+      "text": "So maybe it is more about, like.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "No, I lost it.",
+      "pauseAfter": 20,
+      "label": "leave",
+      "note": "The thought slipped and the speaker is reaching for it. Any prompt now would knock it further away."
+    },
+    {
+      "text": "Oh. It was, the making thing. Whether I could do that here. Like, in this job. Instead of leaving. Whether that is even a thing I could ask for.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Probably. Nobody has said no. Nobody has said anything, because I have not asked. I have just been, um, quietly resentful for about eight months.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "I have not asked. Huh.",
+      "pauseAfter": 30,
+      "label": "leave",
+      "note": "Thirty seconds after noticing they never asked. The important realization of the night."
+    },
+    {
+      "text": "Why have I not asked.",
+      "pauseAfter": 4
+    },
+    {
+      "text": "Because if I ask and they say yes then I have to actually do it and it might be bad. I might be rusty. And if I just leave, I never find out it might be bad, I just get to be the person who left for something better.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "That is, um. That is a dumb reason. But it is the reason. I am pretty sure that is the reason.",
+      "pauseAfter": 38,
+      "label": "leave",
+      "note": "Thirty eight seconds, the longest of the session. Not finished."
+    },
+    {
+      "text": "Okay so the thing to do is not quit. The thing to do is ask. Ask for the, the build thing, the one from the summer that got shelved, the inventory one. Nobody owns it. It is just sitting there.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Ask Priya. Thursday, the one on one. Just say it. I want to build the inventory thing, half my week, for a quarter, and see.",
+      "pauseAfter": 24,
+      "label": "leave",
+      "note": "Twenty four seconds. The speaker has a plan and is turning it over."
+    },
+    {
+      "text": "And if she says no, then I know something I did not know, and then the leaving question is a real question instead of a, a two in the morning question.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "And if she says yes, then I am scared for a different reason, which, honestly, I would take. I would rather be scared of a thing than tired of nothing.",
+      "pauseAfter": 26,
+      "label": "leave",
+      "note": "Twenty six seconds. Still not the end, there is one more thing."
+    },
+    {
+      "text": "Okay.",
+      "pauseAfter": 21,
+      "label": "leave",
+      "note": "Twenty one seconds after okay. The speaker is drifting toward sleep but has one more thing."
+    },
+    {
+      "text": "One more thing. Write it down. Right now, on the phone, because I will not remember any of this in the morning, I never do. Ask Priya Thursday about the inventory thing. Half the week. One quarter.",
+      "pauseAfter": 4
+    },
+    {
+      "text": "Done. Okay. Sleep.",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "The real end. Everything before it was a pause."
+    }
   ]
 }

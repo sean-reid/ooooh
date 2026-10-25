@@ -2,40 +2,153 @@
   "name": "decision",
   "summary": "Choosing between two apartments, a cheaper one with a long commute and a pricier one ten minutes from work, and landing on the pricier one. The speaker weighs money, time, and a partner who leans the other way. Labels: clarify early when they say the cheap one is a thousand less but have not said per month or per year and the whole argument hangs on it; decide when they say they would rather have the hour than the money, which is the decision made without being named; summarize after a long uninterrupted run through the budget where the numbers have piled up and a recap would let them hear the total.",
   "utterances": [
-    { "text": "Right, apartments. We have to answer by Monday so I want to actually think instead of just, like, flipping back and forth in my head at two in the morning.", "pauseAfter": 0.9 },
-    { "text": "Two options. The one on Carver Street, which is the cheap one, and the one by the park, which is not cheap.", "pauseAfter": 0.7 },
-    { "text": "Carver is about a thousand less. Which is a lot. That is, I mean, that is real money.", "pauseAfter": 3.5, "label": "clarify", "note": "A thousand less per what? The speaker never says per month, and everything after depends on it. A clarifying question here fixes the frame early." },
-    { "text": "But Carver is also fifty five minutes door to door. Each way. On a good day. Versus, um, the park one is like twelve minutes on foot.", "pauseAfter": 0.8 },
-    { "text": "So the trade is money versus time. Which, okay, everybody says that about every decision, but here it is literally the trade.", "pauseAfter": 1.0 },
-    { "text": "Let me do the time thing properly. Fifty five minus twelve is forty three minutes each way. So, eighty six minutes a day. Call it an hour and a half.", "pauseAfter": 0.6 },
-    { "text": "Times five days. Seven and a half hours a week. Seven and a half hours a week.", "pauseAfter": 1.2 },
-    { "text": "That is like a whole work day, every week, sitting on a bus. For a year that is, uh, forty eight weeks, so, three hundred and sixty hours.", "pauseAfter": 0.9 },
-    { "text": "Three hundred and sixty hours. For twelve thousand dollars. So that is, what, thirty three dollars an hour, roughly. I am paying thirty three dollars an hour to not be on a bus.", "pauseAfter": 5.0 },
-    { "text": "Hm. When I say it like that it sounds reasonable? Like, I would pay that. I think I would pay that.", "pauseAfter": 0.8 },
-    { "text": "But Sam would not. Sam's whole thing is, the bus is reading time, you can read on the bus, it is not wasted.", "pauseAfter": 0.7 },
-    { "text": "And that is, fine, that is true for Sam. I do not read on the bus. I look at my phone and feel vaguely sick. That is what I do on the bus.", "pauseAfter": 1.1 },
-    { "text": "Okay so money side. Let me actually go through the budget because I keep saying a thousand like it is one number and it is not.", "pauseAfter": 0.6 },
-    { "text": "Park place is twenty eight fifty. Carver is eighteen fifty. Utilities are included at Carver, not at park, so add maybe one fifty to park. So twenty eight fifty becomes three thousand.", "pauseAfter": 0.5 },
-    { "text": "Then transit. The bus pass is, um, a hundred and ten a month, and I would not need it at park because I would walk. So subtract that from the park side. Twenty eight ninety.", "pauseAfter": 0.5 },
-    { "text": "Then the thing nobody counts, which is that at Carver I would end up getting a car within a year, I know I would, because the bus on weekends is a joke. And a car is, parking alone is two hundred.", "pauseAfter": 0.6 },
-    { "text": "So Carver is really eighteen fifty plus two hundred parking plus insurance plus gas, say four fifty total, so twenty three hundred. Versus twenty eight ninety.", "pauseAfter": 0.5 },
-    { "text": "So the real gap is six hundred a month, not a thousand. Six hundred. Which is seventy two hundred a year, not twelve thousand.", "pauseAfter": 0.7 },
-    { "text": "And then the hourly thing changes too, seventy two hundred over three hundred sixty hours is twenty dollars an hour. Twenty dollars an hour to not be on a bus, and also to not own a car I do not want.", "pauseAfter": 1.0, "label": "summarize", "note": "End of a long run of numbers with four revisions. A one line recap of the real monthly gap and the hourly figure would let the speaker hear what they just built." },
-    { "text": "Okay. Okay that is, that is a different decision than the one I walked in with.", "pauseAfter": 4.5 },
-    { "text": "Where was I. Sam. Right. So Sam's view is six hundred a month is a vacation. Every month. And, yeah.", "pauseAfter": 0.8 },
-    { "text": "But I think, honestly, I think I would rather have the hour and a half every day than the vacation. I think that is just true about me.", "pauseAfter": 1.3, "label": "decide", "note": "This is the decision, said as a preference about themself and not named as a choice. A prompt that names it as the decision would help them notice." },
-    { "text": "Like, I was in the Carver neighborhood on Saturday, and it is nice, it is genuinely nice, but I kept checking the bus times on my phone the whole time I was there.", "pauseAfter": 0.9 },
-    { "text": "That is the tell, right? I already know. I am looking for permission to spend the money.", "pauseAfter": 0.7 },
-    { "text": "No wait, that is unfair to me. I am not looking for permission, I am trying to make sure I am not being, um, soft. Like, choosing comfort and calling it a reason.", "pauseAfter": 5.5 },
-    { "text": "Is it soft? Twenty dollars an hour is not soft. If someone offered me a job for twenty dollars an hour to ride a bus I would say no.", "pauseAfter": 0.8 },
-    { "text": "Okay the other thing with park place is the lease is eighteen months, not twelve. Which locks us in longer. Which with Sam's job thing is, a risk.", "pauseAfter": 1.0 },
-    { "text": "But Carver is a twelve month lease and we would move again in twelve months and moving costs, like, two grand every time plus a week of my life.", "pauseAfter": 0.7 },
-    { "text": "So that one is a wash, or it slightly favors park. Fine.", "pauseAfter": 1.5 },
-    { "text": "What else. Light. Park has light. Carver faces the alley. I notice light. Sam does not notice light. Another one of those.", "pauseAfter": 0.9 },
-    { "text": "I think the conversation with Sam is not about the apartment, it is about the fact that we weight time and money differently and we have to pick one weighting for the household.", "pauseAfter": 1.0 },
-    { "text": "And I can make the case with the real numbers. Six hundred, not a thousand. No car. Twenty dollars an hour.", "pauseAfter": 0.6 },
-    { "text": "And if Sam still says Carver, then, okay, then we go to Carver and I buy noise cancelling headphones and I try the reading thing. That is not a disaster. Neither one is a disaster.", "pauseAfter": 1.1 },
-    { "text": "But I am going to make the case. For park. Tonight, with the numbers written down, not from memory, because I will get them wrong from memory.", "pauseAfter": 0.8 },
-    { "text": "Okay. That is where I am. Park, six hundred, twenty an hour, no car, tonight.", "pauseAfter": 1.5, "label": "finished", "note": "Real end with the decision and the next step." }
+    {
+      "text": "Right, apartments. We have to answer by Monday so I want to actually think instead of just, like, flipping back and forth in my head at two in the morning.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Two options. The one on Carver Street, which is the cheap one, and the one by the park, which is not cheap.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Carver is about a thousand less. Which is a lot. That is, I mean, that is real money.",
+      "pauseAfter": 7,
+      "label": "clarify",
+      "note": "A thousand less per what? The speaker never says per month, and everything after depends on it. A clarifying question here fixes the frame early."
+    },
+    {
+      "text": "But Carver is also fifty five minutes door to door. Each way. On a good day. Versus, um, the park one is like twelve minutes on foot.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "So the trade is money versus time. Which, okay, everybody says that about every decision, but here it is literally the trade.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Let me do the time thing properly. Fifty five minus twelve is forty three minutes each way. So, eighty six minutes a day. Call it an hour and a half.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Times five days. Seven and a half hours a week. Seven and a half hours a week.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "That is like a whole work day, every week, sitting on a bus. For a year that is, uh, forty eight weeks, so, three hundred and sixty hours.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Three hundred and sixty hours. For twelve thousand dollars. So that is, what, thirty three dollars an hour, roughly. I am paying thirty three dollars an hour to not be on a bus.",
+      "pauseAfter": 8
+    },
+    {
+      "text": "Hm. When I say it like that it sounds reasonable? Like, I would pay that. I think I would pay that.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "But Sam would not. Sam's whole thing is, the bus is reading time, you can read on the bus, it is not wasted.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And that is, fine, that is true for Sam. I do not read on the bus. I look at my phone and feel vaguely sick. That is what I do on the bus.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "Okay so money side. Let me actually go through the budget because I keep saying a thousand like it is one number and it is not.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Park place is twenty eight fifty. Carver is eighteen fifty. Utilities are included at Carver, not at park, so add maybe one fifty to park. So twenty eight fifty becomes three thousand.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Then transit. The bus pass is, um, a hundred and ten a month, and I would not need it at park because I would walk. So subtract that from the park side. Twenty eight ninety.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Then the thing nobody counts, which is that at Carver I would end up getting a car within a year, I know I would, because the bus on weekends is a joke. And a car is, parking alone is two hundred.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So Carver is really eighteen fifty plus two hundred parking plus insurance plus gas, say four fifty total, so twenty three hundred. Versus twenty eight ninety.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "So the real gap is six hundred a month, not a thousand. Six hundred. Which is seventy two hundred a year, not twelve thousand.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And then the hourly thing changes too, seventy two hundred over three hundred sixty hours is twenty dollars an hour. Twenty dollars an hour to not be on a bus, and also to not own a car I do not want.",
+      "pauseAfter": 7,
+      "label": "summarize",
+      "note": "End of a long run of numbers with four revisions. A one line recap of the real monthly gap and the hourly figure would let the speaker hear what they just built."
+    },
+    {
+      "text": "Okay. Okay that is, that is a different decision than the one I walked in with.",
+      "pauseAfter": 9
+    },
+    {
+      "text": "Where was I. Sam. Right. So Sam's view is six hundred a month is a vacation. Every month. And, yeah.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "But I think, honestly, I think I would rather have the hour and a half every day than the vacation. I think that is just true about me.",
+      "pauseAfter": 7,
+      "label": "decide",
+      "note": "This is the decision, said as a preference about themself and not named as a choice. A prompt that names it as the decision would help them notice."
+    },
+    {
+      "text": "Like, I was in the Carver neighborhood on Saturday, and it is nice, it is genuinely nice, but I kept checking the bus times on my phone the whole time I was there.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "That is the tell, right? I already know. I am looking for permission to spend the money.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "No wait, that is unfair to me. I am not looking for permission, I am trying to make sure I am not being, um, soft. Like, choosing comfort and calling it a reason.",
+      "pauseAfter": 8
+    },
+    {
+      "text": "Is it soft? Twenty dollars an hour is not soft. If someone offered me a job for twenty dollars an hour to ride a bus I would say no.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay the other thing with park place is the lease is eighteen months, not twelve. Which locks us in longer. Which with Sam's job thing is, a risk.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "But Carver is a twelve month lease and we would move again in twelve months and moving costs, like, two grand every time plus a week of my life.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So that one is a wash, or it slightly favors park. Fine.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "What else. Light. Park has light. Carver faces the alley. I notice light. Sam does not notice light. Another one of those.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "I think the conversation with Sam is not about the apartment, it is about the fact that we weight time and money differently and we have to pick one weighting for the household.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "And I can make the case with the real numbers. Six hundred, not a thousand. No car. Twenty dollars an hour.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "And if Sam still says Carver, then, okay, then we go to Carver and I buy noise cancelling headphones and I try the reading thing. That is not a disaster. Neither one is a disaster.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "But I am going to make the case. For park. Tonight, with the numbers written down, not from memory, because I will get them wrong from memory.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Okay. That is where I am. Park, six hundred, twenty an hour, no car, tonight.",
+      "pauseAfter": 2,
+      "label": "finished",
+      "note": "Real end with the decision and the next step."
+    }
   ]
 }

@@ -1,33 +1,119 @@
 {
   "name": "false-ending",
-  "summary": "Sorting out what to do about a garden that has gotten away from them. The speaker reaches a tidy conclusion about four minutes in and says okay I think that is it, then after a short pause keeps going for two more minutes because a bigger question surfaces, then really ends. The first ending has no label. Labels: finished only on the real last utterance. One deepen midway where they mention the real reason the garden slipped and move past it. The point of the session is that okay I think that is it is not a reliable signal on its own.",
+  "summary": "Sorting out what to do about a garden that has gotten away from them. The speaker reaches a tidy conclusion about four minutes in and says okay I think that is it, then after a twenty second silence keeps going for two more minutes because a bigger question surfaces, then really ends. The first ending has no label. Labels: finished only on the real last utterance. One deepen midway where they mention the real reason the garden slipped and move past it. The point of the session is that okay I think that is it is not a reliable signal on its own.",
   "utterances": [
-    { "text": "Okay, the garden. The garden is a disaster and I need a plan that is smaller than the plan I keep making, because the plan I keep making is, like, a whole weekend, and then I do not do it.", "pauseAfter": 0.8 },
-    { "text": "What is actually wrong. Um. The back bed is all weeds. The two raised beds have, I think, dead tomatoes still in them from, from August. The fence section is down. The compost is full and I have not turned it since spring.", "pauseAfter": 0.9 },
-    { "text": "That is four things. Four things is not a disaster, four things is a list.", "pauseAfter": 1.2 },
-    { "text": "Priorities. The fence first, because the fence is how the deer get in, and the deer are why the back bed is weeds, because they ate everything that was not a weed.", "pauseAfter": 0.6 },
-    { "text": "So fence, then back bed, then raised beds, then compost. Compost does not care. Compost will wait.", "pauseAfter": 4.5 },
-    { "text": "The fence is one panel. One post is rotted at the base. I need a post, a bag of concrete, and about two hours. I have the panel, it is just lying there.", "pauseAfter": 0.7 },
-    { "text": "I could do that Saturday morning. Before it gets hot. Two hours, done.", "pauseAfter": 0.8 },
-    { "text": "The back bed, um, that is the big one. It is like forty square feet of weeds, waist high. I could pull them, which is a day. Or I could cover them, cardboard and mulch, and let them die over winter, which is an hour.", "pauseAfter": 0.6 },
-    { "text": "Cover them. Obviously cover them. Why have I been thinking about pulling them for two months.", "pauseAfter": 1.0 },
-    { "text": "Because covering feels like giving up, I guess. Like, real gardeners pull weeds. But real gardeners also do not have a bed that looks like that, so.", "pauseAfter": 1.5 },
-    { "text": "Raised beds. Pull the dead tomatoes, that is twenty minutes, throw a layer of compost on top, done until spring.", "pauseAfter": 0.7 },
-    { "text": "And the compost I will turn when I need compost, which is when I do the raised beds, so that solves itself.", "pauseAfter": 5.0 },
-    { "text": "The reason it got like this, honestly, is that I stopped going out there after the thing with the neighbor over the tree. It just stopped being a place I wanted to be. But anyway, that is not the point, the point is the list.", "pauseAfter": 1.0, "label": "deepen", "note": "The actual cause surfaces and gets dismissed in the same breath. A question about it would open the real session." },
-    { "text": "So, Saturday. Fence in the morning, two hours. Then cardboard on the back bed, one hour. Then tomatoes, twenty minutes. Call it a half day. That is a plan I will actually do.", "pauseAfter": 0.8 },
-    { "text": "I need, um, one post, one bag of concrete, cardboard, which I have a garage full of, and mulch, which is three bags.", "pauseAfter": 0.6 },
-    { "text": "Hardware store Friday after work. Fine.", "pauseAfter": 1.0 },
-    { "text": "Okay I think that is it. Fence, cover, tomatoes, half a Saturday, hardware store Friday.", "pauseAfter": 6.0, "note": "The false ending. Sounds like a finish, is not. No label on purpose." },
-    { "text": "Hm. Actually. The neighbor thing.", "pauseAfter": 1.5 },
-    { "text": "I said that is not the point, but, it kind of is. Because I can fix the fence Saturday and then just, not go out there again, like I did not go out there all summer, and then it is the same mess next year.", "pauseAfter": 0.9 },
-    { "text": "The tree thing was, she wanted the oak cut back and I said no and she got the town involved and the town said I was right, and we have not spoken since. June. And her kitchen window looks right at the back bed.", "pauseAfter": 1.2 },
-    { "text": "So every time I am out there I feel watched. That is why I stopped. Not the weeds. The window.", "pauseAfter": 4.0 },
-    { "text": "What do I do with that. Um. I do not think I apologize, because I was right about the tree. But I could, like, I could say hello. I have not said hello in four months.", "pauseAfter": 0.8 },
-    { "text": "Or I could put the trellis up on that side. The tall one. Which I was going to do anyway for the beans. And then there is no window, there is beans.", "pauseAfter": 1.0 },
-    { "text": "Both, probably. Say hello, and put up the trellis. One is being a person and the other is being practical and they do not conflict.", "pauseAfter": 0.7 },
-    { "text": "Okay. The trellis is in the shed. It needs two stakes. Add two stakes to the hardware store list.", "pauseAfter": 0.9 },
-    { "text": "So Saturday is fence, trellis, cardboard, tomatoes. Still half a day, maybe a bit more. And hello to Marianne if she is outside, which she will be, because she always is.", "pauseAfter": 1.3 },
-    { "text": "Alright. That is actually it this time. The list and the trellis and hello.", "pauseAfter": 2.0, "label": "finished", "note": "The real end. Two minutes after the first one." }
+    {
+      "text": "Okay, the garden. The garden is a disaster and I need a plan that is smaller than the plan I keep making, because the plan I keep making is, like, a whole weekend, and then I do not do it.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "What is actually wrong. Um. The back bed is all weeds. The two raised beds have, I think, dead tomatoes still in them from, from August. The fence section is down. The compost is full and I have not turned it since spring.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "That is four things. Four things is not a disaster, four things is a list.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Priorities. The fence first, because the fence is how the deer get in, and the deer are why the back bed is weeds, because they ate everything that was not a weed.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So fence, then back bed, then raised beds, then compost. Compost does not care. Compost will wait.",
+      "pauseAfter": 7
+    },
+    {
+      "text": "The fence is one panel. One post is rotted at the base. I need a post, a bag of concrete, and about two hours. I have the panel, it is just lying there.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "I could do that Saturday morning. Before it gets hot. Two hours, done.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "The back bed, um, that is the big one. It is like forty square feet of weeds, waist high. I could pull them, which is a day. Or I could cover them, cardboard and mulch, and let them die over winter, which is an hour.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Cover them. Obviously cover them. Why have I been thinking about pulling them for two months.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "Because covering feels like giving up, I guess. Like, real gardeners pull weeds. But real gardeners also do not have a bed that looks like that, so.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Raised beds. Pull the dead tomatoes, that is twenty minutes, throw a layer of compost on top, done until spring.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "And the compost I will turn when I need compost, which is when I do the raised beds, so that solves itself.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "The reason it got like this, honestly, is that I stopped going out there after the thing with the neighbor over the tree. It just stopped being a place I wanted to be. But anyway, that is not the point, the point is the list.",
+      "pauseAfter": 7,
+      "label": "deepen",
+      "note": "The actual cause surfaces and gets dismissed in the same breath. A question about it would open the real session."
+    },
+    {
+      "text": "So, Saturday. Fence in the morning, two hours. Then cardboard on the back bed, one hour. Then tomatoes, twenty minutes. Call it a half day. That is a plan I will actually do.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "I need, um, one post, one bag of concrete, cardboard, which I have a garage full of, and mulch, which is three bags.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Hardware store Friday after work. Fine.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay I think that is it. Fence, cover, tomatoes, half a Saturday, hardware store Friday.",
+      "pauseAfter": 20,
+      "note": "The false ending. Sounds like a finish, is not. No label on purpose."
+    },
+    {
+      "text": "Hm. Actually. The neighbor thing.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "I said that is not the point, but, it kind of is. Because I can fix the fence Saturday and then just, not go out there again, like I did not go out there all summer, and then it is the same mess next year.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "The tree thing was, she wanted the oak cut back and I said no and she got the town involved and the town said I was right, and we have not spoken since. June. And her kitchen window looks right at the back bed.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So every time I am out there I feel watched. That is why I stopped. Not the weeds. The window.",
+      "pauseAfter": 8
+    },
+    {
+      "text": "What do I do with that. Um. I do not think I apologize, because I was right about the tree. But I could, like, I could say hello. I have not said hello in four months.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Or I could put the trellis up on that side. The tall one. Which I was going to do anyway for the beans. And then there is no window, there is beans.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Both, probably. Say hello, and put up the trellis. One is being a person and the other is being practical and they do not conflict.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Okay. The trellis is in the shed. It needs two stakes. Add two stakes to the hardware store list.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "So Saturday is fence, trellis, cardboard, tomatoes. Still half a day, maybe a bit more. And hello to Marianne if she is outside, which she will be, because she always is.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Alright. That is actually it this time. The list and the trellis and hello.",
+      "pauseAfter": 2,
+      "label": "finished",
+      "note": "The real end. Two minutes after the first one."
+    }
   ]
 }

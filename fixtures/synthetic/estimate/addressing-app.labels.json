@@ -3,22 +3,22 @@
   "labels": [
     {
       "utterance": 3,
-      "at": 45.623,
+      "at": 53.623,
       "kind": "clarify"
     },
     {
       "utterance": 18,
-      "at": 240.609,
+      "at": 290.009,
       "kind": "recall"
     },
     {
       "utterance": 26,
-      "at": 340.21,
+      "at": 414.91,
       "kind": "wrapUp"
     },
     {
       "utterance": 27,
-      "at": 347.51,
+      "at": 426.21,
       "kind": "finished"
     }
   ]

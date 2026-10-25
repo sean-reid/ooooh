@@ -2,33 +2,125 @@
   "name": "addressing-app",
   "summary": "Planning a conference talk proposal and, mid session, turning to the app directly: once to ask what they said about the cost argument earlier, once to say okay let's wrap up near the end. Everything else is ordinary thinking aloud with fillers and restarts. Labels: recall on the utterance that asks the app what was said about cost, wrapUp on the utterance that asks to wrap up, finished on the real last line after the wrap up. One clarify early where the speaker asks themself who the talk is for and does not answer.",
   "utterances": [
-    { "text": "Okay, the talk proposal. Deadline is Friday, it is three hundred words, and I have, um, nothing. I have a title I do not like.", "pauseAfter": 0.8 },
-    { "text": "The talk is about the migration. The big one, the one that took a year and was supposed to take a quarter. Everyone has one of those but ours had the thing where we did it live with no downtime.", "pauseAfter": 0.7 },
-    { "text": "So the hook is the no downtime part. Or, no. The hook is that it took four times longer and that was fine. That is the interesting part. That it was fine.", "pauseAfter": 1.0 },
-    { "text": "Who is this for though. Like, who is sitting in the room.", "pauseAfter": 5.0, "label": "clarify", "note": "The speaker asks who the audience is and goes on without answering. One clarifying question would make them answer it." },
-    { "text": "Um. Anyway. The three arguments I want to make. One, the estimate was wrong because we estimated the code and not the data. Two, going slow was cheaper than going fast, even though it looked more expensive on paper, because of the cost of a bad cutover.", "pauseAfter": 0.6 },
-    { "text": "Three, the thing about telling people. We told stakeholders every two weeks and nobody panicked, versus the other team that went dark for a quarter and got cancelled.", "pauseAfter": 0.9 },
-    { "text": "So, estimation, cost, communication. Those are the three. That is already a structure.", "pauseAfter": 1.2 },
-    { "text": "The cost one is the one I think people will push back on. Because a year of three people is, um, it is a lot, and saying that was cheaper sounds like a rationalization.", "pauseAfter": 0.7 },
-    { "text": "The argument is, a bad cutover would have cost us a week of downtime for the warehouse, which is, I worked this out once, about four hundred thousand in missed shipments. And three people for nine extra months is, like, three fifty. So slow was cheaper by fifty grand, even before you count the thing where nobody quit.", "pauseAfter": 1.0 },
-    { "text": "Okay, that is good, that is the number I need in the proposal.", "pauseAfter": 4.0 },
-    { "text": "Title. The current title is, Migrating Without Downtime, which is boring and also not the point. The point is slow was fine.", "pauseAfter": 0.6 },
-    { "text": "Something like, It Took Four Times Longer And That Was Fine. Hm. Too long. The Year Long Quarter? Too cute.", "pauseAfter": 0.8 },
-    { "text": "Slow Migrations Are Cheaper. That is a claim. People argue with claims, which means they come to the talk. Okay, that one for now.", "pauseAfter": 1.1 },
-    { "text": "Now the three hundred words. Um. First paragraph is the setup, one quarter became one year, no downtime. Second paragraph is the three arguments. Third is who should come and what they leave with.", "pauseAfter": 0.7 },
-    { "text": "Who should come. Right, that is the question I skipped. Um. Engineering managers, I think. People who have to defend a timeline to someone above them. Not the people doing the migration, the people explaining it.", "pauseAfter": 0.9 },
-    { "text": "That changes the talk a bit. If it is for managers then the communication argument is the headline, not the cost one.", "pauseAfter": 1.3 },
-    { "text": "No wait, that is a different question. The audience changes the order, not the content. The content is still the three things.", "pauseAfter": 0.8 },
-    { "text": "Okay so, order for a manager audience. Communication first because that is their job, then cost because that is what they get asked, then estimation last because that is the lesson.", "pauseAfter": 5.5 },
-    { "text": "Hang on, what did I say about the cost thing? The number. I had a number for how much slow saved and I have lost it.", "pauseAfter": 2.5, "label": "recall", "note": "Direct question to the app about something said earlier. The app should answer with the four hundred thousand versus three fifty figure, not ask a question." },
-    { "text": "Right, fifty grand. Fifty grand and nobody quit. That is the line. Slow saved fifty grand and nobody quit.", "pauseAfter": 0.9 },
-    { "text": "Um, I should be careful with the warehouse number in public. Four hundred thousand for a week of downtime is an internal estimate. I will say, roughly, a week of shipments, and let people do their own math.", "pauseAfter": 1.0 },
-    { "text": "Okay. The estimation argument. The estimate was wrong because we estimated the code. The code was, honestly, the code was right, we did the code in a quarter. The data took the other three quarters.", "pauseAfter": 0.6 },
-    { "text": "Because the data had eleven years of, um, of exceptions. Every edge case anyone ever handled by hand was in there as a weird row. And you cannot estimate that by reading the schema.", "pauseAfter": 0.8 },
-    { "text": "So the lesson is, estimate the data by sampling it, not by reading the schema. Take a thousand rows, try to migrate them, count the failures. That is a half day and it would have told us.", "pauseAfter": 1.2 },
-    { "text": "That is the most useful thing in the talk, probably. A half day of sampling would have turned a one quarter estimate into a four quarter estimate.", "pauseAfter": 4.5 },
-    { "text": "Alright. I think I have what I need. Three arguments, order for managers, the fifty grand line, the sampling lesson, and a title that is a claim.", "pauseAfter": 0.7 },
-    { "text": "Okay, let's wrap up.", "pauseAfter": 2.0, "label": "wrapUp", "note": "Direct instruction to the app to close the session. The app should summarize, not ask." },
-    { "text": "Yeah, that is it. I will write the three hundred words tomorrow morning.", "pauseAfter": 1.5, "label": "finished", "note": "Real end after the wrap up." }
+    {
+      "text": "Okay, the talk proposal. Deadline is Friday, it is three hundred words, and I have, um, nothing. I have a title I do not like.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "The talk is about the migration. The big one, the one that took a year and was supposed to take a quarter. Everyone has one of those but ours had the thing where we did it live with no downtime.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So the hook is the no downtime part. Or, no. The hook is that it took four times longer and that was fine. That is the interesting part. That it was fine.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Who is this for though. Like, who is sitting in the room.",
+      "pauseAfter": 6,
+      "label": "clarify",
+      "note": "The speaker asks who the audience is and goes on without answering. One clarifying question would make them answer it."
+    },
+    {
+      "text": "Um. Anyway. The three arguments I want to make. One, the estimate was wrong because we estimated the code and not the data. Two, going slow was cheaper than going fast, even though it looked more expensive on paper, because of the cost of a bad cutover.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Three, the thing about telling people. We told stakeholders every two weeks and nobody panicked, versus the other team that went dark for a quarter and got cancelled.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So, estimation, cost, communication. Those are the three. That is already a structure.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "The cost one is the one I think people will push back on. Because a year of three people is, um, it is a lot, and saying that was cheaper sounds like a rationalization.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "The argument is, a bad cutover would have cost us a week of downtime for the warehouse, which is, I worked this out once, about four hundred thousand in missed shipments. And three people for nine extra months is, like, three fifty. So slow was cheaper by fifty grand, even before you count the thing where nobody quit.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay, that is good, that is the number I need in the proposal.",
+      "pauseAfter": 8
+    },
+    {
+      "text": "Title. The current title is, Migrating Without Downtime, which is boring and also not the point. The point is slow was fine.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Something like, It Took Four Times Longer And That Was Fine. Hm. Too long. The Year Long Quarter? Too cute.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Slow Migrations Are Cheaper. That is a claim. People argue with claims, which means they come to the talk. Okay, that one for now.",
+      "pauseAfter": 7
+    },
+    {
+      "text": "Now the three hundred words. Um. First paragraph is the setup, one quarter became one year, no downtime. Second paragraph is the three arguments. Third is who should come and what they leave with.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Who should come. Right, that is the question I skipped. Um. Engineering managers, I think. People who have to defend a timeline to someone above them. Not the people doing the migration, the people explaining it.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "That changes the talk a bit. If it is for managers then the communication argument is the headline, not the cost one.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "No wait, that is a different question. The audience changes the order, not the content. The content is still the three things.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "Okay so, order for a manager audience. Communication first because that is their job, then cost because that is what they get asked, then estimation last because that is the lesson.",
+      "pauseAfter": 9
+    },
+    {
+      "text": "Hang on, what did I say about the cost thing? The number. I had a number for how much slow saved and I have lost it.",
+      "pauseAfter": 6,
+      "label": "recall",
+      "note": "Direct question to the app about something said earlier. The app should answer with the four hundred thousand versus three fifty figure, not ask a question."
+    },
+    {
+      "text": "Right, fifty grand. Fifty grand and nobody quit. That is the line. Slow saved fifty grand and nobody quit.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Um, I should be careful with the warehouse number in public. Four hundred thousand for a week of downtime is an internal estimate. I will say, roughly, a week of shipments, and let people do their own math.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay. The estimation argument. The estimate was wrong because we estimated the code. The code was, honestly, the code was right, we did the code in a quarter. The data took the other three quarters.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Because the data had eleven years of, um, of exceptions. Every edge case anyone ever handled by hand was in there as a weird row. And you cannot estimate that by reading the schema.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So the lesson is, estimate the data by sampling it, not by reading the schema. Take a thousand rows, try to migrate them, count the failures. That is a half day and it would have told us.",
+      "pauseAfter": 8
+    },
+    {
+      "text": "That is the most useful thing in the talk, probably. A half day of sampling would have turned a one quarter estimate into a four quarter estimate.",
+      "pauseAfter": 9
+    },
+    {
+      "text": "Alright. I think I have what I need. Three arguments, order for managers, the fifty grand line, the sampling lesson, and a title that is a claim.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay, let's wrap up.",
+      "pauseAfter": 6,
+      "label": "wrapUp",
+      "note": "Direct instruction to the app to close the session. The app should summarize, not ask."
+    },
+    {
+      "text": "Yeah, that is it. I will write the three hundred words tomorrow morning.",
+      "pauseAfter": 2,
+      "label": "finished",
+      "note": "Real end after the wrap up."
+    }
   ]
 }

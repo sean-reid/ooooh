@@ -3,17 +3,17 @@
   "labels": [
     {
       "utterance": 14,
-      "at": 197.016,
+      "at": 236.616,
       "kind": "clarify"
     },
     {
       "utterance": 27,
-      "at": 358.148,
+      "at": 439.248,
       "kind": "challenge"
     },
     {
       "utterance": 35,
-      "at": 466.332,
+      "at": 579.032,
       "kind": "finished"
     }
   ]

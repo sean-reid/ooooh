@@ -8,212 +8,212 @@
     },
     {
       "text": "Setup. Postgres table, jobs, with a status column and a locked_until timestamp. Workers poll, they take a row by setting locked_until to now plus thirty seconds, they run it, they mark it done.",
-      "start": 14.746,
-      "end": 27.738,
+      "start": 17.146,
+      "end": 30.138,
       "isFinal": true
     },
     {
       "text": "If the worker dies, locked_until expires, another worker picks it up. That is the whole design. It is fine. It has been fine for two years.",
-      "start": 28.238,
-      "end": 38.538,
+      "start": 32.638,
+      "end": 42.938,
       "isFinal": true
     },
     {
       "text": "Deploy is, um, kubernetes sends sigterm, the worker gets ten seconds, then sigkill. Ten seconds is the terminationGracePeriodSeconds, that is the default and I never changed it.",
-      "start": 39.338,
-      "end": 50.023,
+      "start": 47.938,
+      "end": 58.623,
       "isFinal": true
     },
     {
       "text": "So a job that is mid flight gets killed at ten seconds. Fine, its lock expires at thirty, somebody else picks it up. That should work. That is the point of the lock.",
-      "start": 50.723,
-      "end": 63.715,
+      "start": 61.623,
+      "end": 74.615,
       "isFinal": true
     },
     {
       "text": "But it does not. Jobs vanish. Status stays running forever and locked_until is in the past and nobody picks them up.",
-      "start": 64.715,
-      "end": 73.092,
+      "start": 77.615,
+      "end": 85.992,
       "isFinal": true
     },
     {
       "text": "Wait. Why would nobody pick them up. The poll query is, where status is pending or, no. The poll query is where status is pending and locked_until is null or less than now.",
-      "start": 77.092,
-      "end": 90.084,
+      "start": 93.992,
+      "end": 106.984,
       "isFinal": true
     },
     {
       "text": "Status pending. Not running. So a job that was marked running and then the worker died, it has status running, and the poll query does not look at running rows at all.",
-      "start": 90.684,
-      "end": 103.292,
+      "start": 109.984,
+      "end": 122.592,
       "isFinal": true
     },
     {
       "text": "Oh. Okay so that is a bug, that is just a bug, the poll should be where status in pending, running and locked_until is less than now.",
-      "start": 104.192,
-      "end": 114.877,
+      "start": 125.092,
+      "end": 135.777,
       "isFinal": true
     },
     {
       "text": "Hm, but then a running job whose lock expired gets picked up a second time while the first worker is still, um, no, the first worker is dead, that is the premise.",
-      "start": 115.577,
-      "end": 128.185,
+      "start": 142.777,
+      "end": 155.385,
       "isFinal": true
     },
     {
       "text": "Except it is not always dead. If the job runs longer than thirty seconds and the worker is alive, the lock expires anyway and a second worker takes it. So the real bug is the lock is not renewed.",
-      "start": 128.685,
-      "end": 143.985,
+      "start": 158.385,
+      "end": 173.685,
       "isFinal": true
     },
     {
       "text": "Okay, two bugs. Poll ignores running. Lock is never renewed. Those are both real but which one is losing jobs on deploy.",
-      "start": 145.185,
-      "end": 153.947,
+      "start": 176.685,
+      "end": 185.447,
       "isFinal": true
     },
     {
       "text": "On deploy, the worker gets sigterm. What does the worker do on sigterm. Let me think. It, um, it stops polling. And then it waits for the current job. And then it exits.",
-      "start": 158.947,
-      "end": 171.939,
+      "start": 194.447,
+      "end": 207.439,
       "isFinal": true
     },
     {
       "text": "Waits for the current job up to, there is a timeout, it is thirty. No, the lock is thirty. The shutdown wait is, I think it is also thirty? Or is it ten.",
-      "start": 172.539,
-      "end": 185.531,
+      "start": 210.439,
+      "end": 223.431,
       "isFinal": true
     },
     {
       "text": "If the shutdown wait is thirty and kubernetes kills at ten, the shutdown wait never finishes. It is thirty, I am pretty sure the timeout is thirty.",
-      "start": 186.331,
-      "end": 197.016,
+      "start": 225.931,
+      "end": 236.616,
       "isFinal": true
     },
     {
       "text": "Okay, so, deploy. Sigterm at zero. Worker stops polling, waits for job. Job is still running at ten. Sigkill. Job row has status running, locked_until is now plus whatever was left, maybe twenty seconds.",
-      "start": 200.516,
-      "end": 213.893,
+      "start": 243.616,
+      "end": 256.993,
       "isFinal": true
     },
     {
       "text": "Twenty seconds later the lock expires. Poll query ignores running rows. Job is orphaned. That is the loss.",
-      "start": 214.493,
-      "end": 221.716,
+      "start": 259.993,
+      "end": 267.216,
       "isFinal": true
     },
     {
       "text": "So the fix is the poll query. Include running rows with expired locks. That alone fixes the deploy loss.",
-      "start": 222.716,
-      "end": 230.324,
+      "start": 273.216,
+      "end": 280.824,
       "isFinal": true
     },
     {
       "text": "But, um, it also means any long job gets double run. Because long jobs also have expired locks, and they are also status running, and now the poll will take them.",
-      "start": 231.124,
-      "end": 243.347,
+      "start": 286.824,
+      "end": 299.047,
       "isFinal": true
     },
     {
       "text": "How long are the long jobs. The report ones are, like, ten minutes. The export ones can be longer. So yeah, there are jobs that run for ten minutes under a thirty second lock, and the only reason they are not double run today is the poll bug.",
-      "start": 244.047,
-      "end": 262.809,
+      "start": 302.047,
+      "end": 320.809,
       "isFinal": true
     },
     {
       "text": "Oh that is funny. The two bugs cancel. The poll ignoring running rows is what protects long jobs from the lock expiring. Fix one and you expose the other.",
-      "start": 264.109,
-      "end": 275.563,
+      "start": 323.809,
+      "end": 335.263,
       "isFinal": true
     },
     {
       "text": "Right so I need both. Renew the lock while running, every ten seconds say, and make the poll take expired running rows. Then a dead worker's job gets picked up after thirty and a live worker's job never expires.",
-      "start": 281.063,
-      "end": 296.363,
+      "start": 345.263,
+      "end": 360.563,
       "isFinal": true
     },
     {
       "text": "Lock renewal is a heartbeat. A timer in the worker, update jobs set locked_until equals now plus thirty where id equals this and locked_by equals me.",
-      "start": 297.263,
-      "end": 307.563,
+      "start": 363.563,
+      "end": 373.863,
       "isFinal": true
     },
     {
       "text": "And locked_by is a column I do not have. Add it. Fine.",
-      "start": 308.163,
-      "end": 313.078,
+      "start": 376.363,
+      "end": 381.278,
       "isFinal": true
     },
     {
       "text": "Okay so now the shutdown question. On sigterm, what should happen. Stop polling, yes. Then, um. Then wait for the job?",
-      "start": 314.078,
-      "end": 322.455,
+      "start": 388.278,
+      "end": 396.655,
       "isFinal": true
     },
     {
       "text": "If the job is a ten minute report, waiting is pointless, kubernetes kills us at ten seconds. So waiting only helps for short jobs.",
-      "start": 323.155,
-      "end": 332.686,
+      "start": 399.655,
+      "end": 409.186,
       "isFinal": true
     },
     {
       "text": "I could raise the grace period. Make it sixty. Then most jobs finish. The median job is, like, two seconds, the p ninety nine is maybe forty.",
-      "start": 333.486,
-      "end": 344.171,
+      "start": 412.186,
+      "end": 422.871,
       "isFinal": true
     },
     {
       "text": "Yeah. I think that is the fix for deploy. Raise terminationGracePeriodSeconds to sixty, and the shutdown wait to fifty five, and the job finishes and marks itself done and nothing gets picked up twice.",
-      "start": 344.771,
-      "end": 358.148,
+      "start": 425.871,
+      "end": 439.248,
       "isFinal": true
     },
     {
       "text": "Hm. Except the reports. The reports do not finish in sixty. So the reports still get killed and still get picked up again by the new poll, which, is that bad?",
-      "start": 359.148,
-      "end": 371.371,
+      "start": 446.248,
+      "end": 458.471,
       "isFinal": true
     },
     {
       "text": "It is a re run. Reports are idempotent, I think. The exports are not, the exports send an email at the end. So an export killed at nine minutes gets re run and sends two emails.",
-      "start": 372.071,
-      "end": 386.217,
+      "start": 461.471,
+      "end": 475.617,
       "isFinal": true
     },
     {
       "text": "Ugh. Okay. So the grace period is not the fix for that. The fix for that is, um, on sigterm, the worker should, instead of waiting, it should release the lock. Set status back to pending, clear locked_until, and exit immediately.",
-      "start": 390.717,
-      "end": 406.786,
+      "start": 484.617,
+      "end": 500.686,
       "isFinal": true
     },
     {
       "text": "No. No, that loses progress on the ten minute report. It just restarts it, which is the same as the re run.",
-      "start": 407.386,
-      "end": 416.148,
+      "start": 503.686,
+      "end": 512.448,
       "isFinal": true
     },
     {
       "text": "Is the re run actually a problem though. For reports, no. For exports, the email. So, make the email step check if an email was already sent. That is a one line check on a sent_at column.",
-      "start": 417.048,
-      "end": 431.579,
+      "start": 518.448,
+      "end": 532.979,
       "isFinal": true
     },
     {
       "text": "So the actual list. One, locked_by column. Two, heartbeat every ten seconds. Three, poll takes expired running rows. Four, sent_at check on export email. Five, leave the grace period alone, or bump it to thirty, does not matter much.",
-      "start": 432.379,
-      "end": 447.679,
+      "start": 538.979,
+      "end": 554.279,
       "isFinal": true
     },
     {
       "text": "And the thing I was stuck on, the timeout thing, it did not matter. I spent, what, five minutes on which thirty was which and the answer is make the lock renewable and none of the thirties matter.",
-      "start": 448.379,
-      "end": 463.294,
+      "start": 557.279,
+      "end": 572.194,
       "isFinal": true
     },
     {
       "text": "Okay. Writing the ticket.",
-      "start": 464.494,
-      "end": 466.332,
+      "start": 577.194,
+      "end": 579.032,
       "isFinal": true
     }
   ]
