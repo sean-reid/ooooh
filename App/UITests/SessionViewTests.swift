@@ -50,9 +50,18 @@ final class SessionViewTests: XCTestCase {
     assertHaloFadesPastTheFrame(of: orb, in: screenshot.image, screen: app.frame)
 
     app.buttons["session.end"].tap()
+    // How much the demo said before End depends on the runner, so End lands on one of two screens.
     let empty = app.staticTexts["notes.empty"]
-    XCTAssertTrue(empty.waitForExistence(timeout: 15))
-    XCTAssertEqual(empty.label, "Nothing was said this time.")
+    let pending = app.otherElements["notes.pending"]
+    let landed = expectation(
+      for: NSPredicate { _, _ in empty.exists || pending.exists }, evaluatedWith: nil)
+    wait(for: [landed], timeout: 15)
+    if empty.exists {
+      XCTAssertEqual(empty.label, "Nothing was said this time.")
+    } else {
+      XCTAssertTrue(
+        app.staticTexts["notes.pending.line"].label.hasPrefix("Your listener is offline."))
+    }
     XCTAssertTrue(app.buttons["notes.done"].exists)
 
     let notes = XCTAttachment(screenshot: app.screenshot())
