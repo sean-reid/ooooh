@@ -91,3 +91,22 @@ extension JevAnswers {
     seemsFinished: .init(0.02),
     addressesApp: .init(.none, confidence: 0.05))
 }
+
+/// Asks one compactor and, when it throws, the other.
+public struct FallbackCompactor: Compactor {
+  public var primary: any Compactor
+  public var fallback: any Compactor
+
+  public init(primary: any Compactor, fallback: any Compactor) {
+    self.primary = primary
+    self.fallback = fallback
+  }
+
+  public func compact(state: CompactState, transcript: [Segment]) async throws -> StatePatch {
+    do {
+      return try await primary.compact(state: state, transcript: transcript)
+    } catch {
+      return try await fallback.compact(state: state, transcript: transcript)
+    }
+  }
+}
