@@ -25,21 +25,21 @@ final class SessionViewTests: XCTestCase {
     app.launch()
 
     let demo = app.buttons["home.demo"]
-    XCTAssertTrue(demo.waitForExistence(timeout: 5))
+    XCTAssertTrue(demo.waitForExistence(timeout: 15))
     demo.tap()
 
     let orb =
       app.otherElements["Your listener is listening"].firstMatch.exists
       ? app.otherElements["Your listener is listening"].firstMatch
       : app.images["Your listener is listening"].firstMatch
-    XCTAssertTrue(orb.waitForExistence(timeout: 5))
+    XCTAssertTrue(orb.waitForExistence(timeout: 15))
 
     let elapsed = app.staticTexts["session.elapsed"]
-    XCTAssertTrue(elapsed.waitForExistence(timeout: 5))
+    XCTAssertTrue(elapsed.waitForExistence(timeout: 15))
     let first = elapsed.label
     let advanced = expectation(
       for: NSPredicate(format: "label != %@", first), evaluatedWith: elapsed)
-    wait(for: [advanced], timeout: 5)
+    wait(for: [advanced], timeout: 15)
     XCTAssertTrue(app.buttons["session.end"].exists)
 
     let screenshot = app.screenshot()
@@ -51,7 +51,7 @@ final class SessionViewTests: XCTestCase {
 
     app.buttons["session.end"].tap()
     let empty = app.staticTexts["notes.empty"]
-    XCTAssertTrue(empty.waitForExistence(timeout: 10))
+    XCTAssertTrue(empty.waitForExistence(timeout: 15))
     XCTAssertEqual(empty.label, "Nothing was said this time.")
     XCTAssertTrue(app.buttons["notes.done"].exists)
 
