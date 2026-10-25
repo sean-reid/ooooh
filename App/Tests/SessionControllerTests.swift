@@ -150,7 +150,8 @@ import Transcription
   }
 
   func workerFixture(_ name: String) throws -> Data {
-    try Data(contentsOf: #require(Bundle(for: Marker.self).url(forResource: name, withExtension: "json")))
+    try Data(
+      contentsOf: #require(Bundle(for: Marker.self).url(forResource: name, withExtension: "json")))
   }
 
   /// Refuses every request at once, so going offline does not depend on the host's network stack.
@@ -517,7 +518,8 @@ import Transcription
     let seen = Seen()
     let body = Data(#"{"allowed":true,"free":true,"remainingFree":0,"promptMinutes":1}"#.utf8)
     let controller = SessionController(
-      environment: gated("capped", answering: body, deps: deps(firing: .deepen, at: 80.6, seen: seen)))
+      environment: gated(
+        "capped", answering: body, deps: deps(firing: .deepen, at: 80.6, seen: seen)))
 
     await controller.start(.fixture(shortFixture, speed: .infinity))
     await wait { controller.stage == .ended }
