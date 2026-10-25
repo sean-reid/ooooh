@@ -50,12 +50,10 @@ final class SessionViewTests: XCTestCase {
     assertHaloFadesPastTheFrame(of: orb, in: screenshot.image, screen: app.frame)
 
     app.buttons["session.end"].tap()
-    let written = app.otherElements["notes.view"]
-    let pending = app.otherElements["notes.pending"]
-    let landed = expectation(
-      for: NSPredicate { _, _ in written.exists || pending.exists }, evaluatedWith: nil)
-    wait(for: [landed], timeout: 60)
-    XCTAssertTrue(app.buttons["notes.done"].exists || app.buttons["Done"].exists)
+    let empty = app.staticTexts["notes.empty"]
+    XCTAssertTrue(empty.waitForExistence(timeout: 10))
+    XCTAssertEqual(empty.label, "Nothing was said this time.")
+    XCTAssertTrue(app.buttons["notes.done"].exists)
 
     let notes = XCTAttachment(screenshot: app.screenshot())
     notes.name = "\(name)-notes"

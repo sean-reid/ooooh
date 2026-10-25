@@ -28,6 +28,8 @@ final class SessionController {
     case writing
     case written(SessionNotes)
     case unavailable
+    /// Nothing was heard, so nothing is saved and Opus is not asked.
+    case empty
   }
 
   struct Environment {
@@ -282,6 +284,10 @@ final class SessionController {
 
   /// Saves the session first, so a failed generation still leaves it in history.
   private func writeNotes(for result: SessionResult) {
+    guard result.transcript.contains(where: \.isFinal) else {
+      notes = .empty
+      return
+    }
     let store = environment.store
     let generator = generator
     let startedAt = startedAt ?? .now

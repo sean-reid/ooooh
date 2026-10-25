@@ -313,6 +313,22 @@ import Transcription
     #expect(controller.result?.transcript.count == 17)
   }
 
+  @Test func aSessionWithNothingHeardIsNeitherSavedNorSentToOpus() async throws {
+    let empty = FileManager.default.temporaryDirectory.appending(path: "empty-\(UUID()).json")
+    try Data(#"{"segments":[]}"#.utf8).write(to: empty)
+    let store = try SessionStore(configuration: .inMemory)
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.notesGenerator = CannedNotes()
+    environment.store = store
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(empty, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.notes == .empty)
+    #expect(controller.savedSessionID == nil)
+    #expect(try await store.sessions().isEmpty)
+  }
+
   @Test func startFailuresReadAsPlainWords() {
     #expect(
       StartFailure.message(for: SpeechAnalyzerError.unsupportedLocale(Locale(identifier: "en_US")))

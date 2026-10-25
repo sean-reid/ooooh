@@ -83,6 +83,8 @@ struct RootView: View {
       PendingNotesView(state: controller.result?.state ?? .empty, transcript: transcript) {
         reset()
       }
+    case .empty:
+      EmptySessionView { reset() }
     case .writing, nil:
       NotesWritingView()
     }
