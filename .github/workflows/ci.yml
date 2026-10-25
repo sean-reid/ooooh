@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  packages:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo xcode-select -s /Applications/Xcode_26.4.app
+      - run: swift format lint --strict --recursive Packages App
+      - run: swift build --package-path Packages
+      - run: swift test --package-path Packages
+
+  worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+
+  app:
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    needs: packages
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo xcode-select -s /Applications/Xcode_26.4.app
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - run: >
+          xcodebuild -project ooooh.xcodeproj -scheme ooooh
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+          -derivedDataPath DerivedData -resultBundlePath ui.xcresult
+          test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ui-results
+          path: ui.xcresult
+          retention-days: 7
