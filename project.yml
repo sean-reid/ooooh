@@ -58,6 +58,19 @@ targets:
       configs:
         Debug:
           OOOOH_WORKER_URL: http://localhost:8787
+  oooohTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - App/Tests
+      - path: Packages/Tests/SessionTests/Fixtures/short.json
+        buildPhase: resources
+    dependencies:
+      - target: ooooh
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh.tests
   oooohUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -73,11 +86,13 @@ schemes:
     build:
       targets:
         ooooh: all
+        oooohTests: [test]
         oooohUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
+        - oooohTests
         - oooohUITests
         - package: Packages/DesignTests

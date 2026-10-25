@@ -1,20 +1,7 @@
 #if DEBUG
-  import AVFAudio
   import Audio
   import Foundation
-  import Speech
   import Transcription
-
-  enum RecordError: LocalizedError {
-    case microphoneDenied, speechDenied
-
-    var errorDescription: String? {
-      switch self {
-      case .microphoneDenied: "Microphone access was denied. Allow it in Settings and try again."
-      case .speechDenied: "Speech recognition was denied. Allow it in Settings and try again."
-      }
-    }
-  }
 
   @MainActor @Observable
   final class RecordModel {
@@ -56,12 +43,7 @@
       startedAt = nil
       stoppedAt = nil
       do {
-        guard await AVAudioApplication.requestRecordPermission() else {
-          throw RecordError.microphoneDenied
-        }
-        guard await Self.requestSpeechAuthorization() == .authorized else {
-          throw RecordError.speechDenied
-        }
+        try await CapturePermissions.request()
         try AudioSessionController().activate()
         let recorder = try FixtureRecorder(directory: Self.fixturesDirectory)
         let transcriber = SpeechAnalyzerTranscriber(audioSink: recorder.audio)
@@ -109,13 +91,6 @@
 
     static var fixturesDirectory: URL {
       URL.documentsDirectory.appending(path: "fixtures")
-    }
-
-    private static func requestSpeechAuthorization() async -> SFSpeechRecognizerAuthorizationStatus
-    {
-      await withCheckedContinuation { continuation in
-        SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-      }
     }
   }
 #endif
