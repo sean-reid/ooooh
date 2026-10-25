@@ -1,4 +1,5 @@
 import { anthropicClient, credential, models, textOf, upstreamError } from "../anthropic";
+import { charge } from "../budget";
 import { HttpError, json, readBody } from "../http";
 import { compactState, existingIds, listNames, modes, segment, transcriptLines } from "../schema";
 import { array, obj, oneOf, optional, str, ValidationError } from "../validate";
@@ -109,6 +110,7 @@ export async function compact(request: Request, env: Env): Promise<Response> {
     throw e;
   }
 
+  await charge(env, "anthropic", response.usage.input_tokens + response.usage.output_tokens);
   return json({
     patch: result,
     usage: {

@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import worker from "../../src/index";
+import { memoryKV } from "../kv";
 import { compactBody, decideBody, phraseBody } from "../upstream";
 
 // Real provider calls. Each runs only when its key is set, in the environment or in .dev.vars.
@@ -23,6 +24,7 @@ const secret = (name: string): string | undefined => {
 };
 
 const env: Env = {
+  BUDGET: memoryKV(),
   CONFIG_VERSION: "1",
   TYPESAFE_API_KEY: secret("TYPESAFE_API_KEY"),
   ANTHROPIC_API_KEY: secret("ANTHROPIC_API_KEY"),

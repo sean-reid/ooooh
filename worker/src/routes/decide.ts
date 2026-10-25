@@ -1,3 +1,4 @@
+import { charge } from "../budget";
 import { json, readBody, requireSecret, HttpError } from "../http";
 import { askJev, type JevAnswer } from "../jev/client";
 import { questions, questionsVersion, type QuestionName } from "../jev/questions";
@@ -52,6 +53,7 @@ export async function decide(request: Request, env: Env): Promise<Response> {
   };
 
   const res = await askJev(key, jevState);
+  await charge(env, "jev", res.usage?.input_tokens ?? 0);
   const a = res.answers;
   const answers = {
     goodMoment: noul("goodMoment", a.goodMoment),

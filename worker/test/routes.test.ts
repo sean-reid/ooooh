@@ -17,6 +17,7 @@ import {
   type Reply,
 } from "./upstream";
 import worker from "../src/index";
+import { memoryKV } from "./kv";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   SELF.fetch(`https://ooooh.test${path}`, {
@@ -137,7 +138,7 @@ describe("POST /v1/compact", () => {
 });
 
 describe("Anthropic credentials", () => {
-  const env = { CONFIG_VERSION: "1" } as Env;
+  const env = { BUDGET: memoryKV(), CONFIG_VERSION: "1" } as Env;
   const request = () =>
     new Request("https://ooooh.test/v1/compact", {
       method: "POST",

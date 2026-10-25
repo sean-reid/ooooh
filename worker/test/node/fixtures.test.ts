@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import worker from "../../src/index";
+import { memoryKV } from "../kv";
 import {
   compactBody,
   decideBody,
@@ -23,6 +24,7 @@ const fixturesDir = resolve(
 );
 
 export const testEnv: Env = {
+  BUDGET: memoryKV(),
   CONFIG_VERSION: "1",
   TYPESAFE_API_KEY: "test-jev",
   ANTHROPIC_API_KEY: "test-anthropic",
