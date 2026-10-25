@@ -32,6 +32,7 @@ To record a fixture, run a debug build on a phone, tap "Record a fixture" at the
 | `POST /v1/decide`  | Jev (`jev-latest`) | `answers` shaped like `JevAnswers`, `questionsVersion`, `usage.jevInputTokens` |
 | `POST /v1/compact` | Claude Haiku       | `patch` shaped like `StatePatch`, `usage.inputTokens`, `usage.outputTokens`    |
 | `POST /v1/phrase`  | Claude Sonnet      | `{ text }`, or `delta` and `done` events with `Accept: text/event-stream`      |
+| `POST /v1/notes`   | Claude Opus        | `notes` shaped like `SessionNotes`, `usage.inputTokens`, `usage.outputTokens`  |
 
 Bodies are JSON, capped at 256 KiB. A bad field comes back as 422 with the field named. A rate-limited provider comes back as 503 with `retryAfter` in seconds.
 
@@ -45,13 +46,15 @@ wrangler secret put ANTHROPIC_API_KEY
 
 For local development with a short-lived OAuth token instead of a stored key, set `ANTHROPIC_AUTH_TOKEN` in `.dev.vars`. It is sent as a bearer with the `oauth-2025-04-20` beta, and when both are set the token wins.
 
-`npm test` runs every route against a fake upstream and skips the three contract tests. With the keys in `.dev.vars` or the environment, the contract tests call each provider once with a small state and check the response shape. `WRITE_FIXTURES=1 npx vitest run --project node` rewrites `Packages/Tests/ProxyTests/Fixtures` from the fake upstream; `ProxyTests` decodes those files, so a shape change on either side fails one of the two suites.
+`npm test` runs every route against a fake upstream and skips the four contract tests. With the keys in `.dev.vars` or the environment, the contract tests call each provider once with a small state and check the response shape. `WRITE_FIXTURES=1 npx vitest run --project node` rewrites `Packages/Tests/ProxyTests/Fixtures` from the fake upstream; `ProxyTests` decodes those files, so a shape change on either side fails one of the two suites.
+
+When a session ends the app posts the compact state and the whole transcript to `/v1/notes`, about 10,000 tokens for an hour of talking, so nothing is excerpted. Opus returns a title, an optional summary, and seven sections (ideas, decisions, questions, insights, actions, open threads, quotes) as JSON against a schema; every item is one sentence with a span into the transcript, and the Worker trims spans to the transcript's bounds and rejects duplicate ids. A session under about three minutes comes back as a summary paragraph plus open threads. `NotesView` shows the non-empty sections, reveals the transcript words under an item when tapped, and shares the notes as markdown. The Opus contract test spends real tokens, about 4,000 in and 1,400 out, so run it on purpose.
 
 ### Caps
 
 Every provider-backed route runs behind two checks before it calls upstream. A per-device limit of `DEVICE_MINUTE_REQUESTS` requests a minute, keyed on the `x-device` header or the client IP, answers 429 with `retry-after`. A daily cap per provider, `JEV_DAILY_TOKENS`, `ANTHROPIC_DAILY_TOKENS`, and `ELEVENLABS_DAILY_CHARACTERS`, counted in the `BUDGET` KV namespace from the usage each response reports, answers 503 with the provider, the count, and seconds until the UTC day rolls over. The defaults in `wrangler.jsonc` are about a dollar a day per provider; change them per deployment, not in code. Create the namespace once with `wrangler kv namespace create BUDGET` and paste the id into `wrangler.jsonc`.
 
-The Design package has snapshot tests that render the orb and the session screen with ImageRenderer and compare against the PNGs in `Packages/Tests/DesignTests/__Snapshots__`. They need UIKit, so run them on the simulator: `xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:DesignTests test`. Record on the iPhone 17 Pro simulator, since text rendering differs between devices. To re-record after a visual change, delete the PNGs you changed and run again, or run with `SIMCTL_CHILD_SNAPSHOT_TESTING_RECORD=all` in the environment; then look at the new PNGs before committing them. A failed comparison writes the rendered image and a diff to the path in `SIMCTL_CHILD_SNAPSHOT_ARTIFACTS`, which CI uploads as the `snapshot-failures` artifact.
+The Design package has snapshot tests that render the orb and the session screen with ImageRenderer and compare against the PNGs in `Packages/Tests/DesignTests/__Snapshots__`. `NotesSnapshotTests` does the same for the notes screen. They need UIKit, so run them on the simulator: `xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:DesignTests -only-testing:NotesSnapshotTests test`. Record on the iPhone 17 Pro simulator, since text rendering differs between devices. To re-record after a visual change, delete the PNGs you changed and run again, or run with `SIMCTL_CHILD_SNAPSHOT_TESTING_RECORD=all` in the environment; then look at the new PNGs before committing them. A failed comparison writes the rendered image and a diff to the path in `SIMCTL_CHILD_SNAPSHOT_ARTIFACTS`, which CI uploads as the `snapshot-failures` artifact.
 
 ## Layout
 
