@@ -1,6 +1,13 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { anthropicClient, models, textOf, upstreamError } from "../anthropic";
-import { HttpError, json, readBody, requireSecret } from "../http";
+import {
+  anthropicClient,
+  credential,
+  models,
+  textOf,
+  upstreamError,
+  type Credential,
+} from "../anthropic";
+import { HttpError, json, readBody } from "../http";
 import { compactState, intervention, interventionKinds, segment, transcriptLines } from "../schema";
 import { array, obj, oneOf, optional } from "../validate";
 
@@ -12,7 +19,7 @@ const body = obj({
   recent: array(segment),
   lastIntervention: optional(intervention),
 });
-type Input = ReturnType<typeof body>;
+type Input = ReturnType<typeof body> & { cred: Credential };
 
 const system = `You write the one sentence a quiet thinking companion says to someone thinking aloud. They are not talking to you. They are working something out and you occasionally hand them a question.
 
@@ -63,7 +70,7 @@ const params = (
 ): Anthropic.Beta.MessageCreateParamsNonStreaming => ({
   model: models.phrase,
   max_tokens: 1024,
-  betas: ["server-side-fallback-2026-07-01"],
+  betas: ["server-side-fallback-2026-07-01", ...input.cred.betas],
   fallbacks: "default",
   system,
   output_config: { effort: "low" },
@@ -140,8 +147,9 @@ function phraseStream(client: Anthropic, input: Input): Response {
 }
 
 export async function phrase(request: Request, env: Env): Promise<Response> {
-  const input = await readBody(request, body);
-  const client = anthropicClient(requireSecret(env.ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY"));
+  const cred = credential(env);
+  const input = { ...(await readBody(request, body)), cred };
+  const client = anthropicClient(cred);
   if (request.headers.get("accept")?.includes("text/event-stream")) {
     return phraseStream(client, input);
   }

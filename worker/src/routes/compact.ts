@@ -1,5 +1,5 @@
-import { anthropicClient, models, textOf, upstreamError } from "../anthropic";
-import { HttpError, json, readBody, requireSecret } from "../http";
+import { anthropicClient, credential, models, textOf, upstreamError } from "../anthropic";
+import { HttpError, json, readBody } from "../http";
 import { compactState, existingIds, listNames, modes, segment, transcriptLines } from "../schema";
 import { array, obj, oneOf, optional, str, ValidationError } from "../validate";
 
@@ -70,7 +70,7 @@ const checkIds = (p: StatePatch, existing: string[]) => {
 
 export async function compact(request: Request, env: Env): Promise<Response> {
   const input = await readBody(request, body);
-  const client = anthropicClient(requireSecret(env.ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY"));
+  const client = anthropicClient(credential(env));
   const ids = existingIds(input.state);
 
   const user = [

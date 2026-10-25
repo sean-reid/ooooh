@@ -26,7 +26,9 @@ const env: Env = {
   CONFIG_VERSION: "1",
   TYPESAFE_API_KEY: secret("TYPESAFE_API_KEY"),
   ANTHROPIC_API_KEY: secret("ANTHROPIC_API_KEY"),
+  ANTHROPIC_AUTH_TOKEN: secret("ANTHROPIC_AUTH_TOKEN"),
 };
+const anthropic = env.ANTHROPIC_AUTH_TOKEN ?? env.ANTHROPIC_API_KEY;
 
 const post = (path: string, body: unknown) =>
   worker.fetch(
@@ -59,7 +61,7 @@ describe("provider contracts", () => {
     expect(body.usage.jevInputTokens).toBeGreaterThan(0);
   });
 
-  it.skipIf(!env.ANTHROPIC_API_KEY)("Haiku returns a patch that validates", async () => {
+  it.skipIf(!anthropic)("Haiku returns a patch that validates", async () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status, await res.clone().text()).toBe(200);
     const body = (await res.json()) as {
@@ -71,7 +73,7 @@ describe("provider contracts", () => {
     expect(body.usage.outputTokens).toBeGreaterThan(0);
   });
 
-  it.skipIf(!env.ANTHROPIC_API_KEY)("Sonnet phrases one short sentence", async () => {
+  it.skipIf(!anthropic)("Sonnet phrases one short sentence", async () => {
     const res = await post("/v1/phrase", phraseBody);
     expect(res.status, await res.clone().text()).toBe(200);
     const { text } = (await res.json()) as { text: string };

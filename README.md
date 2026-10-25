@@ -43,6 +43,8 @@ wrangler secret put TYPESAFE_API_KEY
 wrangler secret put ANTHROPIC_API_KEY
 ```
 
+For local development with a short-lived OAuth token instead of a stored key, set `ANTHROPIC_AUTH_TOKEN` in `.dev.vars`. It is sent as a bearer with the `oauth-2025-04-20` beta, and when both are set the token wins.
+
 `npm test` runs every route against a fake upstream and skips the three contract tests. With the keys in `.dev.vars` or the environment, the contract tests call each provider once with a small state and check the response shape. `WRITE_FIXTURES=1 npx vitest run --project node` rewrites `Packages/Tests/ProxyTests/Fixtures` from the fake upstream; `ProxyTests` decodes those files, so a shape change on either side fails one of the two suites.
 
 ## Layout

@@ -16,6 +16,7 @@ import {
   type FakeUpstream,
   type Reply,
 } from "./upstream";
+import worker from "../src/index";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   SELF.fetch(`https://ooooh.test${path}`, {
@@ -132,6 +133,55 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
+  });
+});
+
+describe("Anthropic credentials", () => {
+  const env = { CONFIG_VERSION: "1" } as Env;
+  const request = () =>
+    new Request("https://ooooh.test/v1/compact", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(compactBody),
+    });
+
+  it("sends a stored key as a bearer with no oauth beta", async () => {
+    expectUpstream({ body: haikuReply });
+    const res = await worker.fetch(request(), { ...env, ANTHROPIC_API_KEY: "sk-key" });
+    expect(res.status).toBe(200);
+    const headers = upstream.requests[0].headers;
+    expect(headers.authorization).toBe("Bearer sk-key");
+    expect(headers["x-api-key"]).toBeUndefined();
+    expect(headers["anthropic-beta"]).toBeUndefined();
+  });
+
+  it("sends an oauth token as a bearer with the oauth beta, and the token wins over the key", async () => {
+    expectUpstream({ body: haikuReply });
+    const res = await worker.fetch(request(), {
+      ...env,
+      ANTHROPIC_API_KEY: "sk-key",
+      ANTHROPIC_AUTH_TOKEN: "oauth-token",
+    });
+    expect(res.status).toBe(200);
+    const headers = upstream.requests[0].headers;
+    expect(headers.authorization).toBe("Bearer oauth-token");
+    expect(headers["x-api-key"]).toBeUndefined();
+    expect(headers["anthropic-beta"]).toBe("oauth-2025-04-20");
+  });
+
+  it("keeps the oauth beta next to the fallback beta on the phrase route", async () => {
+    expectUpstream({ body: sonnetReply(shortSentence) });
+    const res = await worker.fetch(
+      new Request("https://ooooh.test/v1/phrase", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(phraseBody),
+      }),
+      { ...env, ANTHROPIC_AUTH_TOKEN: "oauth-token" },
+    );
+    expect(res.status).toBe(200);
+    const betas = upstream.requests[0].headers["anthropic-beta"].split(",").sort();
+    expect(betas).toEqual(["oauth-2025-04-20", "server-side-fallback-2026-07-01"]);
   });
 });
 

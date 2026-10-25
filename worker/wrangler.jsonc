@@ -9,5 +9,6 @@
   // Secrets, set with `wrangler secret put <NAME>` and read locally from .dev.vars:
   //   TYPESAFE_API_KEY    Jev, POST /v1/decide
   //   ANTHROPIC_API_KEY   Haiku and Sonnet, POST /v1/compact and /v1/phrase
+  //   ANTHROPIC_AUTH_TOKEN  short-lived OAuth token for local dev, wins over the key
   //   ELEVENLABS_API_KEY  speech synthesis, not routed yet
 }
