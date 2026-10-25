@@ -51,7 +51,7 @@ struct RootView: View {
         if case .failed(let message) = controller.stage {
           Text(message)
             .font(Typography.caption)
-            .foregroundStyle(Palette.amber)
+            .foregroundStyle(Palette.accent)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 32)
         }
@@ -86,7 +86,7 @@ struct RootView: View {
         .frame(maxWidth: .infinity, minHeight: 56)
     }
     .buttonStyle(.plain)
-    .foregroundStyle(Palette.sky)
+    .foregroundStyle(Palette.inkOnAmber)
     .background(Palette.amber, in: Capsule())
     .padding(.horizontal, 32)
     .accessibilityLabel("Start a session")

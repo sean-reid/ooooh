@@ -16,6 +16,12 @@ public enum Palette {
     light: Shade(0.980, 0.741, 0.345), dark: Shade(0.980, 0.741, 0.345))
   public static let amberDim = adaptive(
     light: Shade(0.980, 0.741, 0.345, alpha: 0.35), dark: Shade(0.980, 0.741, 0.345, alpha: 0.35))
+  /// Amber as text, a glyph, or a tint: deeper on the paper so it clears 4.5:1 against the sky.
+  public static let accent = adaptive(
+    light: Shade(0.612, 0.306, 0.027), dark: Shade(0.980, 0.741, 0.345))
+  /// Text on an amber fill, dark in both schemes.
+  public static let inkOnAmber = adaptive(
+    light: Shade(0.118, 0.102, 0.078), dark: Shade(0.047, 0.051, 0.067))
   public static let ink = adaptive(
     light: Shade(0.118, 0.102, 0.078), dark: Shade(0.925, 0.914, 0.886))
   public static let inkDim = adaptive(
