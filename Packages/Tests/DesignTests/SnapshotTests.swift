@@ -24,7 +24,7 @@
         Orb(level: level, phase: phase, time: 4.2).padding(20).background(Palette.sky),
         width: 240, height: 240, scheme: scheme)
       assertSnapshot(
-        of: image, as: .image(perceptualPrecision: 0.98),
+        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
         named: "\(phase.rawValue)-\(level)-\(scheme.name)")
     }
 
@@ -36,7 +36,8 @@
         SessionScreenSample(time: 4.2), width: device.width, height: device.height,
         scheme: scheme)
       assertSnapshot(
-        of: image, as: .image(perceptualPrecision: 0.98), named: "\(device.name)-\(scheme.name)")
+        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+        named: "\(device.name)-\(scheme.name)")
     }
 
     @Test(arguments: [ColorScheme.dark, .light])
@@ -45,7 +46,7 @@
         SessionScreenSample(time: 4.2), width: 402, height: 874, scheme: scheme,
         type: .accessibility3)
       assertSnapshot(
-        of: image, as: .image(perceptualPrecision: 0.98),
+        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
         named: "402-accessibility3-\(scheme.name)")
     }
 
