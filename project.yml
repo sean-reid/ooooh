@@ -49,6 +49,7 @@ targets:
       properties:
         CFBundleDisplayName: ooooh
         UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIBackgroundModes: [audio]
         NSMicrophoneUsageDescription: ooooh listens while you think aloud. Audio is transcribed on this phone.
         NSSpeechRecognitionUsageDescription: Speech is turned into text on this phone so your listener can follow along.
