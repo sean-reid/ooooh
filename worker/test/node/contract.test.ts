@@ -1,36 +1,25 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import worker from "../../src/index";
 import { memoryKV } from "../kv";
-import { compactBody, decideBody, phraseBody, state } from "../upstream";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { compactBody, decideBody, phraseBody, speakBody, state } from "../upstream";
+import { secret, vars } from "./env";
 
 // Real provider calls. Each runs only when its key is set, in the environment or in .dev.vars.
-const here = dirname(fileURLToPath(import.meta.url));
-const devVars = resolve(here, "../../.dev.vars");
-const decisionFixture = resolve(here, "../../../fixtures/synthetic/estimate/decision.fixture.json");
-
-const secret = (name: string): string | undefined => {
-  if (process.env[name]) return process.env[name];
-  if (!existsSync(devVars)) return undefined;
-  const line = readFileSync(devVars, "utf8")
-    .split("\n")
-    .find((l) => l.startsWith(`${name}=`));
-  return (
-    line
-      ?.slice(name.length + 1)
-      .trim()
-      .replace(/^"|"$/g, "") || undefined
-  );
-};
+const decisionFixture = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../fixtures/synthetic/estimate/decision.fixture.json",
+);
 
 const env: Env = {
+  ...vars,
   BUDGET: memoryKV(),
-  CONFIG_VERSION: "1",
   TYPESAFE_API_KEY: secret("TYPESAFE_API_KEY"),
   ANTHROPIC_API_KEY: secret("ANTHROPIC_API_KEY"),
   ANTHROPIC_AUTH_TOKEN: secret("ANTHROPIC_AUTH_TOKEN"),
+  ELEVENLABS_API_KEY: secret("ELEVENLABS_API_KEY"),
 };
 const anthropic = env.ANTHROPIC_AUTH_TOKEN ?? env.ANTHROPIC_API_KEY;
 
@@ -143,4 +132,12 @@ describe("provider contracts", () => {
     },
     180_000,
   );
+
+  it.skipIf(!env.ELEVENLABS_API_KEY)("ElevenLabs speaks one short line", async () => {
+    const res = await post("/v1/speak", speakBody);
+    expect(res.status, await res.clone().text()).toBe(200);
+    expect(res.headers.get("content-type")).toBe("audio/mpeg");
+    expect(Number(res.headers.get("x-character-count"))).toBeGreaterThan(0);
+    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(1000);
+  });
 });
