@@ -53,6 +53,8 @@ Every provider-backed route runs behind two checks before it calls upstream. A p
 
 The Design package has snapshot tests that render the orb and the session screen with ImageRenderer and compare against the PNGs in `Packages/Tests/DesignTests/__Snapshots__`. They need UIKit, so run them on the simulator: `xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:DesignTests test`. Record on the iPhone 17 Pro simulator, since text rendering differs between devices. To re-record after a visual change, delete the PNGs you changed and run again, or run with `SIMCTL_CHILD_SNAPSHOT_TESTING_RECORD=all` in the environment; then look at the new PNGs before committing them. A failed comparison writes the rendered image and a diff to the path in `SIMCTL_CHILD_SNAPSHOT_ARTIFACTS`, which CI uploads as the `snapshot-failures` artifact.
 
+The app icon is rendered from the orb painter, so the icon and the listening indicator cannot drift apart. `swift run --package-path Packages render-icon` writes `App/Resources/Assets.xcassets/AppIcon.appiconset/`: the 1024 px light icon on the night sky, a dark variant of the same orb unmixed onto transparency, a tinted variant as the orb's luminance on transparency, and the Contents.json. Run it after any change to the painter and commit the PNGs.
+
 ## Layout
 
 - `App/` is the thin app target. Everything it does lives in a package.
