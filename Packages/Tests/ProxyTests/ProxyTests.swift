@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Governor
 import Notes
@@ -59,6 +60,24 @@ import Testing
       SonnetPhraser.Response.self, from: fixture("phrase", "json"))
     #expect(response.text.split(separator: " ").count <= 15)
     #expect(response.text.hasSuffix("?"))
+  }
+
+  /// The Worker writes this one from its own signer, so a change on either side fails here.
+  @Test func clientDataMatchesWhatTheWorkerVerifies() throws {
+    struct Signed: Decodable {
+      var method: String
+      var path: String
+      var time: Int
+      var body: String
+      var canonical: String
+      var hash: String
+    }
+    let signed = try JSONDecoder().decode(Signed.self, from: fixture("clientdata", "json"))
+    let clientData = ClientData(
+      method: signed.method, path: signed.path, time: signed.time,
+      bodyHash: Data(SHA256.hash(data: Data(signed.body.utf8))))
+    #expect(clientData.canonical == signed.canonical)
+    #expect(ClientData.hex(clientData.hash) == signed.hash)
   }
 
   @Test func phraseStreamParsesDeltasThenDone() async throws {

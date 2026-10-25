@@ -13,7 +13,7 @@ public struct ProxyClient: Sendable {
   public var session: URLSession
   /// Sent as `Authorization: Bearer` when set.
   public var token: String?
-  /// Signs every body as `x-device` and `x-assertion` when set.
+  /// Signs every request as `x-device`, `x-assertion-time`, and `x-assertion` when set.
   public var attestor: (any Attestor)?
   /// Counts transport failures and successes when set.
   public var offline: OfflineGuard?
@@ -59,18 +59,24 @@ public struct ProxyClient: Sendable {
   func request(_ path: String, body: some Encodable, accept: String = "application/json")
     async throws -> URLRequest
   {
-    var request = URLRequest(url: baseURL.appending(path: path))
+    let url = baseURL.appending(path: path)
+    var request = URLRequest(url: url)
     request.httpMethod = "POST"
     let bytes = try JSONEncoder().encode(body)
     request.httpBody = bytes
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue(accept, forHTTPHeaderField: "Accept")
     if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-    if let attestor,
-      let assertion = try await attestor.assertion(bodyHash: Data(SHA256.hash(data: bytes)))
-    {
-      request.setValue(assertion.keyId, forHTTPHeaderField: "x-device")
-      request.setValue(assertion.assertion.base64EncodedString(), forHTTPHeaderField: "x-assertion")
+    if let attestor {
+      let clientData = ClientData(
+        method: "POST", path: url.path(percentEncoded: true),
+        time: Int(Date().timeIntervalSince1970), bodyHash: Data(SHA256.hash(data: bytes)))
+      if let assertion = try await attestor.assertion(clientDataHash: clientData.hash) {
+        request.setValue(assertion.keyId, forHTTPHeaderField: "x-device")
+        request.setValue(String(clientData.time), forHTTPHeaderField: ClientData.timeHeader)
+        request.setValue(
+          assertion.assertion.base64EncodedString(), forHTTPHeaderField: "x-assertion")
+      }
     }
     return request
   }
