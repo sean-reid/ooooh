@@ -1,17 +1,26 @@
+import Billing
 import Persistence
 import UIKit
 
 extension SessionController.Environment {
-  /// The device's Worker, voice, haptic, and store. Debug builds take `-force-voice 1` to speak on the phone speaker.
+  /// The device's Worker, voice, haptic, and store. Debug builds take `-force-voice 1` to speak on
+  /// the phone speaker and `-free-exhausted 1` to run every session as one the Worker refused.
   static var app: Self {
     var environment = Self(workerURL: WorkerURL.fromBundle)
     environment.haptic = { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
     environment.store = AppStore.shared
     #if DEBUG
       environment.forceVoice = UserDefaults.standard.bool(forKey: "force-voice")
+      if UserDefaults.standard.bool(forKey: "free-exhausted") { environment.gate = .exhausted }
     #endif
     return environment
   }
+}
+
+/// The one billing store the app opens, reading the free count from the sessions it runs.
+@MainActor enum AppBilling {
+  static let freeSessions = FreeSessions()
+  static let store = BillingStore(freeSessions: freeSessions)
 }
 
 /// The one store the app opens. Nil when the local database cannot be opened, and that run keeps no history.

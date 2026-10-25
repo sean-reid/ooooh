@@ -26,10 +26,14 @@ public final class BillingStore {
   private var updates: Task<Void, Never>?
   /// Its key id fixes the `appAccountToken` every purchase carries.
   private let attestor: (any Attestor)?
+  private let freeSessions: (any FreeSessionCount)?
 
   public init(
-    freeSessionsRemaining: Int = FreeTier.sessionsPerMonth, attestor: (any Attestor)? = nil
+    freeSessions: (any FreeSessionCount)? = nil,
+    freeSessionsRemaining: Int = FreeTier.sessionsPerMonth,
+    attestor: (any Attestor)? = nil
   ) {
+    self.freeSessions = freeSessions
     self.freeSessionsRemaining = freeSessionsRemaining
     self.attestor = attestor
     self.entitlement = .free(remainingSessions: freeSessionsRemaining)
@@ -45,6 +49,7 @@ public final class BillingStore {
   init(plans: [Plan]) {
     self.plans = plans
     attestor = nil
+    freeSessions = nil
     freeSessionsRemaining = FreeTier.sessionsPerMonth
     entitlement = .free(remainingSessions: FreeTier.sessionsPerMonth)
   }
@@ -87,8 +92,11 @@ public final class BillingStore {
     return entitlement
   }
 
-  /// Re-derives the entitlement from StoreKit's current state.
+  /// Re-derives the entitlement from StoreKit's current state and the Worker's free count.
   public func refresh() async {
+    if let remaining = await freeSessions?.remainingFreeSessions {
+      freeSessionsRemaining = remaining
+    }
     latestTransactionJWS = await latestTransaction()?.jwsRepresentation
     if let fromStatus = await entitlementFromStatus() {
       entitlement = fromStatus
