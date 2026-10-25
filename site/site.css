@@ -75,10 +75,13 @@ a:focus-visible {
   padding: clamp(32px, 8vh, 96px) 24px 0;
 }
 
+/* The canvas runs a quarter of the orb's side past its box on each edge so the blurred halo isn't cut there. */
 .orb {
+  --side: min(68vw, 360px);
   display: block;
-  width: min(68vw, 360px);
-  height: min(68vw, 360px);
+  width: calc(var(--side) * 1.5);
+  height: calc(var(--side) * 1.5);
+  margin: calc(var(--side) * -0.25);
 }
 
 .orb.still {
