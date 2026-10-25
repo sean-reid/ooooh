@@ -125,4 +125,5 @@ schemes:
         - BillingTests
         - package: Packages/DesignTests
         - package: Packages/NotesSnapshotTests
+        - package: Packages/SettingsSnapshotTests
         - package: Packages/AudioTests

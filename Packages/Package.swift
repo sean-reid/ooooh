@@ -15,6 +15,7 @@ let package = Package(
     .library(name: "Session", targets: ["Session"]),
     .library(name: "Persistence", targets: ["Persistence"]),
     .library(name: "Billing", targets: ["Billing"]),
+    .library(name: "Settings", targets: ["Settings"]),
     .executable(name: "eval", targets: ["eval"]),
     .executable(name: "render-icon", targets: ["render-icon"]),
   ],
@@ -33,6 +34,7 @@ let package = Package(
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .target(name: "Persistence", dependencies: ["State", "Notes", "Session", "Transcription"]),
     .target(name: "Billing", dependencies: ["Design"]),
+    .target(name: "Settings", dependencies: ["Persistence", "Design", "Notes"]),
     .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
     .testTarget(
@@ -54,5 +56,12 @@ let package = Package(
     .testTarget(name: "AudioTests", dependencies: ["Audio"], resources: [.copy("Fixtures")]),
     .testTarget(name: "ProxyTests", dependencies: ["Proxy"], resources: [.copy("Fixtures")]),
     .testTarget(name: "PersistenceTests", dependencies: ["Persistence"]),
+    .testTarget(name: "SettingsTests", dependencies: ["Settings", "Session"]),
+    .testTarget(
+      name: "SettingsSnapshotTests",
+      dependencies: [
+        "Settings", "Persistence",
+        .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+      ], exclude: ["__Snapshots__"]),
   ]
 )
