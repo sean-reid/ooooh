@@ -6,4 +6,8 @@
   "observability": { "enabled": true },
   "workers_dev": true,
   "vars": { "CONFIG_VERSION": "1" },
+  // Secrets, set with `wrangler secret put <NAME>` and read locally from .dev.vars:
+  //   TYPESAFE_API_KEY    Jev, POST /v1/decide
+  //   ANTHROPIC_API_KEY   Haiku and Sonnet, POST /v1/compact and /v1/phrase
+  //   ELEVENLABS_API_KEY  speech synthesis, not routed yet
 }

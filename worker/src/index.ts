@@ -1,22 +1,27 @@
+import "./env";
 import { governorConfig } from "./config";
+import { HttpError, json, methodNotAllowed, notFound } from "./http";
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
+type Handler = (request: Request, env: Env) => Promise<Response> | Response;
+
+const routes: Record<string, Partial<Record<string, Handler>>> = {
+  "/health": { GET: () => json({ ok: true }) },
+  "/v1/config": { GET: () => json(governorConfig) },
+};
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (request.method !== "GET") return json({ error: "method not allowed" }, 405);
-    switch (url.pathname) {
-      case "/health":
-        return json({ ok: true });
-      case "/v1/config":
-        return json(governorConfig);
-      default:
-        return json({ error: "not found" }, 404);
+    try {
+      const route = routes[url.pathname];
+      if (!route) throw notFound();
+      const handler = route[request.method];
+      if (!handler) throw methodNotAllowed(Object.keys(route).join(", "));
+      return await handler(request, env);
+    } catch (e) {
+      if (e instanceof HttpError) return e.response();
+      console.error(e);
+      return json({ error: "internal" }, 500);
     }
   },
 } satisfies ExportedHandler<Env>;
