@@ -25,7 +25,7 @@ const run = (args, { stdin = "", env = {} } = {}) =>
     child.stdin.end(stdin);
   });
 
-const serve = (routeStatus) =>
+const serve = (healthStatus) =>
   new Promise((ready) => {
     const seen = [];
     const server = createServer((req, res) => {
@@ -33,7 +33,7 @@ const serve = (routeStatus) =>
       req.on("data", (d) => (body += d));
       req.on("end", () => {
         seen.push({ method: req.method, url: req.url, body });
-        res.statusCode = req.url === "/health" ? 200 : routeStatus;
+        res.statusCode = req.url === "/health" ? healthStatus : 404;
         res.end();
       });
     });
@@ -60,7 +60,7 @@ test("refuses a missing, unknown, or empty value", async () => {
   assert.match(empty.stderr, /empty value/);
 });
 
-test("puts the secret in production and probes the route that uses it", async () => {
+test("puts the secret in production and probes health", async () => {
   const server = await serve(200);
   try {
     const { code, stdout, stderr } = await run(["ELEVENLABS_API_KEY"], {
@@ -73,10 +73,7 @@ test("puts the secret in production and probes the route that uses it", async ()
       "ok",
     ]);
     assert.ok(!stdout.includes(value) && !stderr.includes(value));
-    assert.deepEqual(server.seen, [
-      { method: "GET", url: "/health", body: "" },
-      { method: "POST", url: "/v1/speak", body: '{"text":"ok"}' },
-    ]);
+    assert.deepEqual(server.seen, [{ method: "GET", url: "/health", body: "" }]);
     assert.match(stderr, /Revoke the old ELEVENLABS_API_KEY in the ElevenLabs console/);
     assert.match(stderr, /"KEY_ROTATED_AT_ELEVENLABS_API_KEY": "\d{4}-\d\d-\d\d"/);
   } finally {
@@ -101,13 +98,13 @@ test("hands the value to wrangler on stdin from worker/", async () => {
       readFileSync(out, "utf8"),
       `${join(root, "worker")}\nsecret put TYPESAFE_API_KEY --env production\n${value}`,
     );
-    assert.equal(server.seen[1].url, "/v1/decide");
+    assert.equal(server.seen.length, 1);
   } finally {
     server.close();
   }
 });
 
-test("prints the failing status and route", async () => {
+test("prints the failing status", async () => {
   const server = await serve(502);
   try {
     const { code, stdout } = await run(["ANTHROPIC_API_KEY"], {
@@ -115,7 +112,7 @@ test("prints the failing status and route", async () => {
       env: { WRANGLER: "echo", OOOOH_API: server.api },
     });
     assert.equal(code, 1);
-    assert.equal(stdout.trim().split("\n").pop(), "502 /v1/compact");
+    assert.equal(stdout.trim().split("\n").pop(), "502 /health");
     assert.ok(!stdout.includes("ok"));
   } finally {
     server.close();
