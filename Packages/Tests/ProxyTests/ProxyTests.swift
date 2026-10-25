@@ -17,7 +17,9 @@ import Testing
   @Test func decideDecodesIntoJevAnswers() throws {
     let response = try JSONDecoder().decode(
       JevDecisionProvider.Response.self, from: fixture("decide", "json"))
-    #expect(response.questionsVersion == 1)
+    #expect(response.questionsVersion == 2)
+    #expect(answers.cues["hangingQuestion"] == 0.61)
+    #expect(answers.cues.count == 5)
     #expect(response.usage.jevInputTokens == 412)
     let answers = response.answers
     #expect(answers.goodMoment.probability == 0.82)
