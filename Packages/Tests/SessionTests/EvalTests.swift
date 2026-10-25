@@ -64,7 +64,7 @@ import Transcription
 
   @Test func countsPromptsTheNextUtteranceWouldTalkOver() {
     let labels = Labels(fixture: "t", labels: [])
-    let early = EvalReport.score(result(prompts: [(5.5, .deepen)]), against: labels)
+    let early = EvalReport.score(result(prompts: [(6.0, .deepen)]), against: labels)
     #expect(early.collisions == 1)
     let late = EvalReport.score(result(prompts: [(55.5, .deepen)]), against: labels)
     #expect(late.collisions == 0)
