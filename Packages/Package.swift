@@ -30,5 +30,6 @@ let package = Package(
     .testTarget(name: "NotesTests", dependencies: ["Notes"]),
     .testTarget(
       name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
+    .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
   ]
 )
