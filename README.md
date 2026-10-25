@@ -25,6 +25,10 @@ npm run dev                            # wrangler dev on http://localhost:8787
 
 To record a fixture, run a debug build on a phone, tap "Record a fixture" at the bottom of the home screen, then Start. Talk, then Stop. A share sheet offers two files named from the session start, `yyyy-MM-dd-HHmmss.json` with the final segments and `yyyy-MM-dd-HHmmss.caf` with the microphone audio. They also stay in the app's Documents folder under `fixtures/`, visible in the Files app. Load the JSON into `tools/labeler/` to mark the moments, or replay it with `FixtureTranscriber`.
 
+### CloudKit sync
+
+The store has three configurations: `.inMemory` for tests, `.local` for a device without iCloud, and `.cloud`, which syncs through the user's private CloudKit database in the container `iCloud.com.seanreid.ooooh`. The app passes `.local` until the capability exists in the developer portal, since a build with `.cloud` and no entitlement fails on launch. To turn sync on, add the iCloud capability with CloudKit and that container id to the app target in `project.yml`, plus `remote-notification` under `UIBackgroundModes` so the device picks up changes pushed from another one. The schema follows the CloudKit rules: every attribute has a default or is optional, every relationship is optional with an inverse, and nothing is marked unique.
+
 ### Worker routes
 
 | Path               | Provider           | Returns                                                                        |
@@ -58,7 +62,8 @@ The app icon is rendered from the orb painter, so the icon and the listening ind
 ## Layout
 
 - `App/` is the thin app target. Everything it does lives in a package.
-- `Packages/` holds Audio, Transcription, State, Governor, Notes, Design, and Proxy as one Swift package.
+- `Packages/` holds Audio, Transcription, State, Governor, Notes, Design, Proxy, Session, and Persistence as one Swift package.
+- `Packages/Sources/Persistence/` is the on-device store. `SessionStore` is a `@ModelActor` over four SwiftData models: a session with its compact state as JSON, its transcript segments, its note items, and the open threads it produced. It saves a `SessionResult`, attaches the notes that arrive after the end, lists history newest first, searches segment and note text, offers unresolved threads for the next session, edits and deletes items, and exports one Markdown file per session. Kept audio stays a file under the app's storage; the store holds only its path. `PersistenceTests` run on the in-memory container with `swift test`, including a timing test that searches 300 sessions.
 - `worker/` is the Cloudflare Worker that serves the governor config and proxies the providers.
 - `tools/labeler/` is a static page for marking good moments in a recorded session. Open `index.html` in a browser, load a fixture, export labels.
 - `tools/synth/` turns the scripts in `fixtures/synthetic/scripts/` into audio, fixtures, and labels.
