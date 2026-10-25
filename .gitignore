@@ -1,0 +1,18 @@
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+.build/
+.swiftpm/
+*.xcresult
+
+# Node
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+
+# Local data: recordings and labels never ship
+data/
+.DS_Store
