@@ -35,7 +35,7 @@ To record a fixture, run a debug build on a phone, tap "Record a fixture" at the
 
 ## Eval
 
-A fixture is a recorded session as JSON segments. Labels mark the utterances where a prompt would have been welcome, and which kind, plus `finished` and `leave`. `eval` replays the fixture through the session loop and reports precision, recall, and median lateness in utterances per kind. With no `--answers` file it uses the oracle provider, which reads the labels and should score 1.00 everywhere; pass `--answers` with one recorded Jev answer per line to score a real run, and `--config` to try other thresholds. Recordings and labels live outside the repo in a data directory.
+A fixture is a recorded session as JSON segments. Labels mark the utterances where a prompt would have been welcome, and which kind, plus `finished` and `leave`. `eval` replays the fixture through the session loop and reports precision, recall, and median lateness in utterances per kind. With no `--answers` file it uses the oracle provider, which reads the labels and runs with the floor off, and must score 1.00 everywhere; pass `--answers` with one recorded Jev answer per line to score a real run, and `--config` to try other thresholds. `eval --corpus <dir> --require-perfect` runs every fixture and labels pair in a directory and prints one line per session plus a merged report; CI runs it over `fixtures/synthetic/estimate` on every push. Recordings and labels live outside the repo in a data directory.
 
 ## Synthetic corpus
 
