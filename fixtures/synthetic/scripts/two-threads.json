@@ -2,35 +2,133 @@
   "name": "two-threads",
   "summary": "Starts on whether to hire a second person for a two person consultancy, switches halfway to a client who has not paid in sixty days, then comes back to hiring with the second thread changing the first. Labels: summarize at the switch, when the speaker drops the hiring thread mid thought and a recap would pin where it was left; reflect when the hiring thread returns and the speaker says the cash flow problem makes hiring impossible, because the earlier half of the session said the hire was to fix exactly that. One clarify early on what a second person would actually do.",
   "utterances": [
-    { "text": "Okay, two things on my mind and I am going to try to do them one at a time, which I am bad at. First one, hiring.", "pauseAfter": 0.8 },
-    { "text": "Jo and I have been two people for three years and we are turning away work. Last month we said no to two projects. That is, um, that is maybe forty thousand we said no to.", "pauseAfter": 0.7 },
-    { "text": "So the question is a third person. Which is, it is not just a salary, it is, it changes what we are. Two people is a partnership. Three is a company.", "pauseAfter": 1.0 },
-    { "text": "What would they do, though. Like, what is the actual job.", "pauseAfter": 4.5, "label": "clarify", "note": "The speaker asks what the hire would do and goes on to money without answering. A clarifying question would make them define the role before costing it." },
-    { "text": "Money wise. A junior is, um, sixty five to seventy five around here. Plus the overhead, insurance and the laptop and all that, so call it ninety all in.", "pauseAfter": 0.6 },
-    { "text": "And the forty we turned away last month, if that is typical, that is close to five hundred a year we are leaving. So ninety to get five hundred. That is not even a question on paper.", "pauseAfter": 0.9 },
-    { "text": "But it is not typical. Last month was a good month. A normal month we turn away maybe one thing, maybe nothing. So, more like two hundred a year, maybe. Still worth it. Still worth it but less obviously.", "pauseAfter": 1.2 },
-    { "text": "The real cost is my time. A junior needs, in the first six months, probably a third of my week. So I lose a third of my billable time to make them billable. That is the thing that scares me.", "pauseAfter": 0.8 },
-    { "text": "Unless it is not a junior. A senior is one twenty, one thirty, and needs almost nothing from me, but then the math is one thirty to get two hundred, and that is, hm, that is thin.", "pauseAfter": 5.0 },
-    { "text": "Jo wants a junior. Jo likes teaching. I do not, particularly. So maybe the junior reports to Jo and I just, um, I just keep billing.", "pauseAfter": 0.7 },
-    { "text": "Okay so the shape would be, junior, reports to Jo, Jo's billable drops for six months and mine does not, and we eat the difference out of, out of the buffer, which, oh.", "pauseAfter": 1.0 },
-    { "text": "Oh, the buffer. That is the second thing. Hang on, I have to switch, because the buffer is the Keller thing and the Keller thing is the one that is actually urgent.", "pauseAfter": 0.9, "label": "summarize", "note": "The hiring thread drops mid sentence. A recap of where it stood, junior under Jo, six months of lower billing from the buffer, would make the return easier." },
-    { "text": "Keller. Keller owes us thirty two thousand and it is sixty one days. The invoice went out in August. They have paid every other invoice in about twenty days, so this is not normal.", "pauseAfter": 0.7 },
-    { "text": "I have emailed twice. The first time the accounts person said it was in process. The second time nobody answered.", "pauseAfter": 0.8 },
-    { "text": "And thirty two thousand is, um, that is about two months of our costs. It is the whole buffer. If Keller does not pay, we have a buffer of zero and we are fine as long as nothing else goes wrong.", "pauseAfter": 4.0 },
-    { "text": "What are the options. Call instead of email, obviously, I should have called on day forty. Call the accounts person, then call Dave, the actual client, who I have a relationship with and who I have been avoiding calling because it feels like going over someone's head.", "pauseAfter": 0.6 },
-    { "text": "It is not going over someone's head. It is my money. Sixty one days.", "pauseAfter": 1.0 },
-    { "text": "Okay, call Dave. Tomorrow, nine thirty, before his standup. Say, hey, the August invoice is at sixty days, is something wrong on your end. Not angry. Curious.", "pauseAfter": 0.8 },
-    { "text": "And if the answer is they are in trouble, then I need to know that this week, not next month, because we have a project with them starting in November and I am not starting it unpaid.", "pauseAfter": 1.2 },
-    { "text": "So, Dave tomorrow. Stop work on the November prep until it is paid. Tell Jo tonight so it is not a surprise.", "pauseAfter": 5.5 },
-    { "text": "Right. Back to hiring. Where was I. Junior under Jo, six months, eat it from the buffer.", "pauseAfter": 0.7 },
-    { "text": "Except there is no buffer. Keller is the buffer. So I cannot hire. Not until Keller pays. The cash flow makes it impossible right now and that is just, that is the answer.", "pauseAfter": 1.0, "label": "reflect", "note": "The earlier thread said the hire exists to stop turning away work, the thing that makes cash flow fragile. Now the cash flow problem is the reason not to hire. Reflecting that loop back is the useful move." },
-    { "text": "Hm. Although. The reason the buffer is so thin is that two people cannot do enough work to build one. We turn away work, so we stay small, so one late invoice is two months of costs.", "pauseAfter": 0.8 },
-    { "text": "So the hiring is kind of the fix for the Keller problem. Not this Keller problem. The next one.", "pauseAfter": 1.3 },
-    { "text": "I mean, that is the argument, anyway. It could also just be the argument I want. I am aware of that.", "pauseAfter": 4.5 },
-    { "text": "What if the order is, Keller pays, then we post the job. If Keller pays in October we hire in November and the junior starts in January. If Keller does not pay, we have a different conversation, and it is not about hiring.", "pauseAfter": 0.7 },
-    { "text": "That is, um, that is sequencing, not deciding. But I think sequencing is the right move when one of the inputs is a phone call I have not made yet.", "pauseAfter": 0.9 },
-    { "text": "And the what would they do question. Um. They would do the implementation half of my projects. The part Jo and I both do and neither of us likes. So I keep the client work and they do the build. That is the job. I should write that down because it took me twenty minutes to say it.", "pauseAfter": 1.0 },
-    { "text": "Okay. Two threads, one list. Call Dave at nine thirty. Tell Jo tonight. Pause November prep. If Keller pays, post the job, junior, implementation, reports to Jo.", "pauseAfter": 0.8 },
-    { "text": "Good. That is both of them.", "pauseAfter": 1.5, "label": "finished", "note": "Real end with both threads closed." }
+    {
+      "text": "Okay, two things on my mind and I am going to try to do them one at a time, which I am bad at. First one, hiring.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Jo and I have been two people for three years and we are turning away work. Last month we said no to two projects. That is, um, that is maybe forty thousand we said no to.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So the question is a third person. Which is, it is not just a salary, it is, it changes what we are. Two people is a partnership. Three is a company.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "What would they do, though. Like, what is the actual job.",
+      "pauseAfter": 7,
+      "label": "clarify",
+      "note": "The speaker asks what the hire would do and goes on to money without answering. A clarifying question would make them define the role before costing it."
+    },
+    {
+      "text": "Money wise. A junior is, um, sixty five to seventy five around here. Plus the overhead, insurance and the laptop and all that, so call it ninety all in.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "And the forty we turned away last month, if that is typical, that is close to five hundred a year we are leaving. So ninety to get five hundred. That is not even a question on paper.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "But it is not typical. Last month was a good month. A normal month we turn away maybe one thing, maybe nothing. So, more like two hundred a year, maybe. Still worth it. Still worth it but less obviously.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "The real cost is my time. A junior needs, in the first six months, probably a third of my week. So I lose a third of my billable time to make them billable. That is the thing that scares me.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Unless it is not a junior. A senior is one twenty, one thirty, and needs almost nothing from me, but then the math is one thirty to get two hundred, and that is, hm, that is thin.",
+      "pauseAfter": 9
+    },
+    {
+      "text": "Jo wants a junior. Jo likes teaching. I do not, particularly. So maybe the junior reports to Jo and I just, um, I just keep billing.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay so the shape would be, junior, reports to Jo, Jo's billable drops for six months and mine does not, and we eat the difference out of, out of the buffer, which, oh.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Oh, the buffer. That is the second thing. Hang on, I have to switch, because the buffer is the Keller thing and the Keller thing is the one that is actually urgent.",
+      "pauseAfter": 7,
+      "label": "summarize",
+      "note": "The hiring thread drops mid sentence. A recap of where it stood, junior under Jo, six months of lower billing from the buffer, would make the return easier."
+    },
+    {
+      "text": "Keller. Keller owes us thirty two thousand and it is sixty one days. The invoice went out in August. They have paid every other invoice in about twenty days, so this is not normal.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "I have emailed twice. The first time the accounts person said it was in process. The second time nobody answered.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And thirty two thousand is, um, that is about two months of our costs. It is the whole buffer. If Keller does not pay, we have a buffer of zero and we are fine as long as nothing else goes wrong.",
+      "pauseAfter": 7
+    },
+    {
+      "text": "What are the options. Call instead of email, obviously, I should have called on day forty. Call the accounts person, then call Dave, the actual client, who I have a relationship with and who I have been avoiding calling because it feels like going over someone's head.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "It is not going over someone's head. It is my money. Sixty one days.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "Okay, call Dave. Tomorrow, nine thirty, before his standup. Say, hey, the August invoice is at sixty days, is something wrong on your end. Not angry. Curious.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And if the answer is they are in trouble, then I need to know that this week, not next month, because we have a project with them starting in November and I am not starting it unpaid.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So, Dave tomorrow. Stop work on the November prep until it is paid. Tell Jo tonight so it is not a surprise.",
+      "pauseAfter": 10
+    },
+    {
+      "text": "Right. Back to hiring. Where was I. Junior under Jo, six months, eat it from the buffer.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Except there is no buffer. Keller is the buffer. So I cannot hire. Not until Keller pays. The cash flow makes it impossible right now and that is just, that is the answer.",
+      "pauseAfter": 8,
+      "label": "reflect",
+      "note": "The earlier thread said the hire exists to stop turning away work, the thing that makes cash flow fragile. Now the cash flow problem is the reason not to hire. Reflecting that loop back is the useful move."
+    },
+    {
+      "text": "Hm. Although. The reason the buffer is so thin is that two people cannot do enough work to build one. We turn away work, so we stay small, so one late invoice is two months of costs.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So the hiring is kind of the fix for the Keller problem. Not this Keller problem. The next one.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "I mean, that is the argument, anyway. It could also just be the argument I want. I am aware of that.",
+      "pauseAfter": 9
+    },
+    {
+      "text": "What if the order is, Keller pays, then we post the job. If Keller pays in October we hire in November and the junior starts in January. If Keller does not pay, we have a different conversation, and it is not about hiring.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "That is, um, that is sequencing, not deciding. But I think sequencing is the right move when one of the inputs is a phone call I have not made yet.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And the what would they do question. Um. They would do the implementation half of my projects. The part Jo and I both do and neither of us likes. So I keep the client work and they do the build. That is the job. I should write that down because it took me twenty minutes to say it.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "Okay. Two threads, one list. Call Dave at nine thirty. Tell Jo tonight. Pause November prep. If Keller pays, post the job, junior, implementation, reports to Jo.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Good. That is both of them.",
+      "pauseAfter": 2,
+      "label": "finished",
+      "note": "Real end with both threads closed."
+    }
   ]
 }

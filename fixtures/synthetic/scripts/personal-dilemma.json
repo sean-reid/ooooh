@@ -1,36 +1,140 @@
 {
   "name": "personal-dilemma",
-  "summary": "Working out whether to go to a father's seventieth birthday after two years of not speaking. Slow, emotional, with long silences of fifteen to thirty five seconds that are productive, not empty. Labels: mostly leave, five of them, on the long silences where the speaker is clearly sitting with something and any prompt would be an intrusion; one reflect late, after they say for the second time that they are not angry anymore but in the same breath list the reasons they are, because hearing that back is the whole session.",
+  "summary": "Working out whether to go to a father's seventieth birthday after two years of not speaking. Slow, emotional, with long silences of fifteen to thirty seconds that are productive, not empty. Labels: mostly leave, five of them, on the long silences where the speaker is clearly sitting with something and any prompt would be an intrusion; one reflect late, after they say for the second time that they are not angry anymore but in the same breath list the reasons they are, because hearing that back is the whole session.",
   "utterances": [
-    { "text": "Okay. Um. This is the thing with my dad. The birthday.", "pauseAfter": 2.5 },
-    { "text": "He is turning seventy in March and my sister sent the, the invitation thing, and I have had it open on my phone for, I think nine days.", "pauseAfter": 1.5 },
-    { "text": "We have not talked in a little over two years. Since, well. Since the thing at Christmas.", "pauseAfter": 18.0, "label": "leave", "note": "Long silence after naming the rupture. The speaker is sitting with it and comes back on their own." },
-    { "text": "I do not even know what I want to think about. Like, whether to go, I guess. But it is not really about the party.", "pauseAfter": 1.0 },
-    { "text": "If I go, it is, it is a statement. It says the two years are over. And I do not know if they are.", "pauseAfter": 1.2 },
-    { "text": "If I do not go, that is also a statement. To him and to my sister and to, um, to everyone who will be there and will notice.", "pauseAfter": 4.0 },
-    { "text": "And he will be seventy. Which is not old, exactly, but his dad died at seventy four. So there is a, there is a clock in this that there was not before.", "pauseAfter": 25.0, "label": "leave", "note": "Twenty five seconds after the clock line. This is the center of the session and the speaker needs the space." },
-    { "text": "I am not angry anymore. I think that is true. I was, for a long time, and now it is more like, tired.", "pauseAfter": 1.5 },
-    { "text": "Tired of it being a thing. Tired of my sister being in the middle. Tired of the, the Sunday phone call that does not happen.", "pauseAfter": 6.0 },
-    { "text": "What would it actually be like. If I went. Um. I would drive down Saturday. I would stay at Ellie's, not at the house. I would show up at the restaurant.", "pauseAfter": 0.9 },
-    { "text": "And he would see me, and he would do the thing where he acts like nothing happened. Which is the thing. That is the actual thing. He would act like nothing happened.", "pauseAfter": 1.3 },
-    { "text": "And I would either go along with it, for one dinner, or I would not, and if I did not, I would ruin his seventieth birthday, and then that is the story forever.", "pauseAfter": 30.0, "label": "leave", "note": "Thirty seconds. The speaker has seen the shape of the problem and is not stuck, they are thinking." },
-    { "text": "So the real question is can I go along with it for one dinner.", "pauseAfter": 1.0 },
-    { "text": "Not forgive. Not fix. Just, sit at a table for two hours and be polite and leave.", "pauseAfter": 5.0 },
-    { "text": "I think I can. I think. I have done it with worse people. At work I do it every week.", "pauseAfter": 0.8 },
-    { "text": "But he is not worse people, he is my dad, so it costs more. That is the, that is why it is hard, not because it is hard to do but because of what it costs me to do it.", "pauseAfter": 1.2 },
-    { "text": "Hm.", "pauseAfter": 15.0, "label": "leave", "note": "Fifteen seconds after a hard sentence. Leave it." },
-    { "text": "What does Ellie want. Ellie wants me there. She did not say so, she just sent the invitation with no message, which is Ellie for please.", "pauseAfter": 1.0 },
-    { "text": "And I owe Ellie. She has carried this for two years. She calls him every Sunday so that somebody does. She calls me every Sunday so that I know somebody does.", "pauseAfter": 4.5 },
-    { "text": "So if I am honest, part of going would be for Ellie. Which is a fine reason. It is maybe a better reason than the others.", "pauseAfter": 1.0 },
-    { "text": "I am not angry anymore. I keep saying that. I am not. It is just that he never said it, he never said the word sorry, he told Ellie he regretted how things went, which is not the same, and he knows it is not the same, and I, okay.", "pauseAfter": 1.5, "label": "reflect", "note": "Second time saying they are not angry, immediately followed by the reasons they are. Reflecting that back is the one useful thing the app could say in this session." },
-    { "text": "Okay. Maybe a little angry.", "pauseAfter": 3.0 },
-    { "text": "That is fine though. I can be a little angry and still go to a dinner. Those are not, they do not cancel each other out.", "pauseAfter": 1.0 },
-    { "text": "What I do not want is to go and pretend I am not, and then drive home and feel like I lied. So maybe I go and I do not pretend. I am just quiet. Quiet is not lying.", "pauseAfter": 20.0, "label": "leave", "note": "Twenty seconds after finding the quiet is not lying line. Resumes alone." },
-    { "text": "I think that is it. I think I go, I stay at Ellie's, I am polite and quiet, and I leave when the cake is done.", "pauseAfter": 0.9 },
-    { "text": "And if he wants to talk, really talk, he can call me. He has the number. He has had it for two years.", "pauseAfter": 1.2 },
-    { "text": "And if he does not, then I went to my dad's seventieth, and that is a thing I did, and I will not have to wonder about it at seventy four.", "pauseAfter": 2.0 },
-    { "text": "Yeah.", "pauseAfter": 4.0 },
-    { "text": "I will text Ellie tonight. Just, yes. One word, like her.", "pauseAfter": 1.5 },
-    { "text": "Okay. That is enough.", "pauseAfter": 3.0, "label": "finished", "note": "Real end. The speaker has decided and named the step." }
+    {
+      "text": "Okay. Um. This is the thing with my dad. The birthday.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "He is turning seventy in March and my sister sent the, the invitation thing, and I have had it open on my phone for, I think nine days.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "We have not talked in a little over two years. Since, well. Since the thing at Christmas.",
+      "pauseAfter": 18,
+      "label": "leave",
+      "note": "Long silence after naming the rupture. The speaker is sitting with it and comes back on their own."
+    },
+    {
+      "text": "I do not even know what I want to think about. Like, whether to go, I guess. But it is not really about the party.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "If I go, it is, it is a statement. It says the two years are over. And I do not know if they are.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "If I do not go, that is also a statement. To him and to my sister and to, um, to everyone who will be there and will notice.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "And he will be seventy. Which is not old, exactly, but his dad died at seventy four. So there is a, there is a clock in this that there was not before.",
+      "pauseAfter": 25,
+      "label": "leave",
+      "note": "Twenty five seconds after the clock line. This is the center of the session and the speaker needs the space."
+    },
+    {
+      "text": "I am not angry anymore. I think that is true. I was, for a long time, and now it is more like, tired.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Tired of it being a thing. Tired of my sister being in the middle. Tired of the, the Sunday phone call that does not happen.",
+      "pauseAfter": 7
+    },
+    {
+      "text": "What would it actually be like. If I went. Um. I would drive down Saturday. I would stay at Ellie's, not at the house. I would show up at the restaurant.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "And he would see me, and he would do the thing where he acts like nothing happened. Which is the thing. That is the actual thing. He would act like nothing happened.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And I would either go along with it, for one dinner, or I would not, and if I did not, I would ruin his seventieth birthday, and then that is the story forever.",
+      "pauseAfter": 30,
+      "label": "leave",
+      "note": "Thirty seconds. The speaker has seen the shape of the problem and is not stuck, they are thinking."
+    },
+    {
+      "text": "So the real question is can I go along with it for one dinner.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Not forgive. Not fix. Just, sit at a table for two hours and be polite and leave.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "I think I can. I think. I have done it with worse people. At work I do it every week.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "But he is not worse people, he is my dad, so it costs more. That is the, that is why it is hard, not because it is hard to do but because of what it costs me to do it.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Hm.",
+      "pauseAfter": 15,
+      "label": "leave",
+      "note": "Fifteen seconds after a hard sentence. Leave it."
+    },
+    {
+      "text": "What does Ellie want. Ellie wants me there. She did not say so, she just sent the invitation with no message, which is Ellie for please.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And I owe Ellie. She has carried this for two years. She calls him every Sunday so that somebody does. She calls me every Sunday so that I know somebody does.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "So if I am honest, part of going would be for Ellie. Which is a fine reason. It is maybe a better reason than the others.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "I am not angry anymore. I keep saying that. I am not. It is just that he never said it, he never said the word sorry, he told Ellie he regretted how things went, which is not the same, and he knows it is not the same, and I, okay.",
+      "pauseAfter": 8,
+      "label": "reflect",
+      "note": "Second time saying they are not angry, immediately followed by the reasons they are. Reflecting that back is the one useful thing the app could say in this session."
+    },
+    {
+      "text": "Okay. Maybe a little angry.",
+      "pauseAfter": 4
+    },
+    {
+      "text": "That is fine though. I can be a little angry and still go to a dinner. Those are not, they do not cancel each other out.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "What I do not want is to go and pretend I am not, and then drive home and feel like I lied. So maybe I go and I do not pretend. I am just quiet. Quiet is not lying.",
+      "pauseAfter": 20,
+      "label": "leave",
+      "note": "Twenty seconds after finding the quiet is not lying line. Resumes alone."
+    },
+    {
+      "text": "I think that is it. I think I go, I stay at Ellie's, I am polite and quiet, and I leave when the cake is done.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "And if he wants to talk, really talk, he can call me. He has the number. He has had it for two years.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And if he does not, then I went to my dad's seventieth, and that is a thing I did, and I will not have to wonder about it at seventy four.",
+      "pauseAfter": 4
+    },
+    {
+      "text": "Yeah.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "I will text Ellie tonight. Just, yes. One word, like her.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay. That is enough.",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "Real end. The speaker has decided and named the step."
+    }
   ]
 }

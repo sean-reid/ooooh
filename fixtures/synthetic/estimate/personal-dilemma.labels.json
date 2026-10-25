@@ -3,37 +3,37 @@
   "labels": [
     {
       "utterance": 2,
-      "at": 26.438,
+      "at": 28.438,
       "kind": "leave"
     },
     {
       "utterance": 6,
-      "at": 93.761,
+      "at": 101.561,
       "kind": "leave"
     },
     {
       "utterance": 11,
-      "at": 185.345,
+      "at": 198.945,
       "kind": "leave"
     },
     {
       "utterance": 16,
-      "at": 260.23,
+      "at": 280.33,
       "kind": "leave"
     },
     {
       "utterance": 20,
-      "at": 334.084,
+      "at": 359.684,
       "kind": "reflect"
     },
     {
       "utterance": 23,
-      "at": 367.407,
+      "at": 402.507,
       "kind": "leave"
     },
     {
       "utterance": 29,
-      "at": 435.73,
+      "at": 478.73,
       "kind": "finished"
     }
   ]

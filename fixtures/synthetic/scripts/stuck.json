@@ -2,39 +2,149 @@
   "name": "stuck",
   "summary": "Someone worrying about whether to tell their manager that a project they own is going to slip, circling the same fear four or five times in different words and not noticing. Lots of fillers, restarts, and hanging self-questions. Labels: reflect on the second time they say the slip is their fault, since hearing it back is what they need; clarify after they ask themselves what they are actually afraid of and leave it hanging; challenge near the end when they assert the manager does not care about dates, which contradicts their earlier claim that the date was the manager's idea.",
   "utterances": [
-    { "text": "Um. Okay. So the thing with the, the reporting project. I need to think about this because it has been sitting in my chest all week.", "pauseAfter": 1.2 },
-    { "text": "Basically it is going to slip. Like, it is not going to be done by the fifteenth, I have known that since, honestly, since the second week.", "pauseAfter": 0.8 },
-    { "text": "And the fifteenth was, that was Dana's date. She picked it. She picked it in the planning meeting and I just, I nodded.", "pauseAfter": 1.0 },
-    { "text": "So the question is do I tell her now or do I wait until I have a better, a more exact new date.", "pauseAfter": 0.6 },
-    { "text": "I mean, the problem is it is kind of my fault. Not kind of. It is my fault, because I said yes to the date without doing the estimate.", "pauseAfter": 4.0 },
-    { "text": "And I keep thinking if I had just, you know, spent one afternoon on the estimate in week one, we would not be here.", "pauseAfter": 0.7 },
-    { "text": "So it is on me. That is the part that, that is why I have not said anything, because saying it means saying that part.", "pauseAfter": 1.1 },
-    { "text": "Okay but, like, what is the actual worst case. She finds out on the fifteenth. That is the worst case. And that is worse than finding out now.", "pauseAfter": 0.9 },
-    { "text": "I know that. I know that. Everyone knows that. So why have I not sent the message.", "pauseAfter": 5.0 },
-    { "text": "I think, um. I think it is because it is my fault. If it were the vendor or the data or whatever I would have said something on day one. But it is me, I skipped the estimate, so it feels like confessing.", "pauseAfter": 1.0, "label": "reflect", "note": "Second time the speaker says the slip is their fault, in new words. Reflecting it back would show them the loop." },
-    { "text": "Which is stupid. Like, nobody is going to, Dana is not going to fire me over a two week slip on an internal report.", "pauseAfter": 0.8 },
-    { "text": "But then why does it feel like that? What am I actually afraid of here?", "pauseAfter": 6.0, "label": "clarify", "note": "A real self-question left hanging for six seconds. One short clarifying question would land." },
-    { "text": "Hm. I do not know. Maybe it is more about, like, the pattern. If this is the second time, or the third time, then it is not a slip, it is a thing about me.", "pauseAfter": 0.7 },
-    { "text": "Is it the third time? The onboarding doc was late. The dashboard was, no, the dashboard was on time. So it would be the second.", "pauseAfter": 1.3 },
-    { "text": "Okay. Second. Second is not a pattern. Second is two data points.", "pauseAfter": 0.9 },
-    { "text": "Anyway. Back to, um, the actual decision. Tell her now, or tell her with a date.", "pauseAfter": 0.6 },
-    { "text": "If I tell her now I do not have a new date and she will ask for one, and I will say I do not know, and that is, that sounds bad.", "pauseAfter": 0.8 },
-    { "text": "But if I wait to get a date, that is, what, three more days of her thinking it is on track. And honestly, I have been in that position, where someone told me late, and I remember exactly how it felt.", "pauseAfter": 1.0 },
-    { "text": "It felt like they did not trust me to handle it. That is what it felt like.", "pauseAfter": 4.5 },
-    { "text": "So I guess I am doing to her the thing I hated. Because I skipped the estimate and I do not want to own that.", "pauseAfter": 1.2 },
-    { "text": "Yeah. There it is again. I keep coming back to the estimate. The estimate, the estimate. It is like the whole thing is about one afternoon I did not spend.", "pauseAfter": 0.9 },
-    { "text": "I mean, it is also about the fact that the data model changed in week three and nobody told me, but, that is not the part I am stuck on. I am stuck on my part.", "pauseAfter": 1.4 },
-    { "text": "Okay so, concretely. What would the message say. Um. Dana, the reporting project is going to slip past the fifteenth. I under estimated it. I will have a new date by Thursday. Do you want to talk before then.", "pauseAfter": 0.8 },
-    { "text": "That is four sentences. That is fine. Why does that feel impossible to send.", "pauseAfter": 5.5 },
-    { "text": "Because of the second sentence. The, I under estimated it. That is the sentence.", "pauseAfter": 1.0 },
-    { "text": "Could I leave it out? Like, just say it is slipping and give the date?", "pauseAfter": 0.7 },
-    { "text": "No. No, because she will ask why, and then I will say it in person, which is worse, or I will blame the data model thing, which is partly true but, it is not the main thing.", "pauseAfter": 1.1 },
-    { "text": "And honestly, Dana does not even care that much about dates. She cares about not being surprised. The date was kind of arbitrary.", "pauseAfter": 0.9, "label": "challenge", "note": "Contradicts the earlier claim that the fifteenth was Dana's date, picked in the planning meeting. A challenge here would be fair and useful." },
-    { "text": "So, the surprise is the thing. Which means now is better than Thursday. Which means I should send it today.", "pauseAfter": 0.8 },
-    { "text": "Ugh. Okay. I think I just, I think I know what to do and I am talking in circles to avoid doing it.", "pauseAfter": 1.5 },
-    { "text": "Let me say it one more time so it sticks. The slip is real. The reason is mostly that I skipped the estimate. The fix is to say so today and give a date Thursday.", "pauseAfter": 0.7 },
-    { "text": "And the pattern thing, the is it me thing, that is a separate question and I am not going to answer it right now because I will just spiral.", "pauseAfter": 1.0 },
-    { "text": "Okay. I am going to go type the four sentences.", "pauseAfter": 1.2 },
-    { "text": "Yeah. Done. I mean, not done, but, done thinking.", "pauseAfter": 2.0, "label": "finished", "note": "Real end. The speaker has named the action." }
+    {
+      "text": "Um. Okay. So the thing with the, the reporting project. I need to think about this because it has been sitting in my chest all week.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Basically it is going to slip. Like, it is not going to be done by the fifteenth, I have known that since, honestly, since the second week.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "And the fifteenth was, that was Dana's date. She picked it. She picked it in the planning meeting and I just, I nodded.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So the question is do I tell her now or do I wait until I have a better, a more exact new date.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "I mean, the problem is it is kind of my fault. Not kind of. It is my fault, because I said yes to the date without doing the estimate.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "And I keep thinking if I had just, you know, spent one afternoon on the estimate in week one, we would not be here.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "So it is on me. That is the part that, that is why I have not said anything, because saying it means saying that part.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay but, like, what is the actual worst case. She finds out on the fifteenth. That is the worst case. And that is worse than finding out now.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "I know that. I know that. Everyone knows that. So why have I not sent the message.",
+      "pauseAfter": 7
+    },
+    {
+      "text": "I think, um. I think it is because it is my fault. If it were the vendor or the data or whatever I would have said something on day one. But it is me, I skipped the estimate, so it feels like confessing.",
+      "pauseAfter": 6,
+      "label": "reflect",
+      "note": "Second time the speaker says the slip is their fault, in new words. Reflecting it back would show them the loop."
+    },
+    {
+      "text": "Which is stupid. Like, nobody is going to, Dana is not going to fire me over a two week slip on an internal report.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "But then why does it feel like that? What am I actually afraid of here?",
+      "pauseAfter": 7,
+      "label": "clarify",
+      "note": "A real self-question left hanging for six seconds. One short clarifying question would land."
+    },
+    {
+      "text": "Hm. I do not know. Maybe it is more about, like, the pattern. If this is the second time, or the third time, then it is not a slip, it is a thing about me.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Is it the third time? The onboarding doc was late. The dashboard was, no, the dashboard was on time. So it would be the second.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay. Second. Second is not a pattern. Second is two data points.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Anyway. Back to, um, the actual decision. Tell her now, or tell her with a date.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "If I tell her now I do not have a new date and she will ask for one, and I will say I do not know, and that is, that sounds bad.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "But if I wait to get a date, that is, what, three more days of her thinking it is on track. And honestly, I have been in that position, where someone told me late, and I remember exactly how it felt.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "It felt like they did not trust me to handle it. That is what it felt like.",
+      "pauseAfter": 6
+    },
+    {
+      "text": "So I guess I am doing to her the thing I hated. Because I skipped the estimate and I do not want to own that.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Yeah. There it is again. I keep coming back to the estimate. The estimate, the estimate. It is like the whole thing is about one afternoon I did not spend.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "I mean, it is also about the fact that the data model changed in week three and nobody told me, but, that is not the part I am stuck on. I am stuck on my part.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Okay so, concretely. What would the message say. Um. Dana, the reporting project is going to slip past the fifteenth. I under estimated it. I will have a new date by Thursday. Do you want to talk before then.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "That is four sentences. That is fine. Why does that feel impossible to send.",
+      "pauseAfter": 8
+    },
+    {
+      "text": "Because of the second sentence. The, I under estimated it. That is the sentence.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Could I leave it out? Like, just say it is slipping and give the date?",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "No. No, because she will ask why, and then I will say it in person, which is worse, or I will blame the data model thing, which is partly true but, it is not the main thing.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And honestly, Dana does not even care that much about dates. She cares about not being surprised. The date was kind of arbitrary.",
+      "pauseAfter": 6,
+      "label": "challenge",
+      "note": "Contradicts the earlier claim that the fifteenth was Dana's date, picked in the planning meeting. A challenge here would be fair and useful."
+    },
+    {
+      "text": "So, the surprise is the thing. Which means now is better than Thursday. Which means I should send it today.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Ugh. Okay. I think I just, I think I know what to do and I am talking in circles to avoid doing it.",
+      "pauseAfter": 5
+    },
+    {
+      "text": "Let me say it one more time so it sticks. The slip is real. The reason is mostly that I skipped the estimate. The fix is to say so today and give a date Thursday.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "And the pattern thing, the is it me thing, that is a separate question and I am not going to answer it right now because I will just spiral.",
+      "pauseAfter": 3
+    },
+    {
+      "text": "Okay. I am going to go type the four sentences.",
+      "pauseAfter": 4
+    },
+    {
+      "text": "Yeah. Done. I mean, not done, but, done thinking.",
+      "pauseAfter": 2,
+      "label": "finished",
+      "note": "Real end. The speaker has named the action."
+    }
   ]
 }

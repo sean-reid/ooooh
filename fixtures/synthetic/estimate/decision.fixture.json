@@ -8,206 +8,206 @@
     },
     {
       "text": "Two options. The one on Carver Street, which is the cheap one, and the one by the park, which is not cheap.",
-      "start": 12.738,
-      "end": 21.5,
+      "start": 14.338,
+      "end": 23.1,
       "isFinal": true
     },
     {
       "text": "Carver is about a thousand less. Which is a lot. That is, I mean, that is real money.",
-      "start": 22.2,
-      "end": 29.423,
+      "start": 26.1,
+      "end": 33.323,
       "isFinal": true
     },
     {
       "text": "But Carver is also fifty five minutes door to door. Each way. On a good day. Versus, um, the park one is like twelve minutes on foot.",
-      "start": 32.923,
-      "end": 43.608,
+      "start": 40.323,
+      "end": 51.008,
       "isFinal": true
     },
     {
       "text": "So the trade is money versus time. Which, okay, everybody says that about every decision, but here it is literally the trade.",
-      "start": 44.408,
-      "end": 53.17,
+      "start": 53.508,
+      "end": 62.27,
       "isFinal": true
     },
     {
       "text": "Let me do the time thing properly. Fifty five minus twelve is forty three minutes each way. So, eighty six minutes a day. Call it an hour and a half.",
-      "start": 54.17,
-      "end": 66.008,
+      "start": 65.27,
+      "end": 77.108,
       "isFinal": true
     },
     {
       "text": "Times five days. Seven and a half hours a week. Seven and a half hours a week.",
-      "start": 66.608,
-      "end": 73.446,
+      "start": 79.608,
+      "end": 86.446,
       "isFinal": true
     },
     {
       "text": "That is like a whole work day, every week, sitting on a bus. For a year that is, uh, forty eight weeks, so, three hundred and sixty hours.",
-      "start": 74.646,
-      "end": 85.715,
+      "start": 92.446,
+      "end": 103.515,
       "isFinal": true
     },
     {
       "text": "Three hundred and sixty hours. For twelve thousand dollars. So that is, what, thirty three dollars an hour, roughly. I am paying thirty three dollars an hour to not be on a bus.",
-      "start": 86.615,
-      "end": 99.607,
+      "start": 106.515,
+      "end": 119.507,
       "isFinal": true
     },
     {
       "text": "Hm. When I say it like that it sounds reasonable? Like, I would pay that. I think I would pay that.",
-      "start": 104.607,
-      "end": 112.984,
+      "start": 127.507,
+      "end": 135.884,
       "isFinal": true
     },
     {
       "text": "But Sam would not. Sam's whole thing is, the bus is reading time, you can read on the bus, it is not wasted.",
-      "start": 113.784,
-      "end": 122.93,
+      "start": 138.384,
+      "end": 147.53,
       "isFinal": true
     },
     {
       "text": "And that is, fine, that is true for Sam. I do not read on the bus. I look at my phone and feel vaguely sick. That is what I do on the bus.",
-      "start": 123.63,
-      "end": 136.622,
+      "start": 150.53,
+      "end": 163.522,
       "isFinal": true
     },
     {
       "text": "Okay so money side. Let me actually go through the budget because I keep saying a thousand like it is one number and it is not.",
-      "start": 137.722,
-      "end": 148.022,
+      "start": 169.522,
+      "end": 179.822,
       "isFinal": true
     },
     {
       "text": "Park place is twenty eight fifty. Carver is eighteen fifty. Utilities are included at Carver, not at park, so add maybe one fifty to park. So twenty eight fifty becomes three thousand.",
-      "start": 148.622,
-      "end": 161.23,
+      "start": 182.322,
+      "end": 194.93,
       "isFinal": true
     },
     {
       "text": "Then transit. The bus pass is, um, a hundred and ten a month, and I would not need it at park because I would walk. So subtract that from the park side. Twenty eight ninety.",
-      "start": 161.73,
-      "end": 175.492,
+      "start": 197.43,
+      "end": 211.192,
       "isFinal": true
     },
     {
       "text": "Then the thing nobody counts, which is that at Carver I would end up getting a car within a year, I know I would, because the bus on weekends is a joke. And a car is, parking alone is two hundred.",
-      "start": 175.992,
-      "end": 192.061,
-      "isFinal": true
-    },
-    {
-      "text": "So Carver is really eighteen fifty plus two hundred parking plus insurance plus gas, say four fifty total, so twenty three hundred. Versus twenty eight ninety.",
-      "start": 192.661,
-      "end": 202.961,
-      "isFinal": true
-    },
-    {
-      "text": "So the real gap is six hundred a month, not a thousand. Six hundred. Which is seventy two hundred a year, not twelve thousand.",
-      "start": 203.461,
-      "end": 212.992,
-      "isFinal": true
-    },
-    {
-      "text": "And then the hourly thing changes too, seventy two hundred over three hundred sixty hours is twenty dollars an hour. Twenty dollars an hour to not be on a bus, and also to not own a car I do not want.",
       "start": 213.692,
       "end": 229.761,
       "isFinal": true
     },
     {
+      "text": "So Carver is really eighteen fifty plus two hundred parking plus insurance plus gas, say four fifty total, so twenty three hundred. Versus twenty eight ninety.",
+      "start": 232.761,
+      "end": 243.061,
+      "isFinal": true
+    },
+    {
+      "text": "So the real gap is six hundred a month, not a thousand. Six hundred. Which is seventy two hundred a year, not twelve thousand.",
+      "start": 245.561,
+      "end": 255.092,
+      "isFinal": true
+    },
+    {
+      "text": "And then the hourly thing changes too, seventy two hundred over three hundred sixty hours is twenty dollars an hour. Twenty dollars an hour to not be on a bus, and also to not own a car I do not want.",
+      "start": 258.092,
+      "end": 274.161,
+      "isFinal": true
+    },
+    {
       "text": "Okay. Okay that is, that is a different decision than the one I walked in with.",
-      "start": 230.761,
-      "end": 237.215,
+      "start": 281.161,
+      "end": 287.615,
       "isFinal": true
     },
     {
       "text": "Where was I. Sam. Right. So Sam's view is six hundred a month is a vacation. Every month. And, yeah.",
-      "start": 241.715,
-      "end": 249.707,
+      "start": 296.615,
+      "end": 304.607,
       "isFinal": true
     },
     {
       "text": "But I think, honestly, I think I would rather have the hour and a half every day than the vacation. I think that is just true about me.",
-      "start": 250.507,
-      "end": 261.576,
+      "start": 307.607,
+      "end": 318.676,
       "isFinal": true
     },
     {
       "text": "Like, I was in the Carver neighborhood on Saturday, and it is nice, it is genuinely nice, but I kept checking the bus times on my phone the whole time I was there.",
-      "start": 262.876,
-      "end": 275.868,
+      "start": 325.676,
+      "end": 338.668,
       "isFinal": true
     },
     {
       "text": "That is the tell, right? I already know. I am looking for permission to spend the money.",
-      "start": 276.768,
-      "end": 283.606,
+      "start": 341.668,
+      "end": 348.506,
       "isFinal": true
     },
     {
       "text": "No wait, that is unfair to me. I am not looking for permission, I am trying to make sure I am not being, um, soft. Like, choosing comfort and calling it a reason.",
-      "start": 284.306,
-      "end": 297.298,
+      "start": 354.506,
+      "end": 367.498,
       "isFinal": true
     },
     {
       "text": "Is it soft? Twenty dollars an hour is not soft. If someone offered me a job for twenty dollars an hour to ride a bus I would say no.",
-      "start": 302.798,
-      "end": 314.252,
+      "start": 375.498,
+      "end": 386.952,
       "isFinal": true
     },
     {
       "text": "Okay the other thing with park place is the lease is eighteen months, not twelve. Which locks us in longer. Which with Sam's job thing is, a risk.",
-      "start": 315.052,
-      "end": 326.121,
+      "start": 389.952,
+      "end": 401.021,
       "isFinal": true
     },
     {
       "text": "But Carver is a twelve month lease and we would move again in twelve months and moving costs, like, two grand every time plus a week of my life.",
-      "start": 327.121,
-      "end": 338.575,
+      "start": 403.521,
+      "end": 414.975,
       "isFinal": true
     },
     {
       "text": "So that one is a wash, or it slightly favors park. Fine.",
-      "start": 339.275,
-      "end": 344.19,
+      "start": 417.975,
+      "end": 422.89,
       "isFinal": true
     },
     {
       "text": "What else. Light. Park has light. Carver faces the alley. I notice light. Sam does not notice light. Another one of those.",
-      "start": 345.69,
-      "end": 354.452,
+      "start": 428.89,
+      "end": 437.652,
       "isFinal": true
     },
     {
       "text": "I think the conversation with Sam is not about the apartment, it is about the fact that we weight time and money differently and we have to pick one weighting for the household.",
-      "start": 355.352,
-      "end": 368.344,
+      "start": 440.652,
+      "end": 453.644,
       "isFinal": true
     },
     {
       "text": "And I can make the case with the real numbers. Six hundred, not a thousand. No car. Twenty dollars an hour.",
-      "start": 369.344,
-      "end": 377.721,
+      "start": 459.644,
+      "end": 468.021,
       "isFinal": true
     },
     {
       "text": "And if Sam still says Carver, then, okay, then we go to Carver and I buy noise cancelling headphones and I try the reading thing. That is not a disaster. Neither one is a disaster.",
-      "start": 378.321,
-      "end": 392.083,
+      "start": 470.521,
+      "end": 484.283,
       "isFinal": true
     },
     {
       "text": "But I am going to make the case. For park. Tonight, with the numbers written down, not from memory, because I will get them wrong from memory.",
-      "start": 393.183,
-      "end": 403.868,
+      "start": 487.283,
+      "end": 497.968,
       "isFinal": true
     },
     {
       "text": "Okay. That is where I am. Park, six hundred, twenty an hour, no car, tonight.",
-      "start": 404.668,
-      "end": 410.737,
+      "start": 502.968,
+      "end": 509.037,
       "isFinal": true
     }
   ]

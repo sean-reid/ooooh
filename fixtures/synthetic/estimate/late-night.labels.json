@@ -3,57 +3,57 @@
   "labels": [
     {
       "utterance": 1,
-      "at": 16.676,
+      "at": 17.676,
       "kind": "leave"
     },
     {
       "utterance": 3,
-      "at": 58.084,
+      "at": 60.584,
       "kind": "leave"
     },
     {
       "utterance": 5,
-      "at": 111.761,
+      "at": 117.261,
       "kind": "leave"
     },
     {
       "utterance": 7,
-      "at": 174.715,
+      "at": 182.015,
       "kind": "leave"
     },
     {
       "utterance": 9,
-      "at": 208.545,
+      "at": 216.845,
       "kind": "leave"
     },
     {
       "utterance": 12,
-      "at": 257.337,
+      "at": 268.437,
       "kind": "leave"
     },
     {
       "utterance": 15,
-      "at": 320.583,
+      "at": 335.183,
       "kind": "leave"
     },
     {
       "utterance": 17,
-      "at": 385.183,
+      "at": 401.783,
       "kind": "leave"
     },
     {
       "utterance": 19,
-      "at": 436.244,
+      "at": 454.844,
       "kind": "leave"
     },
     {
       "utterance": 20,
-      "at": 462.929,
+      "at": 481.529,
       "kind": "leave"
     },
     {
       "utterance": 22,
-      "at": 501.914,
+      "at": 522.514,
       "kind": "finished"
     }
   ]
