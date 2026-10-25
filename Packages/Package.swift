@@ -12,6 +12,8 @@ let package = Package(
     .library(name: "Transcription", targets: ["Transcription"]),
     .library(name: "Audio", targets: ["Audio"]),
     .library(name: "Proxy", targets: ["Proxy"]),
+    .library(name: "Session", targets: ["Session"]),
+    .executable(name: "eval", targets: ["eval"]),
   ],
   targets: [
     .target(name: "Design"),
@@ -21,8 +23,12 @@ let package = Package(
     .target(name: "Transcription"),
     .target(name: "Audio"),
     .target(name: "Proxy", dependencies: ["State", "Governor"]),
+    .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
+    .executableTarget(name: "eval", dependencies: ["Session"]),
     .testTarget(name: "StateTests", dependencies: ["State"]),
     .testTarget(name: "GovernorTests", dependencies: ["Governor"]),
     .testTarget(name: "NotesTests", dependencies: ["Notes"]),
+    .testTarget(
+      name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
   ]
 )

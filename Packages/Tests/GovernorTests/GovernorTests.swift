@@ -85,7 +85,8 @@ import Testing
     #expect(g.shouldCheck(signals: signals(at: 0, pause: 0.5), utteranceEnded: false) == false)
     #expect(g.shouldCheck(signals: signals(at: 0, pause: 2.5), utteranceEnded: false))
     _ = g.decide(answers(), signals: signals(at: 0))
-    #expect(g.shouldCheck(signals: signals(at: 1, pause: 0), utteranceEnded: true) == false)
-    #expect(g.shouldCheck(signals: signals(at: 3, pause: 0), utteranceEnded: true))
+    #expect(g.shouldCheck(signals: signals(at: 1, pause: 0), utteranceEnded: true))
+    #expect(g.shouldCheck(signals: signals(at: 1, pause: 2.5), utteranceEnded: false) == false)
+    #expect(g.shouldCheck(signals: signals(at: 3, pause: 2.5), utteranceEnded: false))
   }
 }

@@ -1,0 +1,8 @@
+{
+  "fixture": "short",
+  "labels": [
+    { "utterance": 3, "at": 17.4, "kind": "clarify" },
+    { "utterance": 15, "at": 80.6, "kind": "decide" },
+    { "utterance": 16, "at": 87.8, "kind": "finished" }
+  ]
+}
