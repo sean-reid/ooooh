@@ -3,10 +3,11 @@ import State
 import SwiftUI
 import Transcription
 
-/// The session's compact state, shown when the notes could not be written yet.
+/// The session's compact state, shown when there are no notes for it.
 struct PendingNotesView: View {
   let state: CompactState
   let transcript: [Segment]
+  var line = "Your listener is offline. The notes will be written when it is back."
   let done: () -> Void
 
   var body: some View {
@@ -19,7 +20,7 @@ struct PendingNotesView: View {
               .font(Typography.title)
               .foregroundStyle(Palette.ink)
               .accessibilityAddTraits(.isHeader)
-            Text("Your listener is offline. The notes will be written when it is back.")
+            Text(line)
               .font(Typography.body)
               .foregroundStyle(Palette.inkDim)
               .accessibilityIdentifier("notes.pending.line")

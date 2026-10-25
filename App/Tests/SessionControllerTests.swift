@@ -1,6 +1,7 @@
 import Foundation
 import Governor
 import Notes
+import Persistence
 import Session
 import State
 import Testing
@@ -208,6 +209,27 @@ import Transcription
     #expect(controller.notes == .unavailable)
   }
 
+  @Test func unreachableWorkerStillSavesTheSessionWithoutNotes() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.workerURL = URL(string: "http://127.0.0.1:9")
+    environment.store = store
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.notes == .unavailable }
+    await wait { controller.savedSessionID != nil }
+    let saved = try #require(controller.savedSessionID)
+    let sessions = try await store.sessions()
+    #expect(sessions.map(\.id) == [saved])
+    #expect(sessions.first?.title == "")
+    #expect(sessions.first?.openThreadCount == 0)
+    let detail = try #require(try await store.detail(saved))
+    #expect(detail.notes == nil)
+    #expect(detail.transcript.count == 17)
+    #expect(detail.state?.currentThread.contains("done for now") == true)
+  }
+
   @Test func writesTheNotesAfterTheEnd() async throws {
     var environment = environment(nil, speaker: Recorder(), haptics: Counter())
     environment.notesGenerator = CannedNotes()
@@ -218,5 +240,63 @@ import Transcription
     #expect(controller.notes == .writing)
     await wait { controller.notes != .writing }
     #expect(controller.notes == .written(CannedNotes.notes))
+  }
+
+  @Test func savesTheSessionAndAttachesTheNotesWhenTheyArrive() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.notesGenerator = CannedNotes()
+    environment.store = store
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.notes == .written(CannedNotes.notes) }
+    let saved = try #require(controller.savedSessionID)
+    let sessions = try await store.sessions()
+    #expect(sessions.map(\.id) == [saved])
+    #expect(sessions.first?.title == "Pricing and the free tier")
+    #expect(sessions.first?.openThreadCount == 1)
+    #expect(sessions.first?.duration == 87.8)
+    let stored = try #require(try await store.notes(for: saved))
+    #expect(stored.title == CannedNotes.notes.title)
+    #expect(stored.decisions == CannedNotes.notes.decisions)
+    #expect(stored.openThreads == CannedNotes.notes.openThreads)
+    #expect(try await store.openThreads(limit: 3).map(\.text) == ["What the free tier is for"])
+  }
+
+  @Test func aCarriedThreadReachesTheProvidersAndTheFinalState() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    var earlierEnvironment = environment(nil, speaker: Recorder(), haptics: Counter())
+    earlierEnvironment.notesGenerator = CannedNotes()
+    earlierEnvironment.store = store
+    let earlier = SessionController(environment: earlierEnvironment)
+    await earlier.start(.fixture(shortFixture, speed: .infinity))
+    await wait { earlier.notes == .written(CannedNotes.notes) }
+    let thread = try #require(try await store.openThreads(limit: 1).first)
+
+    let seen = Seen()
+    let decisions = ScriptedDecisionProvider { input in
+      seen.states.append(input.state)
+      return .quiet
+    }
+    var environment = environment(
+      .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
+      speaker: Recorder(), haptics: Counter())
+    environment.store = store
+    let controller = SessionController(environment: environment)
+    await controller.start(.fixture(shortFixture, speed: .infinity), carrying: thread)
+    await wait { controller.stage == .ended }
+
+    let first = try #require(seen.states.first)
+    #expect(first.currentThread == "What the free tier is for")
+    #expect(first.openQuestions.map(\.text) == ["What the free tier is for"])
+    let result = try #require(controller.result)
+    #expect(result.state.openQuestions.map(\.id) == ["carried-free-tier-purpose"])
+    #expect(result.state.currentThread.contains("done for now"))
+    #expect(try await store.sessions().count == 2)
+  }
+
+  final class Seen: @unchecked Sendable {
+    var states: [CompactState] = []
   }
 }

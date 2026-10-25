@@ -4,6 +4,7 @@ import Foundation
 import Governor
 import Notes
 import Observation
+import Persistence
 import Proxy
 import Session
 import State
@@ -39,6 +40,8 @@ final class SessionController {
     var forceVoice = false
     /// Set to replace Opus, as the tests do.
     var notesGenerator: (any NotesGenerator)?
+    /// Every session is saved here when set.
+    var store: SessionStore?
     var haptic: @MainActor () -> Void = {}
     var offlineDelay: Duration = .seconds(3)
     var aboutToSpeakHold: Duration = .seconds(1)
@@ -57,6 +60,7 @@ final class SessionController {
   private(set) var result: SessionResult?
   /// Nil until the session ends.
   private(set) var notes: NotesState?
+  private(set) var savedSessionID: UUID?
   private(set) var compactions = 0
 
   private var measuredLevel: Double?
@@ -96,7 +100,8 @@ final class SessionController {
     return (endedAt ?? now).timeIntervalSince(startedAt)
   }
 
-  func start(_ source: Source) async {
+  /// `carrying` seeds the state with an open thread from a past session.
+  func start(_ source: Source, carrying thread: OpenThread? = nil) async {
     guard stage == .idle else { return }
     stage = .starting
     do {
@@ -127,11 +132,14 @@ final class SessionController {
         voice = VoiceSpeaker(audio: client.speak)
       }
       generator = environment.notesGenerator ?? client.map { OpusNotesGenerator(client: $0) }
-      let dependencies =
+      var dependencies =
         environment.dependencies ?? client?.sessionDependencies()
         ?? SessionLoop.Dependencies(
           decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
           phraser: TemplatePhraser())
+      if let thread {
+        dependencies = CarriedThread(thread).wrap(dependencies)
+      }
       let config: GovernorConfig
       if let fixed = environment.config {
         config = fixed
@@ -269,16 +277,21 @@ final class SessionController {
     writeNotes(for: result)
   }
 
+  /// Saves the session first, so a failed generation still leaves it in history.
   private func writeNotes(for result: SessionResult) {
-    guard let generator else {
-      notes = .unavailable
-      return
-    }
-    notes = .writing
+    let store = environment.store
+    let generator = generator
+    let startedAt = startedAt ?? .now
+    notes = generator == nil ? .unavailable : .writing
     writing = Task {
+      let saved = try? await store?.save(
+        result: result, notes: nil, title: "", startedAt: startedAt)
+      savedSessionID = saved
+      guard let generator else { return }
       do {
         let written = try await generator.generate(
           state: result.state, transcript: result.transcript)
+        if let saved { try? await store?.attachNotes(written, to: saved) }
         notes = .written(written)
       } catch {
         notes = .unavailable
