@@ -14,6 +14,7 @@ let package = Package(
     .library(name: "Proxy", targets: ["Proxy"]),
     .library(name: "Session", targets: ["Session"]),
     .executable(name: "eval", targets: ["eval"]),
+    .executable(name: "render-icon", targets: ["render-icon"]),
   ],
   dependencies: [
     .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.7")
@@ -28,11 +29,12 @@ let package = Package(
     .target(name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .executableTarget(name: "eval", dependencies: ["Session"]),
+    .executableTarget(name: "render-icon", dependencies: ["Design"]),
     .testTarget(
       name: "DesignTests",
       dependencies: [
         "Design", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-      ]),
+      ], exclude: ["__Snapshots__"]),
     .testTarget(name: "StateTests", dependencies: ["State"]),
     .testTarget(name: "GovernorTests", dependencies: ["Governor"]),
     .testTarget(name: "NotesTests", dependencies: ["Notes"]),
