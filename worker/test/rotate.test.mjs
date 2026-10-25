@@ -20,6 +20,8 @@ const run = (args, { stdin = "", env = {} } = {}) =>
     child.stdout.on("data", (d) => (stdout += d));
     child.stderr.on("data", (d) => (stderr += d));
     child.on("close", (code) => done({ code, stdout, stderr }));
+    // The script reads stdin only on its tty-less path; a run that exits first closes the pipe under us.
+    child.stdin.on("error", () => {});
     child.stdin.end(stdin);
   });
 
