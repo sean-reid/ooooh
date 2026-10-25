@@ -85,7 +85,7 @@ public struct NotesView: View {
         .font(.body.weight(.semibold))
         .frame(minWidth: 44, minHeight: 44)
     }
-    .foregroundStyle(Palette.amber)
+    .foregroundStyle(Palette.accent)
     .padding(.horizontal, 12)
     .padding(.top, 4)
   }
@@ -129,7 +129,7 @@ struct NoteItemRow: View {
   private var line: some View {
     HStack(alignment: .firstTextBaseline, spacing: 10) {
       Circle()
-        .fill(item.resolved ? Palette.amberDim : Palette.amber)
+        .fill(item.resolved ? Palette.amberDim : Palette.accent)
         .frame(width: dot, height: dot)
         .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + dotLift }
       Text(item.text)

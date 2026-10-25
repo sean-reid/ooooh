@@ -46,7 +46,7 @@
         Text(elapsed(at: context.date))
           .font(.system(size: clockSize, weight: .light, design: .rounded))
           .monospacedDigit()
-          .foregroundStyle(model.isRecording ? Palette.amber : Palette.ink)
+          .foregroundStyle(model.isRecording ? Palette.accent : Palette.ink)
           .accessibilityIdentifier("record.elapsed")
       }
     }
@@ -67,7 +67,7 @@
         if case .failed(let message) = model.phase {
           Text(message)
             .font(.callout)
-            .foregroundStyle(Palette.amber)
+            .foregroundStyle(Palette.accent)
         }
       }
     }
@@ -81,7 +81,7 @@
           .frame(maxWidth: .infinity, minHeight: 56)
       }
       .buttonStyle(.plain)
-      .foregroundStyle(model.isRecording ? Palette.ink : Palette.sky)
+      .foregroundStyle(model.isRecording ? Palette.ink : Palette.inkOnAmber)
       .background(model.isRecording ? Palette.skyRaised : Palette.amber, in: Capsule())
       .overlay(Capsule().strokeBorder(Palette.amberDim, lineWidth: model.isRecording ? 1 : 0))
       .disabled(!model.canStart && !model.isRecording)

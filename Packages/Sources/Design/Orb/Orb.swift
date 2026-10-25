@@ -45,12 +45,23 @@ public struct Orb: View {
     }
   }
 
+  /// A canvas clips, so it is widened by this fraction of the side to carry the blurred halo past the frame.
+  static let overflow: CGFloat = 0.25
+
   private func canvas(_ frame: OrbFrame) -> some View {
     let tint = OrbTint(colorScheme)
-    return Canvas(opaque: false, colorMode: .nonLinear, rendersAsynchronously: false) {
-      context, size in
-      let grain = OrbGrain.image.map { context.resolve(Image(decorative: $0, scale: 1)) }
-      OrbPainter(frame: frame, tint: tint).paint(in: &context, size: size, grain: grain)
+    return GeometryReader { proxy in
+      let side = min(proxy.size.width, proxy.size.height)
+      let margin = (side * Self.overflow).rounded()
+      Canvas(opaque: false, colorMode: .nonLinear, rendersAsynchronously: false) {
+        context, _ in
+        let grain = OrbGrain.image.map { context.resolve(Image(decorative: $0, scale: 1)) }
+        context.translateBy(x: margin, y: margin)
+        OrbPainter(frame: frame, tint: tint).paint(
+          in: &context, size: CGSize(width: side, height: side), grain: grain)
+      }
+      .frame(width: side + 2 * margin, height: side + 2 * margin)
+      .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
     }
   }
 }

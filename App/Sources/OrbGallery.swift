@@ -44,7 +44,7 @@ import SwiftUI
           Toggle("Light", isOn: $light)
         }
         .foregroundStyle(Palette.ink)
-        .tint(Palette.amber)
+        .tint(Palette.accent)
         .font(Typography.body)
         .padding(24)
       }

@@ -34,6 +34,9 @@ const TINTS = {
 
 const rgba = ([r, g, b], a) => `rgba(${r}, ${g}, ${b}, ${a})`;
 
+// Fraction of the orb's side the canvas extends past its box on each edge; site.css sizes it to match.
+const OVERFLOW = 0.25;
+
 function grainTile() {
   const size = 160;
   const tile = document.createElement("canvas");
@@ -60,6 +63,7 @@ class Orb {
     this.layer = document.createElement("canvas");
     this.grain = this.ctx.createPattern(grainTile(), "repeat");
     this.size = 0;
+    this.margin = 0;
     this.dpr = 1;
     this.clock = 0;
     this.breath = 0;
@@ -90,7 +94,8 @@ class Orb {
   resize() {
     const css = this.canvas.clientWidth;
     if (!css) return;
-    this.size = css;
+    this.size = css / (1 + 2 * OVERFLOW);
+    this.margin = this.size * OVERFLOW;
     this.dpr = Math.min(devicePixelRatio || 1, 3);
     const px = Math.round(css * this.dpr);
     this.canvas.width = this.canvas.height = px;
@@ -151,7 +156,7 @@ class Orb {
     const dx = this.pointer.x - (rect.left + rect.width / 2);
     const dy = this.pointer.y - (rect.top + rect.height / 2);
     const dist = Math.hypot(dx, dy);
-    const base = rect.width * 0.26;
+    const base = this.size * 0.26;
     return Math.min(Math.max(1 - (dist - base) / (base * 2.6), 0), 1);
   }
 
@@ -179,10 +184,10 @@ class Orb {
   }
 
   draw(clock, breath, pose) {
-    const { ctx, tint, size, dpr } = this;
+    const { ctx, tint, size, margin, dpr } = this;
     if (!size) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, size, size);
+    ctx.setTransform(dpr, 0, 0, dpr, margin * dpr, margin * dpr);
+    ctx.clearRect(-margin, -margin, size + 2 * margin, size + 2 * margin);
     const c = size / 2;
     const base = size * 0.26 * (1 + 0.12 * breath);
     const body = blobPath(ctx, c, c, {
@@ -256,8 +261,8 @@ class Orb {
     }
 
     const layer = this.layer.getContext("2d");
-    layer.setTransform(dpr, 0, 0, dpr, 0, 0);
-    layer.clearRect(0, 0, size, size);
+    layer.setTransform(dpr, 0, 0, dpr, margin * dpr, margin * dpr);
+    layer.clearRect(-margin, -margin, size + 2 * margin, size + 2 * margin);
     layer.fillStyle = this.grain;
     layer.fill(body);
     layer.globalCompositeOperation = "destination-in";
