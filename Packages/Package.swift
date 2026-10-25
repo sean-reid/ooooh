@@ -22,7 +22,7 @@ let package = Package(
     .target(name: "Notes", dependencies: ["State"]),
     .target(name: "Transcription"),
     .target(name: "Audio"),
-    .target(name: "Proxy", dependencies: ["State", "Governor"]),
+    .target(name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .executableTarget(name: "eval", dependencies: ["Session"]),
     .testTarget(name: "StateTests", dependencies: ["State"]),
@@ -31,5 +31,6 @@ let package = Package(
     .testTarget(
       name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
     .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
+    .testTarget(name: "ProxyTests", dependencies: ["Proxy"], resources: [.copy("Fixtures")]),
   ]
 )
