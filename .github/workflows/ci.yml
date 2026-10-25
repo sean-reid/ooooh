@@ -67,7 +67,6 @@ jobs:
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath ui.xcresult
-          -parallel-testing-enabled YES -maximum-parallel-testing-workers 2
           -only-testing:oooohUITests test
       - uses: actions/upload-artifact@v7
         if: always()
