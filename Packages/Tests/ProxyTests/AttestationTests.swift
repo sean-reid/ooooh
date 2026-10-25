@@ -18,6 +18,8 @@ final class FakeAttestor: Attestor {
     hashes.withLock { $0.append(clientDataHash) }
     return reply
   }
+
+  func keyId() async throws -> String? { reply?.keyId }
 }
 
 extension StubbedTransportTests {
@@ -69,8 +71,9 @@ extension StubbedTransportTests {
       #expect(attestor.hashes.withLock { $0.count } == 1)
     }
 
-    @Test func simulatorAttestorSignsNothing() async throws {
+    @Test func simulatorAttestorSignsNothingAndHasNoKeyId() async throws {
       #expect(try await SimulatorAttestor().assertion(clientDataHash: Data(count: 32)) == nil)
+      #expect(try await SimulatorAttestor().keyId() == nil)
     }
 
     @Test func attestBodyUsesTheWorkerFieldNames() throws {

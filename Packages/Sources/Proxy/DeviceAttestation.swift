@@ -34,6 +34,8 @@
       }
     }
 
+    public func keyId() async throws -> String? { try await attestedKeyId() }
+
     private func attestedKeyId() async throws -> String {
       if let keyId { return keyId }
       if let enrolment { return try await enrolment.value }

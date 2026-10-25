@@ -7,14 +7,15 @@ import Testing
 
 @testable import Proxy
 
-/// Decodes what the Worker emits. The files come from `WRITE_FIXTURES=1 npx vitest run --project node`.
-@Suite struct ProxyTests {
-  func fixture(_ name: String, _ ext: String) throws -> Data {
-    let url = try #require(
-      Bundle.module.url(forResource: name, withExtension: ext, subdirectory: "Fixtures"))
-    return try Data(contentsOf: url)
-  }
+/// A file the Worker wrote with `WRITE_FIXTURES=1 npx vitest run --project node`.
+func fixture(_ name: String, _ ext: String) throws -> Data {
+  let url = try #require(
+    Bundle.module.url(forResource: name, withExtension: ext, subdirectory: "Fixtures"))
+  return try Data(contentsOf: url)
+}
 
+/// Decodes what the Worker emits.
+@Suite struct ProxyTests {
   @Test func decideDecodesIntoJevAnswers() throws {
     let response = try JSONDecoder().decode(
       JevDecisionProvider.Response.self, from: fixture("decide", "json"))
