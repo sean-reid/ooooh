@@ -12,6 +12,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public var endSilence: TimeInterval
   public var checkPause: TimeInterval
   public var minCheckInterval: TimeInterval
+  /// How long the pause after an utterance has to hold before an armed decision speaks.
+  public var armingDelay: TimeInterval
   /// Weight per cue name. The moment score is the largest of goodMoment and each weighted cue.
   public var cueWeights: [String: Double]
   /// The kind to ask when a cue opens the gate. Falls back to the intervention choice.
@@ -27,6 +29,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     endSilence: TimeInterval,
     checkPause: TimeInterval,
     minCheckInterval: TimeInterval,
+    armingDelay: TimeInterval = 1.5,
     cueWeights: [String: Double] = [:],
     cueKinds: [String: InterventionKind] = [:]
   ) {
@@ -39,6 +42,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     self.endSilence = endSilence
     self.checkPause = checkPause
     self.minCheckInterval = minCheckInterval
+    self.armingDelay = armingDelay
     self.cueWeights = cueWeights
     self.cueKinds = cueKinds
   }
@@ -54,6 +58,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     endSilence = try c.decode(TimeInterval.self, forKey: .endSilence)
     checkPause = try c.decode(TimeInterval.self, forKey: .checkPause)
     minCheckInterval = try c.decode(TimeInterval.self, forKey: .minCheckInterval)
+    armingDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .armingDelay) ?? 1.5
     cueWeights = try c.decodeIfPresent([String: Double].self, forKey: .cueWeights) ?? [:]
     cueKinds = try c.decodeIfPresent([String: InterventionKind].self, forKey: .cueKinds) ?? [:]
   }
@@ -81,7 +86,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   /// Starting point before any calibration. The eval replaces these numbers.
   public static var initial: GovernorConfig {
     GovernorConfig(
-      version: 3,
+      version: 4,
       floor: FloorRange(min: 30, max: 120),
       speak: Thresholds(probability: 0.9, confidence: 0),
       finished: Thresholds(probability: 0.6, confidence: 0.7),
@@ -90,6 +95,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
       endSilence: 30,
       checkPause: 2,
       minCheckInterval: 3,
+      armingDelay: 1.5,
       cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
       cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]
     )
