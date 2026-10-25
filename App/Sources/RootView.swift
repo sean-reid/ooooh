@@ -3,6 +3,11 @@ import SwiftUI
 
 struct RootView: View {
   @State private var controller = SessionController()
+  @AppStorage("onboardingComplete") private var onboardingComplete = false
+  /// Unset completion shows the flow; `-onboarding 1` shows it again on a phone that finished it.
+  @State private var showsOnboarding =
+    !UserDefaults.standard.bool(forKey: "onboardingComplete")
+    || UserDefaults.standard.bool(forKey: "onboarding")
   #if DEBUG
     @State private var isRecordingFixture = false
   #endif
@@ -10,24 +15,33 @@ struct RootView: View {
   var body: some View {
     ZStack {
       Palette.sky.ignoresSafeArea()
-      switch controller.stage {
-      case .idle, .failed:
-        home
-      case .starting, .running:
-        SessionView(controller: controller)
-      case .ended:
-        NotesPlaceholderView(
-          state: controller.result?.state ?? .empty,
-          transcript: controller.result?.transcript ?? []
-        ) {
-          controller = SessionController()
+      if showsOnboarding {
+        OnboardingFlow(start: requestCapture, done: finishOnboarding)
+          .transition(.opacity)
+      } else {
+        switch controller.stage {
+        case .idle, .failed:
+          home
+        case .starting, .running:
+          SessionView(controller: controller)
+        case .ended:
+          NotesPlaceholderView(
+            state: controller.result?.state ?? .empty,
+            transcript: controller.result?.transcript ?? []
+          ) {
+            controller = SessionController()
+          }
         }
       }
     }
     .animation(.easeInOut(duration: 0.4), value: controller.stage)
+    .animation(.easeInOut(duration: 0.4), value: showsOnboarding)
     #if DEBUG
       .task {
-        if UserDefaults.standard.bool(forKey: "demo") { startDemo() }
+        if UserDefaults.standard.bool(forKey: "demo") {
+          showsOnboarding = false
+          startDemo()
+        }
       }
       .sheet(isPresented: $isRecordingFixture) {
         RecordView()
@@ -91,6 +105,21 @@ struct RootView: View {
     .padding(.horizontal, 32)
     .accessibilityLabel("Start a session")
     .accessibilityIdentifier("home.start")
+  }
+
+  private func requestCapture() async -> CaptureDenial? {
+    do {
+      try await CapturePermissions.request()
+      return nil
+    } catch {
+      return error.denial
+    }
+  }
+
+  private func finishOnboarding() {
+    onboardingComplete = true
+    showsOnboarding = false
+    Task { await controller.start(.microphone) }
   }
 
   #if DEBUG

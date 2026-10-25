@@ -49,21 +49,5 @@
         of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
         named: "402-accessibility3-\(scheme.name)")
     }
-
-    private func render(
-      _ view: some View, width: CGFloat, height: CGFloat, scheme: ColorScheme,
-      type: DynamicTypeSize = .large
-    ) -> UIImage {
-      let renderer = ImageRenderer(
-        content: view.frame(width: width, height: height).environment(\.colorScheme, scheme)
-          .dynamicTypeSize(type))
-      renderer.scale = 2
-      renderer.proposedSize = ProposedViewSize(width: width, height: height)
-      return renderer.uiImage ?? UIImage()
-    }
-  }
-
-  extension ColorScheme {
-    fileprivate var name: String { self == .dark ? "dark" : "light" }
   }
 #endif
