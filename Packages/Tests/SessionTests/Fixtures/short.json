@@ -1,0 +1,14 @@
+{
+  "segments": [
+    { "text": "okay so the thing I keep coming back to is pricing", "start": 0.0, "end": 4.2, "isFinal": true },
+    { "text": "like I know the backend costs about twenty cents an hour", "start": 5.1, "end": 9.0, "isFinal": true },
+    { "text": "but I don't know if people will pay seven dollars", "start": 10.4, "end": 14.0, "isFinal": true },
+    { "text": "um", "start": 17.0, "end": 17.4, "isFinal": true },
+    { "text": "I guess what I'm really asking is whether the free tier is too generous", "start": 20.2, "end": 25.5, "isFinal": true },
+    { "text": "three sessions a month is a lot if each one costs me money", "start": 26.3, "end": 30.0, "isFinal": true },
+    { "text": "but if it's less than that nobody gets hooked", "start": 31.0, "end": 34.1, "isFinal": true },
+    { "text": "so maybe the answer is cap the prompts not the sessions", "start": 36.0, "end": 40.2, "isFinal": true },
+    { "text": "yeah I think that's the decision", "start": 41.5, "end": 43.6, "isFinal": true },
+    { "text": "okay I'm done for now", "start": 48.0, "end": 49.8, "isFinal": true }
+  ]
+}
