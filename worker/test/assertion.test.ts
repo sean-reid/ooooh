@@ -9,9 +9,18 @@ import {
   makeDevice,
   makeRoot,
   type Device,
+  type SignedRequest,
   type TestRoot,
 } from "./appattest";
-import { bodyOf, decideBody, fakeUpstream, jevReply, type FakeUpstream } from "./upstream";
+import {
+  bodyOf,
+  compactBody,
+  decideBody,
+  fakeUpstream,
+  haikuReply,
+  jevReply,
+  type FakeUpstream,
+} from "./upstream";
 
 let authority: TestRoot;
 let device: Device;
@@ -28,7 +37,12 @@ const call = (path: string, init: RequestInit = {}, environment = attestEnv()) =
 const post = (path: string, body: string, headers: Record<string, string>) =>
   call(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
 
+const sign = (path: string, body: string, counter: number, rest: Partial<SignedRequest> = {}) =>
+  assertionHeaders(device, { path, body, counter, ...rest });
+
 const stored = (keyId: string) => env.BUDGET.get<DeviceRecord>(`device:${keyId}`, "json");
+
+const now = () => Math.floor(Date.now() / 1000);
 
 const reason = async (res: Response) => {
   expect(res.status).toBe(401);
@@ -59,7 +73,7 @@ describe("assertion middleware", () => {
     upstream = fakeUpstream([{ body: jevReply }]);
     vi.stubGlobal("fetch", upstream.fetch);
     const body = JSON.stringify(decideBody);
-    const res = await post("/v1/decide", body, await assertionHeaders(device, body, 1));
+    const res = await post("/v1/decide", body, await sign("/v1/decide", body, 1));
     expect(res.status).toBe(200);
     expect((await stored(device.keyId))?.counter).toBe(1);
     expect(upstream.pending()).toBe(0);
@@ -73,7 +87,7 @@ describe("assertion middleware", () => {
     vi.stubGlobal("fetch", upstream.fetch);
     const body = JSON.stringify(decideBody);
     const headers = {
-      ...(await assertionHeaders(device, body, 1)),
+      ...(await sign("/v1/decide", body, 1)),
       "cf-connecting-ip": "203.0.113.9",
     };
     expect((await post("/v1/decide", body, headers)).status).toBe(200);
@@ -81,65 +95,104 @@ describe("assertion middleware", () => {
     expect(await env.BUDGET.get(`rate:203.0.113.9:${minute}`)).toBeNull();
   });
 
-  it("refuses a request with no assertion headers", async () => {
+  it("refuses a request missing any of the three headers", async () => {
     const body = JSON.stringify(decideBody);
     expect(await reason(await post("/v1/decide", body, {}))).toBe("bad-assertion");
     expect(await reason(await post("/v1/decide", body, { "x-device": device.keyId }))).toBe(
       "bad-assertion",
     );
-    const { "x-assertion": assertion } = await assertionHeaders(device, body, 1);
+    const { "x-assertion": assertion, "x-assertion-time": time } = await sign(
+      "/v1/decide",
+      body,
+      1,
+    );
     expect(await reason(await post("/v1/decide", body, { "x-assertion": assertion }))).toBe(
       "bad-assertion",
     );
+    const noTime = { "x-device": device.keyId, "x-assertion": assertion };
+    expect(await reason(await post("/v1/decide", body, noTime))).toBe("bad-assertion");
+    const wordy = { ...noTime, "x-assertion-time": `${time}s` };
+    expect(await reason(await post("/v1/decide", body, wordy))).toBe("bad-assertion");
     expect((await stored(device.keyId))?.counter).toBe(0);
   });
 
   it("refuses a device it has never seen", async () => {
     const stranger = await makeDevice();
     const body = JSON.stringify(decideBody);
-    const res = await post("/v1/decide", body, await assertionHeaders(stranger, body, 1));
-    expect(await reason(res)).toBe("unknown-device");
+    const headers = await assertionHeaders(stranger, { path: "/v1/decide", body, counter: 1 });
+    expect(await reason(await post("/v1/decide", body, headers))).toBe("unknown-device");
   });
 
   it("refuses an assertion signed by another key or over another body", async () => {
     const body = JSON.stringify(decideBody);
     const forger = await makeDevice();
+    const good = await sign("/v1/decide", body, 1);
     const forged = await buildAssertion({
       device,
       clientDataHash: await sha256(new TextEncoder().encode(body)),
       counter: 1,
       signer: forger.keys.privateKey,
     });
-    const forgedHeaders = { "x-device": device.keyId, "x-assertion": toBase64(forged) };
+    const forgedHeaders = { ...good, "x-assertion": toBase64(forged) };
     expect(await reason(await post("/v1/decide", body, forgedHeaders))).toBe("bad-assertion");
 
-    const otherBody = await assertionHeaders(device, JSON.stringify({ ...decideBody, pad: 1 }), 1);
+    const otherBody = await sign("/v1/decide", JSON.stringify({ ...decideBody, pad: 1 }), 1);
     expect(await reason(await post("/v1/decide", body, otherBody))).toBe("bad-assertion");
 
-    const otherApp = await assertionHeaders(device, body, 1, "C6UWR42ZAP.com.seanreid.other");
+    const otherApp = await sign("/v1/decide", body, 1, { appId: "C6UWR42ZAP.com.seanreid.other" });
     expect(await reason(await post("/v1/decide", body, otherApp))).toBe("bad-assertion");
 
-    const garbage = {
-      "x-device": device.keyId,
-      "x-assertion": toBase64(new Uint8Array([1, 2, 3])),
-    };
+    const garbage = { ...good, "x-assertion": toBase64(new Uint8Array([1, 2, 3])) };
     expect(await reason(await post("/v1/decide", body, garbage))).toBe("bad-assertion");
     expect((await stored(device.keyId))?.counter).toBe(0);
+  });
+
+  it("binds an assertion to the route it was signed for", async () => {
+    upstream = fakeUpstream([{ body: haikuReply }]);
+    vi.stubGlobal("fetch", upstream.fetch);
+    const body = JSON.stringify(compactBody);
+    const headers = await sign("/v1/compact", body, 1);
+    expect(await reason(await post("/v1/notes", body, headers))).toBe("bad-assertion");
+    expect((await stored(device.keyId))?.counter).toBe(0);
+    expect((await post("/v1/compact", body, headers)).status).toBe(200);
+    expect((await stored(device.keyId))?.counter).toBe(1);
+    expect(upstream.pending()).toBe(0);
+  });
+
+  it("binds an assertion to the time it carries, within 300 seconds of its own clock", async () => {
+    upstream = fakeUpstream([{ body: jevReply }, { body: jevReply }]);
+    vi.stubGlobal("fetch", upstream.fetch);
+    const body = JSON.stringify(decideBody);
+    const old = await sign("/v1/decide", body, 1, { time: now() - 301 });
+    expect(await reason(await post("/v1/decide", body, old))).toBe("stale");
+    const far = await sign("/v1/decide", body, 1, { time: now() + 301 });
+    expect(await reason(await post("/v1/decide", body, far))).toBe("stale");
+
+    const signedAt = now() - 299;
+    const shifted = { ...(await sign("/v1/decide", body, 1, { time: signedAt })) };
+    shifted["x-assertion-time"] = String(signedAt + 1);
+    expect(await reason(await post("/v1/decide", body, shifted))).toBe("bad-assertion");
+    expect((await stored(device.keyId))?.counter).toBe(0);
+
+    const ahead = await sign("/v1/decide", body, 1, { time: now() + 299 });
+    expect((await post("/v1/decide", body, ahead)).status).toBe(200);
+    const behind = await sign("/v1/decide", body, 2, { time: now() - 299 });
+    expect((await post("/v1/decide", body, behind)).status).toBe(200);
+    expect((await stored(device.keyId))?.counter).toBe(2);
+    expect(upstream.pending()).toBe(0);
   });
 
   it("refuses a counter that does not move forward", async () => {
     upstream = fakeUpstream([{ body: jevReply }, { body: jevReply }]);
     vi.stubGlobal("fetch", upstream.fetch);
     const body = JSON.stringify(decideBody);
-    const headers = await assertionHeaders(device, body, 5);
+    const headers = await sign("/v1/decide", body, 5);
     expect((await post("/v1/decide", body, headers)).status).toBe(200);
     expect(await reason(await post("/v1/decide", body, headers))).toBe("replay");
-    expect(
-      await reason(await post("/v1/decide", body, await assertionHeaders(device, body, 4))),
-    ).toBe("replay");
-    expect((await post("/v1/decide", body, await assertionHeaders(device, body, 6))).status).toBe(
-      200,
+    expect(await reason(await post("/v1/decide", body, await sign("/v1/decide", body, 4)))).toBe(
+      "replay",
     );
+    expect((await post("/v1/decide", body, await sign("/v1/decide", body, 6))).status).toBe(200);
     expect((await stored(device.keyId))?.counter).toBe(6);
     expect(upstream.pending()).toBe(0);
   });
@@ -147,7 +200,7 @@ describe("assertion middleware", () => {
   it("guards the session routes the same way", async () => {
     const body = "{}";
     expect(await reason(await post("/v1/session/start", body, {}))).toBe("bad-assertion");
-    const res = await post("/v1/session/start", body, await assertionHeaders(device, body, 1));
+    const res = await post("/v1/session/start", body, await sign("/v1/session/start", body, 1));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ allowed: true, free: true, remainingFree: 2 });
     expect(

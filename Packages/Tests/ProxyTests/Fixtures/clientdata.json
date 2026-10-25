@@ -1,0 +1,8 @@
+{
+  "method": "POST",
+  "path": "/v1/notes",
+  "time": 1761430000,
+  "body": "{\"state\":{},\"transcript\":[]}",
+  "canonical": "POST\n/v1/notes\n1761430000\n4ef21cff88b104e204cf8cf4ed564b22f99aa223813e47f693dbc82428122164",
+  "hash": "3f7c69507e9ad522cabd901060883c56e0d3393ac6597eb0c788e1252ca3fcd2"
+}

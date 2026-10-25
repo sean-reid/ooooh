@@ -33,7 +33,7 @@ const submit = async (body: string, overrides: Partial<Env> = {}) =>
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(await assertionHeaders(device, body, ++counter)),
+        ...(await assertionHeaders(device, { path: "/v1/entitlement", body, counter: ++counter })),
       },
       body,
     }),

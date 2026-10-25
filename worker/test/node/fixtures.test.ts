@@ -3,6 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import worker from "../../src/index";
+import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
+import { sha256, toHex } from "../../src/bytes";
 import { memoryKV } from "../kv";
 import {
   compactBody,
@@ -70,6 +72,14 @@ const cases = [
   { name: "notes", path: "/v1/notes", body: notesBody, replies: [{ body: opusReply() }] },
 ];
 
+/** One request the Swift side signs the same way; both suites check against the written file. */
+const signedRequest = {
+  method: "POST",
+  path: "/v1/notes",
+  time: 1761430000,
+  body: JSON.stringify({ state: {}, transcript: [] }),
+};
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ProxyTests fixtures", () => {
@@ -79,6 +89,15 @@ describe("ProxyTests fixtures", () => {
       compare(resolve(fixturesDir, `${name}.json`), JSON.stringify(actual, null, 2) + "\n");
     });
   }
+
+  it("clientdata.json matches the string an assertion covers", async () => {
+    const { method, path, time } = signedRequest;
+    const body = new TextEncoder().encode(signedRequest.body);
+    const canonical = canonicalClientData(method, path, time, await sha256(body));
+    const hash = toHex(await clientDataHash(method, path, time, body));
+    const actual = JSON.stringify({ ...signedRequest, canonical, hash }, null, 2) + "\n";
+    compare(resolve(fixturesDir, "clientdata.json"), actual);
+  });
 
   it("phrase.sse matches the streamed route", async () => {
     const replies = [

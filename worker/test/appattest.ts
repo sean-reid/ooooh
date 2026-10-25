@@ -1,5 +1,5 @@
 // Synthetic App Attest material in Apple's exact layout, signed by keys made here: a P-384 root
-// and intermediate, a P-256 device key, the attestation object, and assertions over a body hash.
+// and intermediate, a P-256 device key, the attestation object, and assertions over a request's client data.
 import { sha256, toBase64, type Bytes } from "../src/bytes";
 import {
   certificate,
@@ -166,18 +166,32 @@ export async function buildAssertion(options: AssertionOptions): Promise<Bytes> 
   return cbor({ signature, authenticatorData });
 }
 
-/** Headers for one request body, the way `ProxyClient` sends them. */
-export async function assertionHeaders(
-  device: Device,
-  body: string,
-  counter: number,
-  appIdOverride?: string,
-) {
+export interface SignedRequest {
+  path: string;
+  body: string;
+  counter: number;
+  method?: string;
+  /** Unix seconds; the Worker's clock when left out. */
+  time?: number;
+  appId?: string;
+}
+
+const hex = (bytes: Bytes) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+/** Headers for one request, the way `ProxyClient` sends them: the key id, the time, the assertion. */
+export async function assertionHeaders(device: Device, signed: SignedRequest) {
+  const time = signed.time ?? Math.floor(Date.now() / 1000);
+  const bodyHash = hex(await sha256(encoder.encode(signed.body)));
+  const clientData = `${signed.method ?? "POST"}\n${signed.path}\n${time}\n${bodyHash}`;
   const assertion = await buildAssertion({
     device,
-    clientDataHash: await sha256(encoder.encode(body)),
-    counter,
-    appId: appIdOverride,
+    clientDataHash: await sha256(encoder.encode(clientData)),
+    counter: signed.counter,
+    appId: signed.appId,
   });
-  return { "x-device": device.keyId, "x-assertion": toBase64(assertion) };
+  return {
+    "x-device": device.keyId,
+    "x-assertion": toBase64(assertion),
+    "x-assertion-time": String(time),
+  };
 }

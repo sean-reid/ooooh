@@ -1,6 +1,7 @@
-import { fromBase64, sha256 } from "../bytes";
+import { fromBase64 } from "../bytes";
 import { readBytes } from "../http";
 import { AssertionError, verifyAssertion } from "./assertion";
+import { assertionTime, assertionTimeHeader, clientDataHash } from "./clientdata";
 import { deviceKey, unauthorized, type DeviceRecord } from "./record";
 import { settingsFrom } from "./verify";
 
@@ -23,7 +24,8 @@ export const callerFrom = (request: Request) => {
 };
 
 /**
- * Requires `x-device` and `x-assertion` over the body, and hands the verified key id on.
+ * Requires `x-device`, `x-assertion-time`, and `x-assertion` over the method, path, time, and
+ * body hash, and hands the verified key id on.
  * With `REQUIRE_ATTESTATION=false` the route runs as is, keyed on whatever the client says.
  */
 export const attested =
@@ -43,7 +45,10 @@ export const attested =
     const body = new Uint8Array(await readBytes(request));
     let counter: number;
     try {
-      counter = await verifyAssertion(assertion, await sha256(body), stored, settingsFrom(env));
+      const time = assertionTime(request.headers.get(assertionTimeHeader));
+      const path = new URL(request.url).pathname;
+      const hash = await clientDataHash(request.method, path, time, body);
+      counter = await verifyAssertion(assertion, hash, stored, settingsFrom(env));
     } catch (e) {
       if (e instanceof AssertionError) throw unauthorized(e.reason);
       throw e;
