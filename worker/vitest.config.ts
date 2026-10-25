@@ -7,7 +7,9 @@ const testSecrets = {
   TYPESAFE_API_KEY: "test-jev",
   ANTHROPIC_API_KEY: "test-anthropic",
   ELEVENLABS_API_KEY: "test-elevenlabs",
+  ANTHROPIC_AUTH_TOKEN: "",
   REQUIRE_ATTESTATION: "false",
+  APP_ATTEST_ENVIRONMENT: "production",
 };
 
 export default defineConfig({

@@ -6,7 +6,7 @@ const workerDir = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const devVars = resolve(workerDir, ".dev.vars");
 
 // The vars block of wrangler.jsonc, so node tests see the same defaults as a deployment.
-export const vars: Pick<Env, "CONFIG_VERSION" | "ELEVENLABS_VOICE_ID"> = JSON.parse(
+export const vars: Pick<Env, "ELEVENLABS_VOICE_ID"> = JSON.parse(
   readFileSync(resolve(workerDir, "wrangler.jsonc"), "utf8")
     .replace(/^\s*\/\/.*$/gm, "")
     .replace(/,(\s*[}\]])/g, "$1"),

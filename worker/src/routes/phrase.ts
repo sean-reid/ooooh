@@ -141,8 +141,20 @@ function phraseStream(client: Anthropic, input: Input): Response {
         if (message.stop_reason === "refusal") throw refused(message);
         send("done", { text: await finalText(client, input, text.trim()) });
       } catch (e) {
-        const detail = e instanceof HttpError ? e.body : { error: "stream failed" };
-        send("error", detail);
+        let error: unknown = e;
+        if (!(e instanceof HttpError)) {
+          try {
+            upstreamError(e);
+          } catch (mapped) {
+            error = mapped;
+          }
+        }
+        if (error instanceof HttpError) {
+          send("error", error.body);
+        } else {
+          console.error("phrase stream failed", error);
+          send("error", { error: "stream failed" });
+        }
       } finally {
         controller.close();
       }

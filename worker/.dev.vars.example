@@ -1,0 +1,10 @@
+# Copy to .dev.vars for `npm run dev` and the contract tests. Never commit .dev.vars.
+TYPESAFE_API_KEY=
+ANTHROPIC_API_KEY=
+ELEVENLABS_API_KEY=
+# A short-lived OAuth token wins over the key when both are set.
+# ANTHROPIC_AUTH_TOKEN=
+# The simulator cannot attest, so local runs take x-device as a plain label.
+REQUIRE_ATTESTATION=false
+# A development-signed device build against this Worker attests with the development aaguid.
+APP_ATTEST_ENVIRONMENT=development

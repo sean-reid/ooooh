@@ -1,12 +1,12 @@
 import type { DeviceHandler } from "./attest/device";
-import { HttpError } from "./http";
+import { envNumber, HttpError } from "./http";
 
 export type Provider = "jev" | "anthropic" | "elevenlabs";
 
 const dailyLimit: Record<Provider, (env: Env) => number> = {
-  jev: (env) => Number(env.JEV_DAILY_TOKENS ?? 20_000_000),
-  anthropic: (env) => Number(env.ANTHROPIC_DAILY_TOKENS ?? 2_000_000),
-  elevenlabs: (env) => Number(env.ELEVENLABS_DAILY_CHARACTERS ?? 20_000),
+  jev: (env) => envNumber(env.JEV_DAILY_TOKENS, 20_000_000),
+  anthropic: (env) => envNumber(env.ANTHROPIC_DAILY_TOKENS, 2_000_000),
+  elevenlabs: (env) => envNumber(env.ELEVENLABS_DAILY_CHARACTERS, 20_000),
 };
 
 const day = (now: Date) => now.toISOString().slice(0, 10);
@@ -47,7 +47,7 @@ export async function charge(
 
 /** One device may make this many provider-backed requests a minute. */
 export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {
-  const limit = Number(env.DEVICE_MINUTE_REQUESTS ?? 60);
+  const limit = envNumber(env.DEVICE_MINUTE_REQUESTS, 60);
   const minute = Math.floor(now.getTime() / 60_000);
   const key = `rate:${device}:${minute}`;
   const used = await read(env.BUDGET, key);

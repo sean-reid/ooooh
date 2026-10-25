@@ -114,6 +114,9 @@ export const checkNotes = (n: Notes, transcript: Segment[]): Notes => {
   return out;
 };
 
+/** Thinking counts against this too, so a long session can run out before the JSON closes. */
+const notesMaxTokens = 16_000;
+
 export async function notesRoute(request: Request, env: Env): Promise<Response> {
   const input = await readBody(request, body);
   const cred = credential(env);
@@ -127,7 +130,7 @@ export async function notesRoute(request: Request, env: Env): Promise<Response> 
   const response = await client.beta.messages
     .create({
       model: models.notes,
-      max_tokens: 16_000,
+      max_tokens: notesMaxTokens,
       betas: ["server-side-fallback-2026-07-01", ...cred.betas],
       fallbacks: "default",
       thinking: { type: "adaptive" },
@@ -136,7 +139,11 @@ export async function notesRoute(request: Request, env: Env): Promise<Response> 
       output_config: { effort: "high", format: { type: "json_schema", schema: notesSchema } },
     })
     .catch(upstreamError);
+  await charge(env, "anthropic", response.usage.input_tokens + response.usage.output_tokens);
 
+  if (response.stop_reason === "max_tokens") {
+    throw new HttpError(502, { error: "anthropic truncated", maxTokens: notesMaxTokens });
+  }
   if (response.stop_reason === "refusal") {
     throw new HttpError(502, { error: "anthropic refused", detail: response.stop_details });
   }
@@ -156,7 +163,6 @@ export async function notesRoute(request: Request, env: Env): Promise<Response> 
     throw e;
   }
 
-  await charge(env, "anthropic", response.usage.input_tokens + response.usage.output_tokens);
   return json({
     notes: result,
     usage: {

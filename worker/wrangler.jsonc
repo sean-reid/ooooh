@@ -8,7 +8,6 @@
   // The top level is local dev: `wrangler dev` and the tests. Deploys go through `env.production`.
   "workers_dev": true,
   "vars": {
-    "CONFIG_VERSION": "1",
     // Daily caps per provider, counted from the usage each response reports. Pick for the deployment.
     "JEV_DAILY_TOKENS": "20000000",
     "ANTHROPIC_DAILY_TOKENS": "2000000",
@@ -45,7 +44,6 @@
       "logpush": false,
       // Wrangler does not pass vars or kv_namespaces down to an environment, so production carries its own.
       "vars": {
-        "CONFIG_VERSION": "1",
         "JEV_DAILY_TOKENS": "20000000",
         "ANTHROPIC_DAILY_TOKENS": "2000000",
         "ELEVENLABS_DAILY_CHARACTERS": "20000",
@@ -56,6 +54,8 @@
         "APP_ATTEST_ENVIRONMENT": "production",
         "FREE_SESSIONS_PER_MONTH": "3",
         "FREE_PROMPT_MINUTES": "20",
+        "APP_BUNDLE_ID": "com.seanreid.ooooh",
+        "APP_STORE_ENVIRONMENT": "Production",
         // bin/rotate-secret prints a KEY_ROTATED_AT_<NAME> line to add here after each rotation.
       },
       // `wrangler kv namespace create BUDGET --env production` prints the id to paste here.

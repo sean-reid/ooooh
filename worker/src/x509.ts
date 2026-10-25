@@ -18,6 +18,7 @@ export function readDer(bytes: Bytes, offset = 0): { node: DerNode; next: number
   if (length & 0x80) {
     const size = length & 0x7f;
     if (size === 0 || size > 4) throw new DerError("bad length");
+    if (cursor + size > bytes.length) throw new DerError("truncated");
     length = 0;
     for (let i = 0; i < size; i++) length = length * 256 + bytes[cursor++];
   }

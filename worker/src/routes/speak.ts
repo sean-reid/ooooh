@@ -1,6 +1,6 @@
 import { ElevenLabsClient, ElevenLabsError } from "@elevenlabs/elevenlabs-js";
 import { charge } from "../budget";
-import { HttpError, readBody, requireSecret, sleep } from "../http";
+import { HttpError, maxRetryWaitMs, readBody, requireSecret, retryAfterFrom, sleep } from "../http";
 import { obj, str, ValidationError, type Validator } from "../validate";
 
 export const speech = {
@@ -23,10 +23,8 @@ const line: Validator<string> = (v, p) => {
 
 const body = obj({ text: line });
 
-const retryAfterSeconds = (e: ElevenLabsError) => {
-  const header = Number(e.rawResponse?.headers.get("retry-after"));
-  return Number.isFinite(header) && header > 0 ? Math.min(header, 60) : 5;
-};
+const retryAfterSeconds = (e: ElevenLabsError) =>
+  retryAfterFrom(e.rawResponse?.headers.get("retry-after"));
 
 const upstreamError = (e: unknown): never => {
   if (!(e instanceof ElevenLabsError)) throw e;
@@ -60,10 +58,12 @@ export async function speak(request: Request, env: Env): Promise<Response> {
   const voice = requireSecret(env.ELEVENLABS_VOICE_ID, "ELEVENLABS_VOICE_ID");
   const client = new ElevenLabsClient({ apiKey, timeoutInSeconds: 30 });
 
-  const limited = (e: unknown) => e instanceof ElevenLabsError && e.statusCode === 429;
   const { data, rawResponse } = await synthesize(client, voice, text).catch(async (e: unknown) => {
-    if (!limited(e)) return upstreamError(e);
-    await sleep(retryDelayMs);
+    if (!(e instanceof ElevenLabsError) || e.statusCode !== 429) return upstreamError(e);
+    const header = e.rawResponse?.headers.get("retry-after");
+    const waitMs = header ? retryAfterFrom(header) * 1000 : retryDelayMs;
+    if (waitMs > maxRetryWaitMs) return upstreamError(e);
+    await sleep(waitMs);
     return synthesize(client, voice, text).catch(upstreamError);
   });
 
