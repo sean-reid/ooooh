@@ -139,6 +139,70 @@ describe("POST /v1/decide", () => {
       expected: "number",
     });
   });
+
+  const answer = (name: string, value: unknown) => ({
+    ...jevReply,
+    answers: { ...jevReply.answers, [name]: value },
+  });
+
+  const shapeCases: [string, unknown, Record<string, unknown>][] = [
+    [
+      "a reply with no answers",
+      { usage: jevReply.usage },
+      { field: "answers", expected: "object" },
+    ],
+    [
+      "a null noul",
+      answer("goodMoment", { type: "noul", noul: null }),
+      { question: "goodMoment", field: "answers.goodMoment.noul", expected: "number" },
+    ],
+    [
+      "a string score",
+      answer("momentum", { ...jevReply.answers.momentum, score: "1.8" }),
+      { question: "momentum", field: "answers.momentum.score", expected: "number" },
+    ],
+    [
+      "an intervention outside the kinds",
+      answer("intervention", { ...jevReply.answers.intervention, choice: "sing" }),
+      {
+        question: "intervention",
+        field: "answers.intervention.choice",
+        expected: "one of clarify, deepen, reflect, decide, summarize, challenge",
+      },
+    ],
+    [
+      "a command outside the enum",
+      answer("addressesApp", { ...jevReply.answers.addressesApp, choice: "clarify" }),
+      {
+        question: "addressesApp",
+        field: "answers.addressesApp.choice",
+        expected: "one of none, recall, wrapUp",
+      },
+    ],
+    [
+      "a string input_tokens",
+      { ...jevReply, usage: { input_tokens: "412" } },
+      { field: "usage.input_tokens", expected: "number" },
+    ],
+  ];
+
+  for (const [name, reply, named] of shapeCases) {
+    it(`refuses ${name} with 502 naming the field, and charges nothing`, async () => {
+      expectUpstream({ body: reply });
+      const before = await env.BUDGET.get(`budget:jev:${today}`);
+      const res = await post("/v1/decide", decideBody);
+      expect(res.status).toBe(502);
+      expect(await res.json()).toEqual({ error: "jev answer shape", ...named });
+      expect(await env.BUDGET.get(`budget:jev:${today}`)).toBe(before);
+    });
+  }
+
+  it("refuses a 200 that is not JSON with 502", async () => {
+    expectUpstream({ body: "<html>upstream timeout</html>" });
+    const res = await post("/v1/decide", decideBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "jev", status: 200, detail: "not json" });
+  });
 });
 
 describe("POST /v1/compact", () => {

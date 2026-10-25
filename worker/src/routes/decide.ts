@@ -1,7 +1,7 @@
 import { charge } from "../budget";
-import { json, readBody, requireSecret, HttpError } from "../http";
-import { askJev, type JevAnswer } from "../jev/client";
-import { cueQuestions, questionsVersion, type QuestionName } from "../jev/questions";
+import { json, readBody, requireSecret } from "../http";
+import { askJev, type JevResponse } from "../jev/client";
+import { cueQuestions, questionsVersion } from "../jev/questions";
 import { compactState, intervention, segment, transcriptLines } from "../schema";
 import { array, bool, num, obj, optional } from "../validate";
 
@@ -15,32 +15,27 @@ const body = obj({
   lastIntervention: optional(intervention),
 });
 
-type Of<T extends JevAnswer["type"]> = Extract<JevAnswer, { type: T }>;
+type Answers = JevResponse["answers"];
 
-const expect = <T extends JevAnswer["type"]>(
-  name: QuestionName,
-  a: JevAnswer | undefined,
-  type: T,
-) => {
-  if (!a || a.type !== type) {
-    throw new HttpError(502, { error: "jev answer shape", question: name, expected: type });
-  }
-  return a as Of<T>;
-};
+const noul = (a: { noul: number }) => ({ probability: a.noul });
 
-const noul = (name: QuestionName, a?: JevAnswer) => ({
-  probability: expect(name, a, "noul").noul,
+const choice = <T extends string>(a: { choice: T; confidence: number }) => ({
+  choice: a.choice,
+  confidence: a.confidence,
 });
 
-const choice = (name: QuestionName, a?: JevAnswer) => {
-  const { choice, confidence } = expect(name, a, "choice");
-  return { choice, confidence };
-};
+const score = (a: { score: number; confidence: number }) => ({
+  score: a.score + 1,
+  confidence: a.confidence,
+});
 
-const score = (name: QuestionName, a?: JevAnswer) => {
-  const { score, confidence } = expect(name, a, "score");
-  return { score: score + 1, confidence };
-};
+const cues = (a: Answers) =>
+  Object.fromEntries(
+    (Object.keys(cueQuestions) as (keyof typeof cueQuestions)[]).map((name) => [
+      name,
+      a[name].noul,
+    ]),
+  );
 
 export async function decide(request: Request, env: Env): Promise<Response> {
   const input = await readBody(request, body);
@@ -57,26 +52,17 @@ export async function decide(request: Request, env: Env): Promise<Response> {
   };
 
   const res = await askJev(key, jevState);
-  await charge(env, "jev", res.usage?.input_tokens ?? 0);
+  await charge(env, "jev", res.usage.input_tokens);
   const a = res.answers;
   const answers = {
-    goodMoment: noul("goodMoment", a.goodMoment),
-    intervention: choice("intervention", a.intervention),
-    articulationDifficulty: score("articulationDifficulty", a.articulationDifficulty),
-    momentum: score("momentum", a.momentum),
-    seemsFinished: noul("seemsFinished", a.seemsFinished),
-    addressesApp: choice("addressesApp", a.addressesApp),
-    cues: Object.fromEntries(
-      (Object.keys(cueQuestions) as (keyof typeof cueQuestions)[]).map((name) => [
-        name,
-        noul(name, a[name]).probability,
-      ]),
-    ),
+    goodMoment: noul(a.goodMoment),
+    intervention: choice(a.intervention),
+    articulationDifficulty: score(a.articulationDifficulty),
+    momentum: score(a.momentum),
+    seemsFinished: noul(a.seemsFinished),
+    addressesApp: choice(a.addressesApp),
+    cues: cues(a),
   };
 
-  return json({
-    answers,
-    questionsVersion,
-    usage: { jevInputTokens: res.usage?.input_tokens ?? 0 },
-  });
+  return json({ answers, questionsVersion, usage: { jevInputTokens: res.usage.input_tokens } });
 }
