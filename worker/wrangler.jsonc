@@ -5,6 +5,7 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // The top level is local dev: `wrangler dev` and the tests. Deploys go through `env.production`.
   "workers_dev": true,
   "vars": {
     "CONFIG_VERSION": "1",
@@ -24,11 +25,30 @@
     "FREE_SESSIONS_PER_MONTH": "3",
     "FREE_PROMPT_MINUTES": "20",
   },
-  // Counters for the caps above, attested device keys, challenges, and free-session counts. `wrangler kv namespace create BUDGET` prints the id to paste here.
-  "kv_namespaces": [{ "binding": "BUDGET", "id": "set-at-deploy" }],
-  // Secrets, set with `wrangler secret put <NAME>` and read locally from .dev.vars:
+  // Counters for the caps above, attested device keys, challenges, and free-session counts. Local runs count in a Miniflare namespace, so this id is a label.
+  "kv_namespaces": [{ "binding": "BUDGET", "id": "local" }],
+  // Secrets, set with `wrangler secret put <NAME> --env production` and read locally from .dev.vars:
   //   TYPESAFE_API_KEY    Jev, POST /v1/decide
   //   ANTHROPIC_API_KEY   Haiku, Sonnet, and Opus, POST /v1/compact, /v1/phrase, and /v1/notes
   //   ANTHROPIC_AUTH_TOKEN  short-lived OAuth token for local dev, wins over the key
   //   ELEVENLABS_API_KEY  speech synthesis, POST /v1/speak
+  "env": {
+    "production": {
+      "routes": [{ "pattern": "api.ooooh.app", "custom_domain": true }],
+      "workers_dev": false,
+      "logpush": false,
+      // Wrangler does not pass vars or kv_namespaces down to an environment, so production carries its own.
+      "vars": {
+        "CONFIG_VERSION": "1",
+        "JEV_DAILY_TOKENS": "20000000",
+        "ANTHROPIC_DAILY_TOKENS": "2000000",
+        "ELEVENLABS_DAILY_CHARACTERS": "20000",
+        "DEVICE_MINUTE_REQUESTS": "60",
+        "ELEVENLABS_VOICE_ID": "SAz9YHcvj6GT2YYXdXww",
+        // bin/rotate-secret prints a KEY_ROTATED_AT_<NAME> line to add here after each rotation.
+      },
+      // `wrangler kv namespace create BUDGET --env production` prints the id to paste here.
+      "kv_namespaces": [{ "binding": "BUDGET", "id": "set-at-deploy" }],
+    },
+  },
 }
