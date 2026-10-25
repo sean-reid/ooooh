@@ -2,6 +2,7 @@ import Foundation
 import Governor
 import Notes
 import Session
+import SwiftData
 import Transcription
 
 @testable import Persistence
@@ -50,5 +51,13 @@ enum Support {
 
   static func store() throws -> SessionStore {
     try SessionStore(configuration: .inMemory)
+  }
+
+  static func store(at url: URL) throws -> SessionStore {
+    let configuration = ModelConfiguration(
+      schema: PersistenceContainer.schema, url: url, cloudKitDatabase: .none)
+    return SessionStore(
+      modelContainer: try ModelContainer(
+        for: PersistenceContainer.schema, configurations: [configuration]))
   }
 }
