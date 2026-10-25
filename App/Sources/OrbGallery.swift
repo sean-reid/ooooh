@@ -1,4 +1,5 @@
 import Design
+import Proxy
 import SwiftUI
 
 #if DEBUG
@@ -20,6 +21,7 @@ import SwiftUI
     @State private var level = 0.0
     @State private var cycling = false
     @State private var light = false
+    @State private var speaking: Task<Void, Never>?
 
     var body: some View {
       ZStack {
@@ -42,6 +44,10 @@ import SwiftUI
           }
           Toggle("Cycle phases and level", isOn: $cycling)
           Toggle("Light", isOn: $light)
+          Button("Speak a line through the Worker") { speakLine() }
+            .frame(minHeight: 44)
+            .disabled(WorkerURL.fromBundle == nil)
+            .accessibilityIdentifier("gallery.speak")
         }
         .foregroundStyle(Palette.ink)
         .tint(Palette.accent)
@@ -49,6 +55,7 @@ import SwiftUI
         .padding(24)
       }
       .preferredColorScheme(light ? .light : .dark)
+      .onDisappear { speaking?.cancel() }
       .task(id: cycling) {
         guard cycling else { return }
         var tick = 0
@@ -59,6 +66,23 @@ import SwiftUI
           if tick % 40 == 0 {
             let all = OrbPhase.allCases
             phase = all[(all.firstIndex(of: phase)! + 1) % all.count]
+          }
+        }
+      }
+    }
+
+    /// One fixed line through the real voice path; the orb follows the player's events.
+    private func speakLine() {
+      guard let url = WorkerURL.fromBundle else { return }
+      let speaker = VoiceSpeaker(audio: ProxyClient(baseURL: url).speak)
+      cycling = false
+      phase = .aboutToSpeak
+      speaking?.cancel()
+      speaking = Task {
+        for await event in speaker.speak(text: "Which part of that feels least clear?") {
+          switch event {
+          case .started: phase = .speaking
+          case .finished: phase = .listening
           }
         }
       }

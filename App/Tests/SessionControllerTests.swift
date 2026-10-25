@@ -1,5 +1,7 @@
 import Foundation
 import Governor
+import Notes
+import Persistence
 import Session
 import State
 import Testing
@@ -13,11 +15,31 @@ import Transcription
 
   final class Marker {}
 
-  final class Recorder: PromptSpeaking, @unchecked Sendable {
-    var spoken: [String] = []
-    var stops = 0
-    func speak(text: String) async { spoken.append(text) }
-    func stop() { stops += 1 }
+  /// Records speak and stop in order. A line stays "playing" until stop, two seconds at most.
+  @MainActor final class Recorder: PromptSpeaking {
+    var calls: [String] = []
+    private var stopped = false
+
+    nonisolated func speak(text: String) -> AsyncStream<SpeechEvent> {
+      AsyncStream { continuation in
+        Task { @MainActor in
+          calls.append("speak \(text)")
+          stopped = false
+          continuation.yield(.started)
+          let deadline = ContinuousClock.now + .seconds(2)
+          while !stopped, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+          }
+          continuation.yield(.finished)
+          continuation.finish()
+        }
+      }
+    }
+
+    func stop() async {
+      calls.append("stop")
+      stopped = true
+    }
   }
 
   /// A good moment on the utterance ending at `end`, quiet otherwise.
@@ -63,6 +85,19 @@ import Transcription
       client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
     }
     override func stopLoading() {}
+  }
+
+  struct CannedNotes: NotesGenerator {
+    static let notes = SessionNotes(
+      title: "Pricing and the free tier",
+      summary: "Cap the prompts, not the sessions.",
+      decisions: [NoteItem(id: "cap-prompts", text: "Cap prompts at twenty minutes")],
+      openThreads: [NoteItem(id: "free-tier-purpose", text: "What the free tier is for")])
+
+    func generate(state: CompactState, transcript: [Segment]) async throws -> SessionNotes {
+      try await Task.sleep(for: .milliseconds(50))
+      return Self.notes
+    }
   }
 
   func wait(_ condition: @MainActor () -> Bool, seconds: Double = 10) async {
@@ -112,9 +147,33 @@ import Transcription
     #expect(controller.lastPrompt == "What sits underneath that?")
     #expect(haptics.count == 1)
     await wait { controller.phase != .speaking }
-    #expect(speaker.spoken.isEmpty)
+    #expect(speaker.calls.isEmpty)
     await wait { controller.stage == .ended }
     #expect(controller.result?.transcript.count == 17)
+  }
+
+  @Test func voiceModeStopsTheLineWhenTheUserSpeaksAgain() async throws {
+    let speaker = Recorder()
+    let haptics = Counter()
+    var environment = environment(
+      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics)
+    environment.audio = AudioAccess(
+      activate: {}, deactivate: {}, route: { .headphones },
+      routeChanges: { AsyncStream { $0.finish() } })
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: 10))
+    #expect(!controller.quietMode)
+    await wait { controller.phase == .aboutToSpeak }
+    await wait { controller.phase == .speaking }
+    #expect(speaker.calls == ["speak What sits underneath that?"])
+    await wait { speaker.calls.count == 2 }
+    #expect(speaker.calls == ["speak What sits underneath that?", "stop"])
+    await wait { controller.phase != .speaking }
+    #expect(controller.lastPrompt == "What sits underneath that?")
+    #expect(haptics.count == 0)
+    await wait { controller.stage == .ended }
+    #expect(speaker.calls.count == 2)
   }
 
   @Test func endingByHandKeepsWhatWasHeard() async throws {
@@ -146,5 +205,147 @@ import Transcription
     #expect(result.prompts.isEmpty)
     #expect(result.state.currentThread.contains("done for now"))
     #expect(controller.lastPrompt == nil)
+    await wait { controller.notes == .unavailable }
+    #expect(controller.notes == .unavailable)
+  }
+
+  @Test func unreachableWorkerStillSavesTheSessionWithoutNotes() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.workerURL = URL(string: "http://127.0.0.1:9")
+    environment.store = store
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.notes == .unavailable }
+    await wait { controller.savedSessionID != nil }
+    let saved = try #require(controller.savedSessionID)
+    let sessions = try await store.sessions()
+    #expect(sessions.map(\.id) == [saved])
+    #expect(sessions.first?.title == "")
+    #expect(sessions.first?.openThreadCount == 0)
+    let detail = try #require(try await store.detail(saved))
+    #expect(detail.notes == nil)
+    #expect(detail.transcript.count == 17)
+    #expect(detail.state?.currentThread.contains("done for now") == true)
+  }
+
+  @Test func writesTheNotesAfterTheEnd() async throws {
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.notesGenerator = CannedNotes()
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.notes == .writing)
+    await wait { controller.notes != .writing }
+    #expect(controller.notes == .written(CannedNotes.notes))
+  }
+
+  @Test func savesTheSessionAndAttachesTheNotesWhenTheyArrive() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.notesGenerator = CannedNotes()
+    environment.store = store
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.notes == .written(CannedNotes.notes) }
+    let saved = try #require(controller.savedSessionID)
+    let sessions = try await store.sessions()
+    #expect(sessions.map(\.id) == [saved])
+    #expect(sessions.first?.title == "Pricing and the free tier")
+    #expect(sessions.first?.openThreadCount == 1)
+    #expect(sessions.first?.duration == 87.8)
+    let stored = try #require(try await store.notes(for: saved))
+    #expect(stored.title == CannedNotes.notes.title)
+    #expect(stored.decisions == CannedNotes.notes.decisions)
+    #expect(stored.openThreads == CannedNotes.notes.openThreads)
+    #expect(try await store.openThreads(limit: 3).map(\.text) == ["What the free tier is for"])
+  }
+
+  @Test func aCarriedThreadReachesTheProvidersAndTheFinalState() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    var earlierEnvironment = environment(nil, speaker: Recorder(), haptics: Counter())
+    earlierEnvironment.notesGenerator = CannedNotes()
+    earlierEnvironment.store = store
+    let earlier = SessionController(environment: earlierEnvironment)
+    await earlier.start(.fixture(shortFixture, speed: .infinity))
+    await wait { earlier.notes == .written(CannedNotes.notes) }
+    let thread = try #require(try await store.openThreads(limit: 1).first)
+
+    let seen = Seen()
+    let decisions = ScriptedDecisionProvider { input in
+      seen.states.append(input.state)
+      return .quiet
+    }
+    var environment = environment(
+      .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
+      speaker: Recorder(), haptics: Counter())
+    environment.store = store
+    let controller = SessionController(environment: environment)
+    await controller.start(.fixture(shortFixture, speed: .infinity), carrying: thread)
+    await wait { controller.stage == .ended }
+
+    let first = try #require(seen.states.first)
+    #expect(first.currentThread == "What the free tier is for")
+    #expect(first.openQuestions.map(\.text) == ["What the free tier is for"])
+    let result = try #require(controller.result)
+    #expect(result.state.openQuestions.map(\.id) == ["carried-free-tier-purpose"])
+    #expect(result.state.currentThread.contains("done for now"))
+    #expect(try await store.sessions().count == 2)
+  }
+
+  @Test func aFailedStartLeavesTheOrbRestingAndCanBeTriedAgain() async throws {
+    let controller = SessionController(
+      environment: environment(nil, speaker: Recorder(), haptics: Counter()))
+    let missing = shortFixture.deletingLastPathComponent().appending(path: "missing.json")
+
+    await controller.start(.fixture(missing, speed: .infinity))
+    #expect(controller.stage == .failed(StartFailure.unavailable))
+    #expect(controller.phase == .resting)
+    #expect(controller.level == 0)
+    #expect(controller.startedAt == nil)
+    #expect(controller.notes == nil)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.result?.transcript.count == 17)
+  }
+
+  @Test func aSessionWithNothingHeardIsNeitherSavedNorSentToOpus() async throws {
+    let empty = FileManager.default.temporaryDirectory.appending(path: "empty-\(UUID()).json")
+    try Data(#"{"segments":[]}"#.utf8).write(to: empty)
+    let store = try SessionStore(configuration: .inMemory)
+    var environment = environment(nil, speaker: Recorder(), haptics: Counter())
+    environment.notesGenerator = CannedNotes()
+    environment.store = store
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(empty, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.notes == .empty)
+    #expect(controller.savedSessionID == nil)
+    #expect(try await store.sessions().isEmpty)
+  }
+
+  @Test func startFailuresReadAsPlainWords() {
+    #expect(
+      StartFailure.message(for: SpeechAnalyzerError.unsupportedLocale(Locale(identifier: "en_US")))
+        == "Listening isn't available on this device yet.")
+    #expect(
+      StartFailure.message(for: SpeechAnalyzerError.assetsNotInstalled(Locale(identifier: "en_US")))
+        == "Listening isn't available on this device yet.")
+    #expect(
+      StartFailure.message(for: CaptureError.microphoneDenied)
+        == "Allow the microphone in Settings to start.")
+    #expect(
+      StartFailure.message(for: CaptureError.speechDenied)
+        == "Allow the microphone in Settings to start.")
+    #expect(!StartFailure.message(for: SpeechAnalyzerError.noMicrophoneInput).contains("en_US"))
+  }
+
+  final class Seen: @unchecked Sendable {
+    var states: [CompactState] = []
   }
 }

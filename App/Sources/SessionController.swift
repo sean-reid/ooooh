@@ -2,7 +2,9 @@ import Audio
 import Design
 import Foundation
 import Governor
+import Notes
 import Observation
+import Persistence
 import Proxy
 import Session
 import State
@@ -22,11 +24,26 @@ final class SessionController {
     case failed(String)
   }
 
+  enum NotesState: Equatable {
+    case writing
+    case written(SessionNotes)
+    case unavailable
+    /// Nothing was heard, so nothing is saved and Opus is not asked.
+    case empty
+  }
+
   struct Environment {
     var workerURL: URL?
     var session: URLSession = .shared
     var audio: AudioAccess = .device
-    var speaker: any PromptSpeaking = SilentSpeaker()
+    /// Set to replace the Worker-fed voice, as the tests do.
+    var speaker: (any PromptSpeaking)?
+    /// Speaks on every route, for hearing the voice path on a simulator.
+    var forceVoice = false
+    /// Set to replace Opus, as the tests do.
+    var notesGenerator: (any NotesGenerator)?
+    /// Every session is saved here when set.
+    var store: SessionStore?
     var haptic: @MainActor () -> Void = {}
     var offlineDelay: Duration = .seconds(3)
     var aboutToSpeakHold: Duration = .seconds(1)
@@ -43,6 +60,9 @@ final class SessionController {
   private(set) var isOffline = false
   private(set) var quietMode = true
   private(set) var result: SessionResult?
+  /// Nil until the session ends.
+  private(set) var notes: NotesState?
+  private(set) var savedSessionID: UUID?
   private(set) var compactions = 0
 
   private var measuredLevel: Double?
@@ -50,9 +70,12 @@ final class SessionController {
   private var promptPending = false
   private var promptPendingSince: Date?
   private var isSpeaking = false
+  private var voice: any PromptSpeaking = SilentSpeaker()
+  private var generator: (any NotesGenerator)?
   private var live: LiveSessionLoop?
   private var observers: [Task<Void, Never>] = []
   private var delivery: Task<Void, Never>?
+  private var writing: Task<Void, Never>?
   private var offlineChange: Task<Void, Never>?
   private let environment: Environment
 
@@ -79,8 +102,12 @@ final class SessionController {
     return (endedAt ?? now).timeIntervalSince(startedAt)
   }
 
-  func start(_ source: Source) async {
-    guard stage == .idle else { return }
+  /// `carrying` seeds the state with an open thread from a past session.
+  func start(_ source: Source, carrying thread: OpenThread? = nil) async {
+    switch stage {
+    case .idle, .failed: break
+    case .starting, .running, .ended: return
+    }
     stage = .starting
     do {
       var levels: AsyncStream<Double>?
@@ -97,18 +124,27 @@ final class SessionController {
       case .fixture(let url, let speed):
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
       }
-      quietMode = environment.audio.route().prefersQuietMode
+      quietMode = isQuiet(environment.audio.route())
 
       let guardian = OfflineGuard(
         offline: environment.workerURL == nil && environment.dependencies == nil)
       let client = environment.workerURL.map {
         ProxyClient(baseURL: $0, session: environment.session, offline: guardian)
       }
-      let dependencies =
+      if let speaker = environment.speaker {
+        voice = speaker
+      } else if let client {
+        voice = VoiceSpeaker(audio: client.speak)
+      }
+      generator = environment.notesGenerator ?? client.map { OpusNotesGenerator(client: $0) }
+      var dependencies =
         environment.dependencies ?? client?.sessionDependencies()
         ?? SessionLoop.Dependencies(
           decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
           phraser: TemplatePhraser())
+      if let thread {
+        dependencies = CarriedThread(thread).wrap(dependencies)
+      }
       let config: GovernorConfig
       if let fixed = environment.config {
         config = fixed
@@ -129,12 +165,12 @@ final class SessionController {
         Task { for await event in live.events() { await handle(event) } },
         Task {
           for await route in environment.audio.routeChanges() {
-            quietMode = route.prefersQuietMode
+            quietMode = isQuiet(route)
           }
         },
       ]
     } catch {
-      stage = .failed(error.localizedDescription)
+      stage = .failed(StartFailure.message(for: error))
       try? environment.audio.deactivate()
     }
   }
@@ -143,6 +179,10 @@ final class SessionController {
     guard stage == .running, let live else { return }
     await live.end()
     await observers.first?.value
+  }
+
+  private func isQuiet(_ route: AudioRoute) -> Bool {
+    !(environment.forceVoice || shouldSpeak(route: route))
   }
 
   private func fetchConfig(_ client: ProxyClient?) async -> GovernorConfig {
@@ -162,6 +202,7 @@ final class SessionController {
       measuredLevel = level
     case .speechStarted:
       isHearingSpeech = true
+      if isSpeaking, !quietMode { await voice.stop() }
     case .speechEnded:
       isHearingSpeech = false
     case .utterance:
@@ -180,11 +221,12 @@ final class SessionController {
     case .offline(let offline):
       scheduleOffline(offline)
     case .ended(let result):
-      finish(with: result)
+      await finish(with: result)
     }
   }
 
-  /// Holds the orb in aboutToSpeak for at least the configured second, then speaks.
+  /// Holds the orb in aboutToSpeak for at least the configured second, then speaks. The orb
+  /// turns to speaking when sound starts, not when the request goes out.
   private func deliver(_ text: String) {
     delivery?.cancel()
     guard !text.isEmpty else {
@@ -197,11 +239,20 @@ final class SessionController {
     delivery = Task {
       if hold > .zero { try? await Task.sleep(for: hold) }
       guard !Task.isCancelled, stage == .running else { return }
+      let quiet = quietMode
+      let speaker: any PromptSpeaking = quiet ? SilentSpeaker() : voice
+      for await event in speaker.speak(text: text) {
+        switch event {
+        case .started:
+          promptPending = false
+          isSpeaking = true
+          if quiet { environment.haptic() }
+        case .finished:
+          isSpeaking = false
+        }
+      }
+      guard !Task.isCancelled else { return }
       promptPending = false
-      isSpeaking = true
-      if quietMode { environment.haptic() }
-      let speaker: any PromptSpeaking = quietMode ? SilentSpeaker() : environment.speaker
-      await speaker.speak(text: text)
       isSpeaking = false
     }
   }
@@ -216,10 +267,10 @@ final class SessionController {
     }
   }
 
-  private func finish(with result: SessionResult) {
+  private func finish(with result: SessionResult) async {
     delivery?.cancel()
     offlineChange?.cancel()
-    environment.speaker.stop()
+    if isSpeaking { await voice.stop() }
     for observer in observers { observer.cancel() }
     self.result = result
     endedAt = .now
@@ -228,6 +279,33 @@ final class SessionController {
     isHearingSpeech = false
     stage = .ended
     try? environment.audio.deactivate()
+    writeNotes(for: result)
+  }
+
+  /// Saves the session first, so a failed generation still leaves it in history.
+  private func writeNotes(for result: SessionResult) {
+    guard result.transcript.contains(where: \.isFinal) else {
+      notes = .empty
+      return
+    }
+    let store = environment.store
+    let generator = generator
+    let startedAt = startedAt ?? .now
+    notes = generator == nil ? .unavailable : .writing
+    writing = Task {
+      let saved = try? await store?.save(
+        result: result, notes: nil, title: "", startedAt: startedAt)
+      savedSessionID = saved
+      guard let generator else { return }
+      do {
+        let written = try await generator.generate(
+          state: result.state, transcript: result.transcript)
+        if let saved { try? await store?.attachNotes(written, to: saved) }
+        notes = .written(written)
+      } catch {
+        notes = .unavailable
+      }
+    }
   }
 }
 

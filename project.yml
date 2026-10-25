@@ -44,6 +44,10 @@ targets:
         product: Proxy
       - package: Packages
         product: Billing
+      - package: Packages
+        product: Session
+      - package: Packages
+        product: Persistence
     info:
       path: App/Resources/Info.plist
       properties:
