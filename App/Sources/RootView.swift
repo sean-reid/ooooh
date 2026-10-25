@@ -33,8 +33,8 @@ struct RootView: View {
     #if DEBUG
       .sheet(isPresented: $isRecordingFixture) {
         RecordView()
-          .presentationBackground(Palette.sky)
-          .presentationDragIndicator(.visible)
+        .presentationBackground(Palette.sky)
+        .presentationDragIndicator(.visible)
       }
     #endif
   }
