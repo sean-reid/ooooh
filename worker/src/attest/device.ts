@@ -12,9 +12,15 @@ export type DeviceHandler = (
 
 export const requiresAttestation = (env: Env) => (env.REQUIRE_ATTESTATION ?? "true") !== "false";
 
+/** Key ids are 44 characters of base64; KV refuses keys past 512, so longer labels are not labels. */
+export const maxLabelLength = 128;
+
 /** Who is calling when nothing is verified: the client's own label, else its address. */
-export const callerFrom = (request: Request) =>
-  request.headers.get("x-device") ?? request.headers.get("cf-connecting-ip") ?? "unknown";
+export const callerFrom = (request: Request) => {
+  const label = request.headers.get("x-device");
+  if (label && label.length <= maxLabelLength) return label;
+  return request.headers.get("cf-connecting-ip") ?? "unknown";
+};
 
 /**
  * Requires `x-device` and `x-assertion` over the body, and hands the verified key id on.
@@ -27,7 +33,9 @@ export const attested =
 
     const keyId = request.headers.get("x-device");
     const assertion = fromBase64(request.headers.get("x-assertion") ?? "");
-    if (!keyId || !assertion?.length) throw unauthorized("bad-assertion");
+    if (!keyId || keyId.length > maxLabelLength || !assertion?.length) {
+      throw unauthorized("bad-assertion");
+    }
 
     const stored = await env.BUDGET.get<DeviceRecord>(deviceKey(keyId), "json");
     if (!stored) throw unauthorized("unknown-device");

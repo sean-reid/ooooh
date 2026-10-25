@@ -8,11 +8,12 @@ import { obj, str } from "../validate";
 
 const challengeTtlSeconds = 300;
 const challengeKey = (challenge: string) => `challenge:${challenge}`;
+const challengeLength = 32;
 
 /** 32 random bytes the app hashes into `clientDataHash` for `attestKey`. One use, five minutes. */
 export async function challenge(request: Request, env: Env): Promise<Response> {
   await checkDeviceRate(callerFrom(request), env);
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const bytes = crypto.getRandomValues(new Uint8Array(challengeLength));
   const issued = toBase64(bytes);
   await env.BUDGET.put(challengeKey(issued), "1", { expirationTtl: challengeTtlSeconds });
   return json({ challenge: issued });
@@ -29,6 +30,7 @@ export async function attest(request: Request, env: Env): Promise<Response> {
     throw new HttpError(422, { error: "invalid", field: "attestation", expected: "base64" });
   }
 
+  if (challengeBytes.length !== challengeLength) throw unauthorized("bad-challenge");
   const key = challengeKey(challenge);
   if (!(await env.BUDGET.get(key))) throw unauthorized("bad-challenge");
   await env.BUDGET.delete(key);
