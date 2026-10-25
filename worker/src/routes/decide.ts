@@ -1,7 +1,7 @@
 import { charge } from "../budget";
 import { json, readBody, requireSecret, HttpError } from "../http";
 import { askJev, type JevAnswer } from "../jev/client";
-import { cueQuestions, questions, questionsVersion, type QuestionName } from "../jev/questions";
+import { cueQuestions, questionsVersion, type QuestionName } from "../jev/questions";
 import { compactState, intervention, segment, transcriptLines } from "../schema";
 import { array, bool, num, obj, optional } from "../validate";
 
