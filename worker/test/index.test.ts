@@ -21,3 +21,19 @@ describe("worker", () => {
     expect((await SELF.fetch("https://ooooh.test/nope")).status).toBe(404);
   });
 });
+
+describe("request guards", () => {
+  it("rejects a body over 256 KiB", async () => {
+    const res = await SELF.fetch("https://ooooh.test/v1/decide", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ state: {}, pad: "x".repeat(256 * 1024) }),
+    });
+    expect(res.status).toBe(413);
+  });
+
+  it("rejects a body that is not json", async () => {
+    const res = await SELF.fetch("https://ooooh.test/v1/decide", { method: "POST", body: "{" });
+    expect(res.status).toBe(422);
+  });
+});
