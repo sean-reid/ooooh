@@ -122,7 +122,7 @@ import Transcription
     #expect(controller.level == 0)
     let result = try #require(controller.result)
     #expect(result.transcript.count == 17)
-    #expect(result.prompts.map(\.at) == [14.0])
+    #expect(result.prompts.map(\.at) == [15.5])
     #expect(result.state.currentThread.contains("done for now"))
     #expect(result.state.lastIntervention?.text == "What sits underneath that?")
     #expect(controller.lastPrompt == "What sits underneath that?")
@@ -150,6 +150,27 @@ import Transcription
     #expect(speaker.calls.isEmpty)
     await wait { controller.stage == .ended }
     #expect(controller.result?.transcript.count == 17)
+  }
+
+  @Test func speechBeforeThePauseHoldsCancelsTheArmAndNothingIsSpoken() async throws {
+    let speaker = Recorder()
+    let haptics = Counter()
+    let controller = SessionController(
+      environment: environment(deps(firing: .deepen, at: 4.2), speaker: speaker, haptics: haptics))
+
+    await controller.start(.fixture(shortFixture, speed: 2))
+    await wait { controller.phase == .aboutToSpeak }
+    #expect(controller.phase == .aboutToSpeak)
+    await wait { controller.phase == .listening }
+    #expect(controller.phase == .listening)
+    await controller.end()
+
+    let result = try #require(controller.result)
+    #expect(result.prompts.isEmpty)
+    #expect(result.cancelledArms == [5.1])
+    #expect(controller.lastPrompt == nil)
+    #expect(speaker.calls.isEmpty)
+    #expect(haptics.count == 0)
   }
 
   @Test func voiceModeStopsTheLineWhenTheUserSpeaksAgain() async throws {

@@ -13,9 +13,14 @@ describe("worker", () => {
   it("serves the governor config with a version", async () => {
     const res = await SELF.fetch("https://ooooh.test/v1/config");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { version: number; floor: { min: number; max: number } };
-    expect(body.version).toBe(3);
+    const body = (await res.json()) as {
+      version: number;
+      floor: { min: number; max: number };
+      armingDelay: number;
+    };
+    expect(body.version).toBe(4);
     expect(body.floor).toEqual({ min: 30, max: 120 });
+    expect(body.armingDelay).toBe(1.5);
   });
 
   it("rejects writes and unknown paths", async () => {

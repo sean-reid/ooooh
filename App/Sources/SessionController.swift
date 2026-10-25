@@ -207,14 +207,16 @@ final class SessionController {
       isHearingSpeech = false
     case .utterance:
       break
-    case .promptPending:
+    case .promptArmed:
       promptPending = true
       promptPendingSince = .now
+    case .promptCancelled:
+      delivery?.cancel()
+      promptPending = false
+      promptPendingSince = nil
     case .promptRequested(_, let text, _):
       deliver(text)
     case .askedIfFinished:
-      promptPending = true
-      promptPendingSince = .now
       deliver("Done for now?")
     case .compactionApplied:
       compactions += 1
@@ -225,8 +227,8 @@ final class SessionController {
     }
   }
 
-  /// Holds the orb in aboutToSpeak for at least the configured second, then speaks. The orb
-  /// turns to speaking when sound starts, not when the request goes out.
+  /// Keeps the orb in aboutToSpeak for at least the configured hold since it armed, then speaks.
+  /// The orb turns to speaking when sound starts, not when the request goes out.
   private func deliver(_ text: String) {
     delivery?.cancel()
     guard !text.isEmpty else {
