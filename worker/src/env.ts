@@ -1,6 +1,7 @@
 declare global {
   interface Env {
     BUDGET: KVNamespace;
+    CF_VERSION_METADATA?: WorkerVersionMetadata;
     TYPESAFE_API_KEY?: string;
     ANTHROPIC_API_KEY?: string;
     ANTHROPIC_AUTH_TOKEN?: string;
