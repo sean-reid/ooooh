@@ -80,11 +80,4 @@ final class NotesFlowTests: XCTestCase {
     let reachable = (try? await URLSession.shared.data(for: request)) != nil
     try XCTSkipUnless(reachable, "no Worker at \(Worker.url)")
   }
-
-  private func attach(_ screenshot: XCUIScreenshot, named name: String) {
-    let attachment = XCTAttachment(screenshot: screenshot)
-    attachment.name = name
-    attachment.lifetime = .keepAlways
-    add(attachment)
-  }
 }
