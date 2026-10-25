@@ -95,6 +95,7 @@ public final class StoredThread {
   public var id: UUID = UUID()
   public var text: String = ""
   public var sourceNoteItemSlug: String = ""
+  public var order: Int = 0
   public var resolved: Bool = false
   public var resolvedAt: Date? = nil
   public var sourceSession: StoredSession? = nil
