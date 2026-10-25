@@ -8,6 +8,8 @@ public struct NotesView: View {
   public var transcript: [Segment]
   public var date: Date
   public var onDone: () -> Void
+  /// ImageRenderer draws a ScrollView empty, so snapshots render the content unscrolled.
+  var scrolls = true
   @State private var revealed: Set<String>
 
   public init(
@@ -26,44 +28,48 @@ public struct NotesView: View {
       Palette.sky.ignoresSafeArea()
       VStack(spacing: 0) {
         bar
-        ScrollView {
-          VStack(alignment: .leading, spacing: 32) {
-            Text(notes.title)
-              .font(Typography.display)
-              .foregroundStyle(Palette.ink)
-              .accessibilityAddTraits(.isHeader)
-            if let summary = notes.summary {
-              Text(summary)
-                .font(Typography.body)
-                .foregroundStyle(Palette.ink)
-            }
-            ForEach(notes.sections, id: \.name) { section in
-              VStack(alignment: .leading, spacing: 4) {
-                Text(section.name)
-                  .font(Typography.title)
-                  .foregroundStyle(Palette.ink)
-                  .padding(.bottom, 8)
-                  .accessibilityAddTraits(.isHeader)
-                ForEach(section.items) { item in
-                  NoteItemRow(
-                    item: item, transcript: transcript, revealed: revealed.contains(item.id)
-                  ) {
-                    if revealed.contains(item.id) {
-                      revealed.remove(item.id)
-                    } else {
-                      revealed.insert(item.id)
-                    }
-                  }
-                }
-              }
-            }
-          }
-          .frame(maxWidth: .infinity, alignment: .leading)
-          .padding(.horizontal, 24)
-          .padding(.bottom, 48)
+        if scrolls {
+          ScrollView { content }
+        } else {
+          GeometryReader { _ in content.fixedSize(horizontal: false, vertical: true) }.clipped()
         }
       }
     }
+  }
+
+  private var content: some View {
+    VStack(alignment: .leading, spacing: 32) {
+      Text(notes.title)
+        .font(Typography.display)
+        .foregroundStyle(Palette.ink)
+        .accessibilityAddTraits(.isHeader)
+      if let summary = notes.summary {
+        Text(summary)
+          .font(Typography.body)
+          .foregroundStyle(Palette.ink)
+      }
+      ForEach(notes.sections, id: \.name) { section in
+        VStack(alignment: .leading, spacing: 4) {
+          Text(section.name)
+            .font(Typography.title)
+            .foregroundStyle(Palette.ink)
+            .padding(.bottom, 8)
+            .accessibilityAddTraits(.isHeader)
+          ForEach(section.items) { item in
+            NoteItemRow(item: item, transcript: transcript, revealed: revealed.contains(item.id)) {
+              if revealed.contains(item.id) {
+                revealed.remove(item.id)
+              } else {
+                revealed.insert(item.id)
+              }
+            }
+          }
+        }
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.horizontal, 24)
+    .padding(.bottom, 48)
   }
 
   private var bar: some View {
@@ -90,6 +96,8 @@ struct NoteItemRow: View {
   var transcript: [Segment]
   var revealed: Bool
   var toggle: () -> Void
+  @ScaledMetric(relativeTo: .body) private var dot = 8.0
+  @ScaledMetric(relativeTo: .body) private var dotLift = 4.5
 
   var body: some View {
     if let span = item.span {
@@ -122,8 +130,8 @@ struct NoteItemRow: View {
     HStack(alignment: .firstTextBaseline, spacing: 10) {
       Circle()
         .fill(item.resolved ? Palette.amberDim : Palette.amber)
-        .frame(width: 8, height: 8)
-        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+        .frame(width: dot, height: dot)
+        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + dotLift }
       Text(item.text)
         .font(Typography.body)
         .strikethrough(item.resolved)

@@ -38,6 +38,11 @@ let package = Package(
     .testTarget(name: "GovernorTests", dependencies: ["Governor"]),
     .testTarget(name: "NotesTests", dependencies: ["Notes"]),
     .testTarget(
+      name: "NotesSnapshotTests",
+      dependencies: [
+        "Notes", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+      ]),
+    .testTarget(
       name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
     .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
     .testTarget(name: "ProxyTests", dependencies: ["Proxy"], resources: [.copy("Fixtures")]),
