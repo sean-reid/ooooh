@@ -47,6 +47,7 @@ let package = Package(
     .testTarget(
       name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
     .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
+    .testTarget(name: "AudioTests", dependencies: ["Audio"], resources: [.copy("Fixtures")]),
     .testTarget(name: "ProxyTests", dependencies: ["Proxy"], resources: [.copy("Fixtures")]),
   ]
 )
