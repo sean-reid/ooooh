@@ -117,22 +117,29 @@ public actor SessionLoop {
     case .askIfFinished:
       records.append(.askedIfFinished(at: now))
     case .endSession:
-      records.append(.ended(at: now, byUser: false))
-      ended = true
+      await end(at: now, byUser: false)
     case .command(let command):
       records.append(.command(at: now, command))
       if command == .wrapUp {
-        records.append(.ended(at: now, byUser: true))
-        ended = true
+        await end(at: now, byUser: true)
       }
     }
   }
 
-  func compactIfDue(at now: TimeInterval) async {
-    let words = uncompacted.reduce(0) { $0 + $1.text.split(separator: " ").count }
-    guard now - lastCompactionAt >= policy.everySeconds || words >= policy.everyWords else {
-      return
+  /// Folds whatever is still raw into the state, then closes the session.
+  func end(at now: TimeInterval, byUser: Bool) async {
+    guard !ended else { return }
+    if !uncompacted.isEmpty {
+      await compactIfDue(at: now, force: true)
     }
+    records.append(.ended(at: now, byUser: byUser))
+    ended = true
+  }
+
+  func compactIfDue(at now: TimeInterval, force: Bool = false) async {
+    let words = uncompacted.reduce(0) { $0 + $1.text.split(separator: " ").count }
+    guard force || now - lastCompactionAt >= policy.everySeconds || words >= policy.everyWords
+    else { return }
     guard let patch = try? await deps.compactor.compact(state: state, transcript: uncompacted)
     else { return }
     do {

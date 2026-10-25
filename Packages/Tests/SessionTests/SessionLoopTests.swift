@@ -44,8 +44,8 @@ import Transcription
       fixture: try fixture(), config: .initial, dependencies: deps(SilentDecisionProvider()))
     #expect(result.prompts.isEmpty)
     #expect(result.finishedAsks.isEmpty)
-    #expect(result.records.last == .ended(at: 49.8, byUser: true))
-    #expect(result.transcript.count == 10)
+    #expect(result.records.last == .ended(at: 87.8, byUser: true))
+    #expect(result.transcript.count == 17)
     let checks = result.records.filter { if case .check = $0 { true } else { false } }
     #expect(checks.count > 10)
   }
@@ -63,14 +63,14 @@ import Transcription
   @Test func wrapsUpAfterFinishedThenSilence() async throws {
     let result = await FixtureDriver.run(
       fixture: try fixture(), config: .initial,
-      dependencies: deps(firing(.clarify, afterUtteranceEnding: -1, finishedAt: 49.8)))
-    #expect(result.finishedAsks == [49.8])
+      dependencies: deps(firing(.clarify, afterUtteranceEnding: -1, finishedAt: 87.8)))
+    #expect(result.finishedAsks == [87.8])
     guard case .ended(let at, let byUser) = result.records.last! else {
       Issue.record("session did not end")
       return
     }
     #expect(byUser == false)
-    #expect(at >= 49.8 + 30)
+    #expect(at >= 87.8 + 30)
   }
 
   @Test func compactsWhenPolicySaysAndKeepsRawWindowSmall() async throws {
@@ -78,7 +78,7 @@ import Transcription
       fixture: try fixture(), config: .initial, policy: .init(everySeconds: 20, everyWords: 1000),
       dependencies: deps(SilentDecisionProvider()))
     let compactions = result.records.filter { if case .compaction = $0 { true } else { false } }
-    #expect(compactions.count == 2)
+    #expect(compactions.count == 4)
     #expect(result.state.currentThread.contains("done for now"))
   }
 

@@ -26,11 +26,8 @@ public enum FixtureDriver {
 }
 
 extension SessionLoop {
-  func finish() -> SessionResult {
-    if !ended {
-      records.append(.ended(at: lastSpeechEnd, byUser: true))
-      ended = true
-    }
+  func finish() async -> SessionResult {
+    await end(at: lastSpeechEnd, byUser: true)
     return SessionResult(records: records, state: state, transcript: transcript)
   }
 }

@@ -7,8 +7,15 @@
     { "text": "I guess what I'm really asking is whether the free tier is too generous", "start": 20.2, "end": 25.5, "isFinal": true },
     { "text": "three sessions a month is a lot if each one costs me money", "start": 26.3, "end": 30.0, "isFinal": true },
     { "text": "but if it's less than that nobody gets hooked", "start": 31.0, "end": 34.1, "isFinal": true },
-    { "text": "so maybe the answer is cap the prompts not the sessions", "start": 36.0, "end": 40.2, "isFinal": true },
-    { "text": "yeah I think that's the decision", "start": 41.5, "end": 43.6, "isFinal": true },
-    { "text": "okay I'm done for now", "start": 48.0, "end": 49.8, "isFinal": true }
+    { "text": "and the comparables are all more expensive so maybe I'm underpricing anyway", "start": 36.0, "end": 41.0, "isFinal": true },
+    { "text": "no wait that's a different question", "start": 43.0, "end": 45.2, "isFinal": true },
+    { "text": "the question is what the free tier is for", "start": 47.0, "end": 50.1, "isFinal": true },
+    { "text": "it's for feeling the thing three times", "start": 51.5, "end": 54.0, "isFinal": true },
+    { "text": "so the cap should be on the expensive part not on sessions", "start": 56.0, "end": 60.2, "isFinal": true },
+    { "text": "listening is cheap, prompts cost money, notes cost money", "start": 61.0, "end": 64.8, "isFinal": true },
+    { "text": "which means free sessions can run long as long as the prompts stop", "start": 66.0, "end": 70.4, "isFinal": true },
+    { "text": "twenty minutes of prompts feels right", "start": 72.0, "end": 74.5, "isFinal": true },
+    { "text": "yeah I think that's the decision, cap the prompts not the sessions", "start": 76.0, "end": 80.6, "isFinal": true },
+    { "text": "okay I'm done for now", "start": 86.0, "end": 87.8, "isFinal": true }
   ]
 }
