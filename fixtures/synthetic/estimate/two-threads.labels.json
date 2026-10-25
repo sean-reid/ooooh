@@ -1,0 +1,25 @@
+{
+  "fixture": "two-threads",
+  "labels": [
+    {
+      "utterance": 3,
+      "at": 44.085,
+      "kind": "clarify"
+    },
+    {
+      "utterance": 11,
+      "at": 166.186,
+      "kind": "summarize"
+    },
+    {
+      "utterance": 21,
+      "at": 297.694,
+      "kind": "reflect"
+    },
+    {
+      "utterance": 29,
+      "at": 403.787,
+      "kind": "finished"
+    }
+  ]
+}

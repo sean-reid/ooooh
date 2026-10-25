@@ -1,0 +1,25 @@
+{
+  "fixture": "decision",
+  "labels": [
+    {
+      "utterance": 2,
+      "at": 29.423,
+      "kind": "clarify"
+    },
+    {
+      "utterance": 18,
+      "at": 229.761,
+      "kind": "summarize"
+    },
+    {
+      "utterance": 21,
+      "at": 261.576,
+      "kind": "decide"
+    },
+    {
+      "utterance": 34,
+      "at": 410.737,
+      "kind": "finished"
+    }
+  ]
+}

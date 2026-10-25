@@ -1,0 +1,184 @@
+{
+  "segments": [
+    {
+      "text": "Okay so the plan for the backup thing. I have been putting this off for about three weeks and I know exactly what it is, so let me just say it out loud once.",
+      "start": 0,
+      "end": 13.377,
+      "isFinal": true
+    },
+    {
+      "text": "The problem is the single box. Everything, the uploads, the thumbnails, the index, all of it sits on one machine with one disk, and the disk is at eighty one percent.",
+      "start": 14.177,
+      "end": 26.4,
+      "isFinal": true
+    },
+    {
+      "text": "When it fills, uploads fail silently. That is the actual bug people see. They do not see a disk, they see photos that never show up.",
+      "start": 27,
+      "end": 37.3,
+      "isFinal": true
+    },
+    {
+      "text": "So, three steps. Storage first, then the index, then the thumbnails. In that order, and I want to say why the order matters because I keep second guessing it.",
+      "start": 38.5,
+      "end": 49.954,
+      "isFinal": true
+    },
+    {
+      "text": "Storage first because it is the only one that is actually on fire. Move the originals to a bucket, keep the paths the same shape, swap the write path, done.",
+      "start": 50.454,
+      "end": 62.292,
+      "isFinal": true
+    },
+    {
+      "text": "The read path can stay on the local disk for a while because reads fall back. Um, the write path cannot fall back, that is the whole point.",
+      "start": 62.992,
+      "end": 74.061,
+      "isFinal": true
+    },
+    {
+      "text": "Index second. The index is sqlite right now and honestly sqlite is fine, the issue is not sqlite, the issue is that it lives next to the files.",
+      "start": 78.561,
+      "end": 89.63,
+      "isFinal": true
+    },
+    {
+      "text": "So the index moves to its own small volume, with a nightly copy to the same bucket. That is maybe two hours of work and one afternoon of watching it.",
+      "start": 90.23,
+      "end": 102.068,
+      "isFinal": true
+    },
+    {
+      "text": "Thumbnails last because thumbnails are derived. If I lose every thumbnail tomorrow I regenerate them. Slow, annoying, not data loss.",
+      "start": 102.968,
+      "end": 110.96,
+      "isFinal": true
+    },
+    {
+      "text": "Right, and that is the principle actually. Order the work by what cannot be regenerated. Originals, then index, then anything derived.",
+      "start": 111.96,
+      "end": 120.337,
+      "isFinal": true
+    },
+    {
+      "text": "Timeline. I want originals moved by the end of next week. That is the only hard date because of the disk.",
+      "start": 121.737,
+      "end": 130.114,
+      "isFinal": true
+    },
+    {
+      "text": "Index the week after, thumbnails whenever, probably as a weekend thing, because that one is a batch job and I can let it run.",
+      "start": 130.614,
+      "end": 140.145,
+      "isFinal": true
+    },
+    {
+      "text": "The risk. The one real risk is the migration of the existing originals, because it is about four hundred gigabytes and the upload has to run while people are still adding photos.",
+      "start": 146.145,
+      "end": 158.753,
+      "isFinal": true
+    },
+    {
+      "text": "So there is a window where a file exists locally but not in the bucket, and if the write path has already switched over, a read for that file misses.",
+      "start": 159.353,
+      "end": 171.191,
+      "isFinal": true
+    },
+    {
+      "text": "I think the answer is the read path checks the bucket, then falls back to local, for the whole migration window, and I flip the fallback off only when the counts match.",
+      "start": 171.991,
+      "end": 184.599,
+      "isFinal": true
+    },
+    {
+      "text": "Anyway, that is the risk, I will deal with it when I get there.",
+      "start": 185.599,
+      "end": 191.284,
+      "isFinal": true
+    },
+    {
+      "text": "Costs. The bucket is going to be, uh, about eight dollars a month at four hundred gigabytes, plus egress when people download, which they rarely do.",
+      "start": 196.784,
+      "end": 207.084,
+      "isFinal": true
+    },
+    {
+      "text": "Call it twelve dollars a month worst case. The current server is forty. So this is cheaper even before I shrink the server.",
+      "start": 207.584,
+      "end": 216.73,
+      "isFinal": true
+    },
+    {
+      "text": "After the move I can drop the server to the smallest size, which is like, six dollars. So the whole thing goes from forty to under twenty.",
+      "start": 217.43,
+      "end": 228.115,
+      "isFinal": true
+    },
+    {
+      "text": "Good. That is the money. I was worried the money would be the argument against this and it is actually the argument for it.",
+      "start": 229.415,
+      "end": 238.946,
+      "isFinal": true
+    },
+    {
+      "text": "Tooling, quickly. I do not want to write a sync tool. I will use the bucket vendor's command line sync, run it from cron every ten minutes during the window, and log the counts.",
+      "start": 242.946,
+      "end": 256.323,
+      "isFinal": true
+    },
+    {
+      "text": "The counts go to a text file. I check the text file. That is the monitoring. It does not need to be fancier than that for two weeks.",
+      "start": 256.923,
+      "end": 267.992,
+      "isFinal": true
+    },
+    {
+      "text": "And the switch over of the write path is one config flag, which I already have because I added it last spring when I first thought about this and then, you know, did not do it.",
+      "start": 268.892,
+      "end": 283.038,
+      "isFinal": true
+    },
+    {
+      "text": "So the sequence for next week is. Monday, create the bucket and the credentials. Tuesday, start the sync and let it run. Thursday, check counts. Friday, if counts match, flip the flag.",
+      "start": 284.138,
+      "end": 296.746,
+      "isFinal": true
+    },
+    {
+      "text": "If counts do not match Friday, I just wait. Nothing is worse off than today. The disk is at eighty one, not ninety nine.",
+      "start": 297.446,
+      "end": 306.977,
+      "isFinal": true
+    },
+    {
+      "text": "One more thing, the thumbnails. I said whenever, but actually I should check they are not also the thing filling the disk.",
+      "start": 308.477,
+      "end": 317.239,
+      "isFinal": true
+    },
+    {
+      "text": "They are probably about sixty gigabytes. If I move originals off, the disk drops to, what, twenty percent? So no, thumbnails can wait. Fine.",
+      "start": 317.739,
+      "end": 327.27,
+      "isFinal": true
+    },
+    {
+      "text": "Okay. I think that is the whole plan. Originals, index, thumbnails. Hard date next Friday for originals. Read path falls back during the window. Under twenty dollars a month after.",
+      "start": 332.27,
+      "end": 344.108,
+      "isFinal": true
+    },
+    {
+      "text": "I am going to write the Monday step on a card right now so I actually start.",
+      "start": 344.908,
+      "end": 351.746,
+      "isFinal": true
+    },
+    {
+      "text": "That is it.",
+      "start": 352.746,
+      "end": 354.2,
+      "isFinal": true
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "fixture": "debugging-design",
+  "labels": [
+    {
+      "utterance": 14,
+      "at": 197.016,
+      "kind": "clarify"
+    },
+    {
+      "utterance": 27,
+      "at": 358.148,
+      "kind": "challenge"
+    },
+    {
+      "utterance": 35,
+      "at": 466.332,
+      "kind": "finished"
+    }
+  ]
+}

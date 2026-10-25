@@ -1,0 +1,15 @@
+{
+  "fixture": "false-ending",
+  "labels": [
+    {
+      "utterance": 12,
+      "at": 163.739,
+      "kind": "deepen"
+    },
+    {
+      "utterance": 26,
+      "at": 323.485,
+      "kind": "finished"
+    }
+  ]
+}

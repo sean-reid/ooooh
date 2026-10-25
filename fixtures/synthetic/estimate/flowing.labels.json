@@ -1,0 +1,35 @@
+{
+  "fixture": "flowing",
+  "labels": [
+    {
+      "utterance": 5,
+      "at": 74.061,
+      "kind": "leave"
+    },
+    {
+      "utterance": 11,
+      "at": 140.145,
+      "kind": "leave"
+    },
+    {
+      "utterance": 15,
+      "at": 191.284,
+      "kind": "deepen"
+    },
+    {
+      "utterance": 19,
+      "at": 238.946,
+      "kind": "leave"
+    },
+    {
+      "utterance": 26,
+      "at": 327.27,
+      "kind": "leave"
+    },
+    {
+      "utterance": 29,
+      "at": 354.2,
+      "kind": "finished"
+    }
+  ]
+}

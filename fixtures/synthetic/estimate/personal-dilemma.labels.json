@@ -1,0 +1,40 @@
+{
+  "fixture": "personal-dilemma",
+  "labels": [
+    {
+      "utterance": 2,
+      "at": 26.438,
+      "kind": "leave"
+    },
+    {
+      "utterance": 6,
+      "at": 93.761,
+      "kind": "leave"
+    },
+    {
+      "utterance": 11,
+      "at": 185.345,
+      "kind": "leave"
+    },
+    {
+      "utterance": 16,
+      "at": 260.23,
+      "kind": "leave"
+    },
+    {
+      "utterance": 20,
+      "at": 334.084,
+      "kind": "reflect"
+    },
+    {
+      "utterance": 23,
+      "at": 367.407,
+      "kind": "leave"
+    },
+    {
+      "utterance": 29,
+      "at": 435.73,
+      "kind": "finished"
+    }
+  ]
+}

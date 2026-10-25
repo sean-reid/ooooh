@@ -1,0 +1,25 @@
+{
+  "fixture": "addressing-app",
+  "labels": [
+    {
+      "utterance": 3,
+      "at": 45.623,
+      "kind": "clarify"
+    },
+    {
+      "utterance": 18,
+      "at": 240.609,
+      "kind": "recall"
+    },
+    {
+      "utterance": 26,
+      "at": 340.21,
+      "kind": "wrapUp"
+    },
+    {
+      "utterance": 27,
+      "at": 347.51,
+      "kind": "finished"
+    }
+  ]
+}
