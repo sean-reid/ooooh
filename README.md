@@ -29,6 +29,8 @@ The home screen has one Start button. Debug builds add a Demo button that replay
 
 `site/` is the landing page with the privacy policy and terms, plain HTML with no build step, published to https://sean-reid.github.io/ooooh/ by `.github/workflows/pages.yml` on every push to main that touches it.
 
+`site/` is the landing page with the privacy policy and terms, plain HTML with no build step, published to https://ooooh.app/ by `.github/workflows/pages.yml` on every push to main that touches it.
+
 To record a fixture, run a debug build on a phone, tap "Record a fixture" at the bottom of the home screen, then Start. Talk, then Stop. A share sheet offers two files named from the session start, `yyyy-MM-dd-HHmmss.json` with the final segments and `yyyy-MM-dd-HHmmss.caf` with the microphone audio. They also stay in the app's Documents folder under `fixtures/`, visible in the Files app. Load the JSON into `tools/labeler/` to mark the moments, or replay it with `FixtureTranscriber`.
 
 ### CloudKit sync
