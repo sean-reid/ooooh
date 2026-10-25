@@ -14,10 +14,6 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
-env:
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -35,16 +31,25 @@ jobs:
           cache: npm
           cache-dependency-path: worker/package-lock.json
       - name: require the deploy credentials
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+          if [ -z "$TOKEN" ] || [ -z "$ACCOUNT" ]; then
             echo "::error::CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set in Actions secrets"
             exit 1
           fi
       - run: npm ci
+      - run: npm run lint && npm run format:check && npm run typecheck
       - run: npm test
       - name: deploy
         id: deploy
+        # The token is in scope for this step only; install scripts and tests never see it.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          set -o pipefail
           npx wrangler deploy --env production | tee deploy.log
           version=$(sed -n 's/^Current Version ID: //p' deploy.log)
           [ -n "$version" ] || { echo "::error::wrangler printed no version id"; exit 1; }
