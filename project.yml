@@ -1,0 +1,77 @@
+name: ooooh
+options:
+  bundleIdPrefix: com.seanreid
+  deploymentTarget:
+    iOS: "26.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    TARGETED_DEVICE_FAMILY: "1"
+    SUPPORTED_INTERFACE_ORIENTATIONS: UIInterfaceOrientationPortrait
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+packages:
+  Packages:
+    path: Packages
+targets:
+  ooooh:
+    type: application
+    platform: iOS
+    sources:
+      - App/Sources
+      - App/Resources
+    dependencies:
+      - package: Packages
+        product: Design
+      - package: Packages
+        product: State
+      - package: Packages
+        product: Governor
+      - package: Packages
+        product: Notes
+      - package: Packages
+        product: Transcription
+      - package: Packages
+        product: Audio
+      - package: Packages
+        product: Proxy
+    info:
+      path: App/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: ooooh
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
+        NSMicrophoneUsageDescription: ooooh listens while you think aloud. Audio is transcribed on this phone.
+        NSSpeechRecognitionUsageDescription: Speech is turned into text on this phone so your listener can follow along.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: false
+  oooohUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [App/UITests]
+    dependencies:
+      - target: ooooh
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh.uitests
+schemes:
+  ooooh:
+    build:
+      targets:
+        ooooh: all
+        oooohUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - oooohUITests

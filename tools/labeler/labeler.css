@@ -1,0 +1,84 @@
+:root {
+  --sky: #0c0d11;
+  --raised: #16171c;
+  --amber: #fabd58;
+  --ink: #ece9e2;
+  --dim: rgba(236, 233, 226, 0.55);
+}
+body {
+  margin: 0;
+  background: var(--sky);
+  color: var(--ink);
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+header {
+  padding: 24px;
+  border-bottom: 1px solid var(--raised);
+}
+h1 {
+  font-family: Georgia, serif;
+  font-weight: normal;
+  margin: 0 0 8px;
+}
+p {
+  color: var(--dim);
+  max-width: 60ch;
+}
+.controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+main {
+  padding: 24px;
+  max-width: 72ch;
+}
+.utt {
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 5ch 1fr auto;
+  gap: 12px;
+}
+.utt:hover {
+  background: var(--raised);
+}
+.utt time {
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.utt.marked {
+  border-left: 3px solid var(--amber);
+}
+.utt .tag {
+  color: var(--amber);
+}
+.kinds {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 12px 8px calc(5ch + 24px);
+}
+button {
+  background: var(--raised);
+  color: var(--ink);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+button:hover {
+  border-color: var(--amber);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+#status {
+  color: var(--dim);
+}

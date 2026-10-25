@@ -16,3 +16,4 @@ dist/
 # Local data: recordings and labels never ship
 data/
 .DS_Store
+worker-configuration.d.ts
