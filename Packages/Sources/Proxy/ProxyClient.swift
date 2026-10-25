@@ -1,5 +1,6 @@
 import Foundation
 import Governor
+import Session
 
 /// The Worker contract. One route per provider, all authenticated the same way.
 public struct ProxyClient: Sendable {
@@ -7,15 +8,33 @@ public struct ProxyClient: Sendable {
   public var session: URLSession
   /// Sent as `Authorization: Bearer`. Will carry the App Attest token.
   public var token: String?
+  /// Counts transport failures and successes when set.
+  public var offline: OfflineGuard?
 
-  public init(baseURL: URL, token: String? = nil, session: URLSession = .shared) {
+  public init(
+    baseURL: URL, token: String? = nil, session: URLSession = .shared,
+    offline: OfflineGuard? = nil
+  ) {
     self.baseURL = baseURL
     self.token = token
     self.session = session
+    self.offline = offline
+  }
+
+  /// Jev decides, Haiku compacts with a local fallback, Sonnet phrases.
+  public func sessionDependencies() -> SessionLoop.Dependencies {
+    SessionLoop.Dependencies(
+      decisions: JevDecisionProvider(client: self),
+      compactor: FallbackCompactor(
+        primary: HaikuCompactor(client: self), fallback: PassthroughCompactor()),
+      phraser: SonnetPhraser(client: self))
   }
 
   public func config() async throws -> GovernorConfig {
-    let (data, _) = try await session.data(from: baseURL.appending(path: "v1/config"))
+    let (data, response) = try await transport {
+      try await session.data(from: baseURL.appending(path: "v1/config"))
+    }
+    try ProxyError.check(response, data: data)
     return try JSONDecoder().decode(GovernorConfig.self, from: data)
   }
 
@@ -34,9 +53,22 @@ public struct ProxyClient: Sendable {
   func post<Output: Decodable>(_ path: String, body: some Encodable, as: Output.Type = Output.self)
     async throws -> Output
   {
-    let (data, response) = try await session.data(for: try request(path, body: body))
+    let request = try request(path, body: body)
+    let (data, response) = try await transport { try await session.data(for: request) }
     try ProxyError.check(response, data: data)
     return try JSONDecoder().decode(Output.self, from: data)
+  }
+
+  /// Reports the outcome of one round trip to the guard. An HTTP error is still a reachable Worker.
+  func transport<T>(_ send: () async throws -> T) async throws -> T {
+    do {
+      let value = try await send()
+      offline?.recordSuccess()
+      return value
+    } catch {
+      offline?.recordFailure(error)
+      throw error
+    }
   }
 }
 

@@ -24,8 +24,14 @@ public struct JevDecisionProvider: DecisionProvider {
     public var usage: ProviderUsage
   }
 
+  /// Quiet rather than throwing while the Worker is offline, so the loop keeps running.
   public func check(_ input: CheckInput) async throws -> JevAnswers {
-    try await decide(input).answers
+    if let offline = client.offline, !offline.allowsRequest() { return .quiet }
+    do {
+      return try await decide(input).answers
+    } catch  where client.offline?.isOffline == true {
+      return .quiet
+    }
   }
 
   public func decide(_ input: CheckInput) async throws -> Response {

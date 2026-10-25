@@ -47,6 +47,7 @@ targets:
         NSMicrophoneUsageDescription: ooooh listens while you think aloud. Audio is transcribed on this phone.
         NSSpeechRecognitionUsageDescription: Speech is turned into text on this phone so your listener can follow along.
         ITSAppUsesNonExemptEncryption: false
+        OoooohWorkerURL: $(OOOOH_WORKER_URL)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh
@@ -54,6 +55,24 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: false
+      configs:
+        Debug:
+          OOOOH_WORKER_URL: http://localhost:8787
+        Release:
+          EXCLUDED_SOURCE_FILE_NAMES: decision.fixture.json
+  oooohTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - App/Tests
+      - path: Packages/Tests/SessionTests/Fixtures/short.json
+        buildPhase: resources
+    dependencies:
+      - target: ooooh
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh.tests
   oooohUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -69,12 +88,14 @@ schemes:
     build:
       targets:
         ooooh: all
+        oooohTests: [test]
         oooohUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
+        - oooohTests
         - oooohUITests
         - package: Packages/DesignTests
         - package: Packages/NotesSnapshotTests
