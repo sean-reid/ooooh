@@ -2,7 +2,7 @@ import Design
 import SwiftUI
 
 struct RootView: View {
-  @State private var controller = SessionController()
+  @State private var controller = SessionController(environment: .app)
   @AppStorage("onboardingComplete") private var onboardingComplete = false
   /// Unset completion shows the flow; `-onboarding 1` shows it again on a phone that finished it.
   @State private var showsOnboarding =
@@ -29,7 +29,7 @@ struct RootView: View {
             state: controller.result?.state ?? .empty,
             transcript: controller.result?.transcript ?? []
           ) {
-            controller = SessionController()
+            controller = SessionController(environment: .app)
           }
         }
       }

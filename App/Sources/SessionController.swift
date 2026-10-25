@@ -26,7 +26,10 @@ final class SessionController {
     var workerURL: URL?
     var session: URLSession = .shared
     var audio: AudioAccess = .device
-    var speaker: any PromptSpeaking = SilentSpeaker()
+    /// Set to replace the Worker-fed voice, as the tests do.
+    var speaker: (any PromptSpeaking)?
+    /// Speaks on every route, for hearing the voice path on a simulator.
+    var forceVoice = false
     var haptic: @MainActor () -> Void = {}
     var offlineDelay: Duration = .seconds(3)
     var aboutToSpeakHold: Duration = .seconds(1)
@@ -50,6 +53,7 @@ final class SessionController {
   private var promptPending = false
   private var promptPendingSince: Date?
   private var isSpeaking = false
+  private var voice: any PromptSpeaking = SilentSpeaker()
   private var live: LiveSessionLoop?
   private var observers: [Task<Void, Never>] = []
   private var delivery: Task<Void, Never>?
@@ -97,12 +101,17 @@ final class SessionController {
       case .fixture(let url, let speed):
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
       }
-      quietMode = environment.audio.route().prefersQuietMode
+      quietMode = isQuiet(environment.audio.route())
 
       let guardian = OfflineGuard(
         offline: environment.workerURL == nil && environment.dependencies == nil)
       let client = environment.workerURL.map {
         ProxyClient(baseURL: $0, session: environment.session, offline: guardian)
+      }
+      if let speaker = environment.speaker {
+        voice = speaker
+      } else if let client {
+        voice = VoiceSpeaker(audio: client.speak)
       }
       let dependencies =
         environment.dependencies ?? client?.sessionDependencies()
@@ -129,7 +138,7 @@ final class SessionController {
         Task { for await event in live.events() { await handle(event) } },
         Task {
           for await route in environment.audio.routeChanges() {
-            quietMode = route.prefersQuietMode
+            quietMode = isQuiet(route)
           }
         },
       ]
@@ -143,6 +152,10 @@ final class SessionController {
     guard stage == .running, let live else { return }
     await live.end()
     await observers.first?.value
+  }
+
+  private func isQuiet(_ route: AudioRoute) -> Bool {
+    !(environment.forceVoice || shouldSpeak(route: route))
   }
 
   private func fetchConfig(_ client: ProxyClient?) async -> GovernorConfig {
@@ -162,6 +175,7 @@ final class SessionController {
       measuredLevel = level
     case .speechStarted:
       isHearingSpeech = true
+      if isSpeaking, !quietMode { await voice.stop() }
     case .speechEnded:
       isHearingSpeech = false
     case .utterance:
@@ -180,11 +194,12 @@ final class SessionController {
     case .offline(let offline):
       scheduleOffline(offline)
     case .ended(let result):
-      finish(with: result)
+      await finish(with: result)
     }
   }
 
-  /// Holds the orb in aboutToSpeak for at least the configured second, then speaks.
+  /// Holds the orb in aboutToSpeak for at least the configured second, then speaks. The orb
+  /// turns to speaking when sound starts, not when the request goes out.
   private func deliver(_ text: String) {
     delivery?.cancel()
     guard !text.isEmpty else {
@@ -197,11 +212,20 @@ final class SessionController {
     delivery = Task {
       if hold > .zero { try? await Task.sleep(for: hold) }
       guard !Task.isCancelled, stage == .running else { return }
+      let quiet = quietMode
+      let speaker: any PromptSpeaking = quiet ? SilentSpeaker() : voice
+      for await event in speaker.speak(text: text) {
+        switch event {
+        case .started:
+          promptPending = false
+          isSpeaking = true
+          if quiet { environment.haptic() }
+        case .finished:
+          isSpeaking = false
+        }
+      }
+      guard !Task.isCancelled else { return }
       promptPending = false
-      isSpeaking = true
-      if quietMode { environment.haptic() }
-      let speaker: any PromptSpeaking = quietMode ? SilentSpeaker() : environment.speaker
-      await speaker.speak(text: text)
       isSpeaking = false
     }
   }
@@ -216,10 +240,10 @@ final class SessionController {
     }
   }
 
-  private func finish(with result: SessionResult) {
+  private func finish(with result: SessionResult) async {
     delivery?.cancel()
     offlineChange?.cancel()
-    environment.speaker.stop()
+    if isSpeaking { await voice.stop() }
     for observer in observers { observer.cancel() }
     self.result = result
     endedAt = .now

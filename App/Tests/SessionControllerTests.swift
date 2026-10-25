@@ -13,11 +13,31 @@ import Transcription
 
   final class Marker {}
 
-  final class Recorder: PromptSpeaking, @unchecked Sendable {
-    var spoken: [String] = []
-    var stops = 0
-    func speak(text: String) async { spoken.append(text) }
-    func stop() { stops += 1 }
+  /// Records speak and stop in order. A line stays "playing" until stop, two seconds at most.
+  @MainActor final class Recorder: PromptSpeaking {
+    var calls: [String] = []
+    private var stopped = false
+
+    nonisolated func speak(text: String) -> AsyncStream<SpeechEvent> {
+      AsyncStream { continuation in
+        Task { @MainActor in
+          calls.append("speak \(text)")
+          stopped = false
+          continuation.yield(.started)
+          let deadline = ContinuousClock.now + .seconds(2)
+          while !stopped, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+          }
+          continuation.yield(.finished)
+          continuation.finish()
+        }
+      }
+    }
+
+    func stop() async {
+      calls.append("stop")
+      stopped = true
+    }
   }
 
   /// A good moment on the utterance ending at `end`, quiet otherwise.
@@ -112,9 +132,33 @@ import Transcription
     #expect(controller.lastPrompt == "What sits underneath that?")
     #expect(haptics.count == 1)
     await wait { controller.phase != .speaking }
-    #expect(speaker.spoken.isEmpty)
+    #expect(speaker.calls.isEmpty)
     await wait { controller.stage == .ended }
     #expect(controller.result?.transcript.count == 17)
+  }
+
+  @Test func voiceModeStopsTheLineWhenTheUserSpeaksAgain() async throws {
+    let speaker = Recorder()
+    let haptics = Counter()
+    var environment = environment(
+      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics)
+    environment.audio = AudioAccess(
+      activate: {}, deactivate: {}, route: { .headphones },
+      routeChanges: { AsyncStream { $0.finish() } })
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: 10))
+    #expect(!controller.quietMode)
+    await wait { controller.phase == .aboutToSpeak }
+    await wait { controller.phase == .speaking }
+    #expect(speaker.calls == ["speak What sits underneath that?"])
+    await wait { speaker.calls.count == 2 }
+    #expect(speaker.calls == ["speak What sits underneath that?", "stop"])
+    await wait { controller.phase != .speaking }
+    #expect(controller.lastPrompt == "What sits underneath that?")
+    #expect(haptics.count == 0)
+    await wait { controller.stage == .ended }
+    #expect(speaker.calls.count == 2)
   }
 
   @Test func endingByHandKeepsWhatWasHeard() async throws {
