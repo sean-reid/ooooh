@@ -23,6 +23,8 @@ npm test                               # worker tests in the Workers runtime
 npm run dev                            # wrangler dev on http://localhost:8787
 ```
 
+The app reads the Worker base URL from the `OOOOH_WORKER_URL` build setting, which lands in Info.plist as `OoooohWorkerURL`. Debug builds default to `http://localhost:8787`, so `npm run dev` in `worker/` is all a simulator needs. Release builds have no default; pass one on the command line, `xcodebuild OOOOH_WORKER_URL=https://<your worker> ...`. Without a URL the app runs listening only and never prompts.
+
 To record a fixture, run a debug build on a phone, tap "Record a fixture" at the bottom of the home screen, then Start. Talk, then Stop. A share sheet offers two files named from the session start, `yyyy-MM-dd-HHmmss.json` with the final segments and `yyyy-MM-dd-HHmmss.caf` with the microphone audio. They also stay in the app's Documents folder under `fixtures/`, visible in the Files app. Load the JSON into `tools/labeler/` to mark the moments, or replay it with `FixtureTranscriber`.
 
 ### Worker routes

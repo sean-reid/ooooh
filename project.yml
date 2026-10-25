@@ -47,6 +47,7 @@ targets:
         NSMicrophoneUsageDescription: ooooh listens while you think aloud. Audio is transcribed on this phone.
         NSSpeechRecognitionUsageDescription: Speech is turned into text on this phone so your listener can follow along.
         ITSAppUsesNonExemptEncryption: false
+        OoooohWorkerURL: $(OOOOH_WORKER_URL)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh
@@ -54,6 +55,9 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: false
+      configs:
+        Debug:
+          OOOOH_WORKER_URL: http://localhost:8787
   oooohUITests:
     type: bundle.ui-testing
     platform: iOS

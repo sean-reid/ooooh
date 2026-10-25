@@ -26,6 +26,8 @@
 	<string>ooooh listens while you think aloud. Audio is transcribed on this phone.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Speech is turned into text on this phone so your listener can follow along.</string>
+	<key>OoooohWorkerURL</key>
+	<string>$(OOOOH_WORKER_URL)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
