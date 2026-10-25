@@ -68,6 +68,11 @@ public struct EvalReport: Equatable, Sendable {
   public var finished: Kind
   public var commands: Kind
   public var intrusions: Int
+  /// Prompts the speaker would have talked over: the next utterance began inside the speak window.
+  public var collisions: Int = 0
+
+  /// Seconds from a decision to the end of the spoken prompt: 1.5 s to the first syllable plus about 3 s of speech.
+  public static let speakWindow: TimeInterval = 4.5
 
   /// Precision and recall of 1 wherever a label or a decision exists.
   public var isPerfect: Bool {
@@ -172,10 +177,15 @@ public struct EvalReport: Equatable, Sendable {
     let intrusions = result.prompts.filter { prompt in
       leaves.contains { utterancesBetween($0.at, prompt.at) == 0 && $0.at <= prompt.at }
     }.count
+    let starts = result.transcript.map(\.start).sorted()
+    let collisions = result.prompts.filter { prompt in
+      guard let next = starts.first(where: { $0 > prompt.at }) else { return false }
+      return next - prompt.at < speakWindow
+    }.count
 
     return EvalReport(
       byKind: byKind, overall: overall, finished: finished, commands: commands,
-      intrusions: intrusions)
+      intrusions: intrusions, collisions: collisions)
   }
 }
 
@@ -191,7 +201,7 @@ extension EvalReport {
     for (name, kind) in byKind.sorted(by: { $0.key < $1.key }) {
       out.append(line(name, kind))
     }
-    out.append("intrusions \(intrusions)")
+    out.append("intrusions \(intrusions)  collisions \(collisions)")
     return out.joined(separator: "\n")
   }
 }

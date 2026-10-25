@@ -31,7 +31,7 @@ let package = Package(
       name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription", "Notes"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .target(name: "Persistence", dependencies: ["State", "Notes", "Session", "Transcription"]),
-    .executableTarget(name: "eval", dependencies: ["Session"]),
+    .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
     .testTarget(
       name: "DesignTests",

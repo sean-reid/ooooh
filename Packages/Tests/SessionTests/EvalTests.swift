@@ -61,6 +61,14 @@ import Transcription
     #expect(report.intrusions == 1)
     #expect(report.summary.contains("finished   p 1.00  r 1.00  late 0.0"))
   }
+
+  @Test func countsPromptsTheNextUtteranceWouldTalkOver() {
+    let labels = Labels(fixture: "t", labels: [])
+    let early = EvalReport.score(result(prompts: [(5.5, .deepen)]), against: labels)
+    #expect(early.collisions == 1)
+    let late = EvalReport.score(result(prompts: [(55.5, .deepen)]), against: labels)
+    #expect(late.collisions == 0)
+  }
 }
 
 @Suite struct EvalCommandTests {
