@@ -2,6 +2,10 @@ import Design
 import SwiftUI
 
 struct RootView: View {
+  #if DEBUG
+    @State private var isRecordingFixture = false
+  #endif
+
   var body: some View {
     ZStack {
       Palette.sky.ignoresSafeArea()
@@ -15,7 +19,24 @@ struct RootView: View {
           .font(.system(size: 34, weight: .regular, design: .serif))
           .foregroundStyle(Palette.ink)
       }
+      #if DEBUG
+        VStack {
+          Spacer()
+          Button("Record a fixture") { isRecordingFixture = true }
+            .font(.footnote)
+            .foregroundStyle(Palette.inkDim)
+            .frame(minHeight: 44)
+            .padding(.bottom, 8)
+        }
+      #endif
     }
+    #if DEBUG
+      .sheet(isPresented: $isRecordingFixture) {
+        RecordView()
+        .presentationBackground(Palette.sky)
+        .presentationDragIndicator(.visible)
+      }
+    #endif
   }
 }
 
