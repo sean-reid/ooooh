@@ -15,7 +15,10 @@ public struct SettingsView: View {
   var scrolls = true
   @State private var sessionCount: Int?
   @State private var confirmingDelete = false
+  @State private var deleteFailure: String?
   @State private var showsPrivacy = false
+
+  static let deleteFailedLine = "Nothing was deleted. Your sessions are still on this phone."
 
   public static let siteURL = URL(string: "https://ooooh.app")!
   public static let termsURL = URL(string: "https://ooooh.app/terms.html")!
@@ -77,9 +80,7 @@ public struct SettingsView: View {
         body
       }
     }
-    .task {
-      sessionCount = (try? await store.sessions(limit: .max))?.count ?? sessionCount
-    }
+    .task { await refreshCount() }
     .confirmationDialog(
       deleteTitle, isPresented: $confirmingDelete, titleVisibility: .visible
     ) {
@@ -177,6 +178,14 @@ public struct SettingsView: View {
       }
       .disabled(sessionCount == 0)
       .accessibilityIdentifier("settings.deleteAll")
+      if let deleteFailure {
+        Text(deleteFailure)
+          .font(Typography.caption)
+          .foregroundStyle(Palette.accent)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.bottom, 12)
+          .accessibilityIdentifier("settings.deleteFailure")
+      }
     }
   }
 
@@ -226,10 +235,21 @@ public struct SettingsView: View {
     }
   }
 
+  private func refreshCount() async {
+    sessionCount = (try? await store.sessionCount()) ?? sessionCount
+  }
+
+  /// On a store error the count is read again, so the row shows what is still there.
   private func deleteEverything() {
     Task {
-      try await store.deleteEverything()
-      sessionCount = 0
+      do {
+        try await store.deleteEverything()
+        sessionCount = 0
+        deleteFailure = nil
+      } catch {
+        deleteFailure = Self.deleteFailedLine
+        await refreshCount()
+      }
     }
   }
 }
