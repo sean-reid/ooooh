@@ -88,6 +88,12 @@ targets:
         buildPhase: resources
       - path: Packages/Tests/ProxyTests/Fixtures/session-start-refused.json
         buildPhase: resources
+      - path: Packages/Tests/ProxyTests/Fixtures/entitlement-paid.json
+        buildPhase: resources
+      - path: Packages/Tests/ProxyTests/Fixtures/entitlement-free.json
+        buildPhase: resources
+      - path: Packages/Tests/ProxyTests/Fixtures/entitlement-refused.json
+        buildPhase: resources
     dependencies:
       - target: ooooh
     settings:

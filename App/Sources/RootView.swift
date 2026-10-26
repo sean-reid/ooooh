@@ -234,10 +234,14 @@ struct RootView: View {
     Task { await controller.start(.microphone) }
   }
 
-  /// After a session ends with no free sessions left on a device that has not paid.
+  /// After a session ends with no free sessions left on a device that has not paid, or that paid
+  /// in StoreKit's eyes while the Worker refused its transaction.
   private func offerPaywall() async {
     await billing.refresh()
-    if billing.entitlement == .free(remainingSessions: 0) { showsPaywall = true }
+    let refusedWhilePaid = billing.freeSessionsRemaining == 0 && billing.isUnconfirmed
+    if billing.entitlement == .free(remainingSessions: 0) || refusedWhilePaid {
+      showsPaywall = true
+    }
   }
 
   private func loadThreads() async {
