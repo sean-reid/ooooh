@@ -54,8 +54,8 @@ final class SessionController {
     /// Set to skip the Worker, as the tests do.
     var dependencies: SessionLoop.Dependencies?
     var config: GovernorConfig?
-    /// Set to ask it before every source, as the tests and `-free-exhausted 1` do. Microphone
-    /// sessions otherwise ask the Worker, and fixtures ask nothing.
+    /// Set to ask it before every source, as the tests and `-free-exhausted 1` do. Every source
+    /// otherwise asks the Worker when there is one.
     var gate: SessionGate?
   }
 
@@ -156,11 +156,7 @@ final class SessionController {
           baseURL: $0, session: environment.session, attestor: environment.attestor,
           offline: guardian)
       }
-      if case .microphone = source {
-        gate = environment.gate ?? client.map(SessionGate.worker)
-      } else {
-        gate = environment.gate
-      }
+      gate = environment.gate ?? client.map(SessionGate.worker)
       let admission = gate.map { gate in
         Admission(start: Task { await Self.admit(gate) }) { [weak self] reason in
           Task { @MainActor in self?.cutoff = reason }

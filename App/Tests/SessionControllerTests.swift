@@ -617,19 +617,23 @@ import Transcription
     #expect(GateProtocol.requests(to: "down").map(\.path) == ["/v1/session/start"])
   }
 
-  @Test func aFixtureWithoutAGateAsksTheWorkerNothing() async throws {
+  @Test func aFixtureWithAWorkerOpensASessionAndPostsItsEnd() async throws {
+    let host = "demo"
+    GateProtocol.answer(host, "/v1/session/start", 200, try workerFixture("session-start-free"))
     var environment = environment(
       deps(firing: .deepen, at: 14.0), speaker: Recorder(), haptics: Counter())
-    environment.workerURL = URL(string: "http://ungated")
+    environment.workerURL = URL(string: "http://\(host)")
     environment.session = GateProtocol.session()
     environment.notesGenerator = CannedNotes()
     let controller = SessionController(environment: environment)
 
     await controller.start(.fixture(shortFixture, speed: .infinity))
     await wait { controller.stage == .ended }
-    #expect(controller.admission == nil)
+    #expect(controller.admission == .free(remaining: 2, promptMinutes: 20))
     #expect(controller.result?.prompts.map(\.at) == [15.5])
-    #expect(GateProtocol.requests(to: "ungated").isEmpty)
+    await wait { GateProtocol.requests(to: host).count == 2 }
+    #expect(
+      GateProtocol.requests(to: host).map(\.path) == ["/v1/session/start", "/v1/session/end"])
   }
 
   final class Seen: @unchecked Sendable {
