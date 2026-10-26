@@ -151,19 +151,23 @@ struct RootView: View {
         }
       }
       #if DEBUG
-        HStack(spacing: 24) {
-          Button("Demo") { startDemo() }
-            .font(.footnote)
-            .foregroundStyle(Palette.inkDim)
-            .frame(minWidth: 44, minHeight: 44)
-            .accessibilityIdentifier("home.demo")
-          Button("Record a fixture") { isRecordingFixture = true }
-            .font(.footnote)
-            .foregroundStyle(Palette.inkDim)
-            .frame(minHeight: 44)
-          OrbGalleryButton()
+        if UserDefaults.standard.bool(forKey: "hide-debug") {
+          Spacer().frame(height: 24)
+        } else {
+          HStack(spacing: 24) {
+            Button("Demo") { startDemo() }
+              .font(.footnote)
+              .foregroundStyle(Palette.inkDim)
+              .frame(minWidth: 44, minHeight: 44)
+              .accessibilityIdentifier("home.demo")
+            Button("Record a fixture") { isRecordingFixture = true }
+              .font(.footnote)
+              .foregroundStyle(Palette.inkDim)
+              .frame(minHeight: 44)
+            OrbGalleryButton()
+          }
+          .padding(.bottom, 8)
         }
-        .padding(.bottom, 8)
       #else
         Spacer().frame(height: 24)
       #endif
