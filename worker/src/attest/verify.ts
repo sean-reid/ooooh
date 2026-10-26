@@ -8,6 +8,7 @@ import {
   readDer,
   type Certificate,
 } from "../x509";
+import { counterIn, rpIdMatches } from "./authdata";
 import { decodeCbor, field, isBytes, isList, isText } from "./cbor";
 import { appleAppAttestRootPem } from "./root";
 
@@ -103,11 +104,8 @@ export async function verifyAttestation(
   const keyHash = await sha256(credCert.publicKey);
   if (toBase64(keyHash) !== keyId) throw new AttestationError("bad-key-id");
 
-  const rpIdHash = await sha256(new TextEncoder().encode(settings.appId));
-  if (!equalBytes(authData.subarray(0, 32), rpIdHash)) throw new AttestationError("bad-rp-id");
-
-  const counter = new DataView(authData.buffer, authData.byteOffset + 33, 4).getUint32(0);
-  if (counter !== 0) throw new AttestationError("bad-counter");
+  if (!(await rpIdMatches(authData, settings.appId))) throw new AttestationError("bad-rp-id");
+  if (counterIn(authData) !== 0) throw new AttestationError("bad-counter");
 
   if (!equalBytes(authData.subarray(37, 53), aaguid(settings.environment))) {
     throw new AttestationError("bad-aaguid");
