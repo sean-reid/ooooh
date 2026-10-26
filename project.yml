@@ -69,6 +69,7 @@ targets:
         OoooohWorkerURL: $(OOOOH_WORKER_URL)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: A development build can talk to a Worker running on a Mac on your own network.
     entitlements:
       path: App/Resources/ooooh.entitlements
       properties:

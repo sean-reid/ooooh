@@ -27,6 +27,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>A development build can talk to a Worker running on a Mac on your own network.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>ooooh listens while you think aloud. Audio is transcribed on this phone.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
