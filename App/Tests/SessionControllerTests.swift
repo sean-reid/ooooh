@@ -164,7 +164,13 @@ import Transcription
 
   /// Refuses every request at once, so going offline does not depend on the host's network stack.
   final class UnreachableProtocol: URLProtocol {
+    /// Every path refused, with the seconds since the first, for the failure message.
+    static let seen = Mutex<[String]>([])
+    static let started = Mutex<Date?>(nil)
+
     static func session() -> URLSession {
+      seen.withLock { $0 = [] }
+      started.withLock { $0 = nil }
       let configuration = URLSessionConfiguration.ephemeral
       configuration.protocolClasses = [UnreachableProtocol.self]
       return URLSession(configuration: configuration)
@@ -173,6 +179,16 @@ import Transcription
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
+      let now = Date()
+      let first = Self.started.withLock { started -> Date in
+        if let started { return started }
+        started = now
+        return now
+      }
+      let path = request.url?.path ?? "?"
+      Self.seen.withLock {
+        $0.append("\(path)@\(String(format: "%.2f", now.timeIntervalSince(first)))s")
+      }
       client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
     }
     override func stopLoading() {}
@@ -310,8 +326,9 @@ import Transcription
 
     await controller.start(.fixture(shortFixture, speed: 20))
     await wait { controller.isOffline }
-    #expect(controller.isOffline)
-    #expect(controller.phase == .offline)
+    let refused = UnreachableProtocol.seen.withLock { $0 }
+    #expect(controller.isOffline, "stage \(controller.stage), refused \(refused)")
+    #expect(controller.phase == .offline, "stage \(controller.stage), refused \(refused)")
     await wait { controller.stage == .ended }
     let result = try #require(controller.result)
     #expect(result.prompts.isEmpty)
