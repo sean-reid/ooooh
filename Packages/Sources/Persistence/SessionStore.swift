@@ -13,12 +13,14 @@ public actor SessionStore {
   }
 
   /// Saves a finished session and returns its id. Notes can come later through `attachNotes`.
+  /// The duration runs from `startedAt` to `endedAt`; without an end it runs to the last record.
   @discardableResult
   public func save(
     result: SessionResult, notes: SessionNotes?, title: String, startedAt: Date = .now,
-    audioPath: String? = nil, keepAudio: Bool = false
+    endedAt: Date? = nil, audioPath: String? = nil, keepAudio: Bool = false
   ) throws -> UUID {
-    let duration = Self.duration(of: result)
+    let duration =
+      endedAt.map { max(0, $0.timeIntervalSince(startedAt)) } ?? Self.duration(of: result)
     let session = StoredSession(
       startedAt: startedAt, endedAt: startedAt.addingTimeInterval(duration), duration: duration,
       title: title, modeAtEnd: result.state.mode.rawValue,

@@ -27,6 +27,21 @@ import Transcription
     #expect(detail.audioPath == nil)
   }
 
+  @Test func theDurationIsTheEndItWasGivenNotTheLastSpeech() async throws {
+    let store = try Support.store()
+    let result = try await Support.shortResult()
+    let started = Date(timeIntervalSince1970: 1_792_900_000)
+    let ended = started.addingTimeInterval(12 * 60)
+    let id = try await store.save(
+      result: result, notes: nil, title: "", startedAt: started, endedAt: ended)
+
+    let detail = try #require(try await store.detail(id))
+    #expect(SessionStore.duration(of: result) == 87.8)
+    #expect(detail.summary.duration == 720)
+    #expect(detail.endedAt == ended)
+    #expect(try await store.sessions().map(\.duration) == [720])
+  }
+
   @Test func aSummaryWithNoItemsRoundTrips() async throws {
     let store = try Support.store()
     let notes = SessionNotes(
