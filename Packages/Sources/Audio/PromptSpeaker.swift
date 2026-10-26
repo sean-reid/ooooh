@@ -2,7 +2,7 @@
   import AVFAudio
   import Foundation
 
-  /// Plays one spoken prompt as its bytes arrive. `stop()` is barge-in: playback halts at once and the rest of the stream is dropped.
+  /// Plays one spoken prompt as its bytes arrive. `stop()` is barge-in: a request still waiting on bytes is cancelled, playback halts at once, and the rest of the stream is dropped.
   public actor PromptSpeaker {
     public enum Event: Equatable, Sendable {
       case started(text: String, at: Date)
@@ -27,6 +27,7 @@
     private var generation = 0
     private var scheduled = 0
     private var ended = false
+    private var feeding: Task<Void, Error>?
     private var done: CheckedContinuation<Void, Never>?
 
     public init() {
@@ -40,7 +41,7 @@
     /// True once a line has built the engine graph.
     public var hasEngine: Bool { engine != nil }
 
-    /// Decodes and plays `audio`. Returns once the last buffer has played or `stop()` cut it off.
+    /// Decodes and plays `audio`. Returns once the last buffer has played, `stop()` cut it off, or the calling task was cancelled.
     public func speak(_ text: String, audio: AsyncThrowingStream<Data, Error>) async throws {
       stop()
       generation += 1
@@ -51,9 +52,14 @@
       let parser = try AudioStreamParser()
       let decoder = SpeechDecoder(output: output)
       let (engine, player) = graph()
-      do {
-        for try await chunk in audio {
-          guard mine == generation else { return }
+      let feed = Task {
+        var bytes = audio.makeAsyncIterator()
+        while let chunk = try await bytes.next() {
+          guard mine == generation else {
+            // The stream learns of a cancel only inside next(); a chunk that arrived with one needs one more read.
+            if Task.isCancelled { _ = try? await bytes.next() }
+            return
+          }
           for packets in try parser.parse(chunk) {
             guard let pcm = try decoder.decode(packets) else { continue }
             schedule(pcm, on: player, generation: mine)
@@ -64,22 +70,34 @@
             }
           }
         }
-      } catch {
-        if mine == generation { finish() }
-        throw error
       }
-      guard mine == generation else { return }
-      ended = true
-      if scheduled == 0 {
-        finish()
-        return
+      feeding = feed
+      try await withTaskCancellationHandler {
+        do {
+          try await feed.value
+        } catch {
+          if mine == generation { finish() }
+          throw error
+        }
+        guard mine == generation else { return }
+        ended = true
+        if scheduled == 0 {
+          finish()
+          return
+        }
+        await withCheckedContinuation { done = $0 }
+      } onCancel: {
+        Task { await self.cut(mine) }
       }
-      await withCheckedContinuation { done = $0 }
     }
 
     /// Barge-in. Safe to call when nothing is playing.
     public func stop() {
       if text != nil { finish() }
+    }
+
+    private func cut(_ generation: Int) {
+      if generation == self.generation { finish() }
     }
 
     private func graph() -> (AVAudioEngine, AVAudioPlayerNode) {
@@ -111,6 +129,8 @@
 
     private func finish() {
       generation += 1
+      feeding?.cancel()
+      feeding = nil
       let rendered = rendered ?? 0
       player?.stop()
       engine?.stop()

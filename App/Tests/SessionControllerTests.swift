@@ -46,11 +46,12 @@ import Transcription
     }
   }
 
-  /// A good moment on the utterance ending at `end`, quiet otherwise. `seen` gets every check's
-  /// session time.
-  func deps(firing kind: InterventionKind, at end: TimeInterval, seen: Seen? = nil)
-    -> SessionLoop.Dependencies
-  {
+  /// A good moment on the utterance ending at `end`, the speaker sounding finished on the one
+  /// ending at `finishedAt`, quiet otherwise. `seen` gets every check's session time.
+  func deps(
+    firing kind: InterventionKind, at end: TimeInterval, finishedAt: TimeInterval? = nil,
+    seen: Seen? = nil
+  ) -> SessionLoop.Dependencies {
     .init(
       decisions: ScriptedDecisionProvider { input in
         seen?.nows.append(input.signals.now)
@@ -59,12 +60,15 @@ import Transcription
           answers.goodMoment = .init(0.95)
           answers.intervention = .init(kind, confidence: 0.9)
         }
+        if input.recentTranscript.last?.end == finishedAt {
+          answers.seemsFinished = .init(0.9)
+        }
         return answers
       }, compactor: PassthroughCompactor(), phraser: TemplatePhraser())
   }
 
   func environment(
-    _ deps: SessionLoop.Dependencies?, speaker: Recorder, haptics: Counter,
+    _ deps: SessionLoop.Dependencies?, speaker: any PromptSpeaking, haptics: Counter,
     announcements: Lines? = nil
   ) -> SessionController.Environment {
     var environment = SessionController.Environment(workerURL: nil)
@@ -80,6 +84,10 @@ import Transcription
   }
 
   final class Counter { var count = 0 }
+
+  let headphones = AudioAccess(
+    activate: {}, deactivate: {}, route: { .headphones },
+    routeChanges: { AsyncStream { $0.finish() } })
 
   final class Lines { var lines: [String] = [] }
 
@@ -197,14 +205,12 @@ import Transcription
     let haptics = Counter()
     let announcements = Lines()
     var environment = environment(
-      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics,
+      deps(firing: .deepen, at: 3.0), speaker: speaker, haptics: haptics,
       announcements: announcements)
-    environment.audio = AudioAccess(
-      activate: {}, deactivate: {}, route: { .headphones },
-      routeChanges: { AsyncStream { $0.finish() } })
+    environment.audio = headphones
     let controller = SessionController(environment: environment)
 
-    await controller.start(.fixture(shortFixture, speed: 10))
+    await controller.start(.fixture(try realTimeFixture(then: speechAgain), speed: 1))
     #expect(!controller.quietMode)
     await wait { controller.phase == .aboutToSpeak }
     await wait { controller.phase == .speaking }
@@ -217,6 +223,72 @@ import Transcription
     #expect(announcements.lines.isEmpty)
     await wait { controller.stage == .ended }
     #expect(speaker.calls.count == 2)
+  }
+
+  @Test func endDuringTheFetchCancelsItAndNothingPlays() async throws {
+    let transport = VoiceSpeakerTests.HangingTransport()
+    let haptics = Counter()
+    var environment = environment(
+      deps(firing: .deepen, at: 3.0), speaker: VoiceSpeaker(audio: transport.audio),
+      haptics: haptics)
+    environment.audio = headphones
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(try realTimeFixture(then: anHourOut), speed: 1))
+    await wait { transport.requests == ["What sits underneath that?"] }
+    #expect(controller.phase == .aboutToSpeak)
+    #expect(!controller.isSpeaking)
+    await controller.end()
+    #expect(controller.stage == .ended)
+    #expect(controller.phase == .resting)
+    #expect(!controller.isSpeaking)
+    await wait { !transport.ended.isEmpty }
+    #expect(transport.ended == ["cancelled"])
+    #expect(transport.requests.count == 1)
+    #expect(haptics.count == 0)
+  }
+
+  @Test func speechDuringTheFetchCancelsItAndNothingPlays() async throws {
+    let transport = VoiceSpeakerTests.HangingTransport()
+    var environment = environment(
+      deps(firing: .deepen, at: 3.0), speaker: VoiceSpeaker(audio: transport.audio),
+      haptics: Counter())
+    environment.audio = headphones
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(try realTimeFixture(then: speechAgain), speed: 1))
+    await wait { transport.requests == ["What sits underneath that?"] }
+    #expect(controller.phase == .aboutToSpeak)
+    await wait { !transport.ended.isEmpty }
+    #expect(transport.ended == ["cancelled"])
+    #expect(controller.stage == .running)
+    #expect(controller.phase == .listening)
+    #expect(!controller.isSpeaking)
+    await controller.end()
+    #expect(transport.requests.count == 1)
+    #expect(controller.lastPrompt == "What sits underneath that?")
+  }
+
+  @Test func aCancelledArmWhileTheOrbSpeaksReturnsItToListening() async throws {
+    let haptics = Counter()
+    let controller = SessionController(
+      environment: environment(
+        deps(firing: .deepen, at: 14.0, finishedAt: 25.5), speaker: Recorder(),
+        haptics: haptics))
+
+    await controller.start(.fixture(shortFixture, speed: 20))
+    await wait { controller.phase == .speaking }
+    let spokeAt = ContinuousClock.now
+    await wait { controller.phase != .speaking }
+    let left = ContinuousClock.now - spokeAt
+    #expect(controller.phase == .listening)
+    #expect(controller.stage == .running)
+    #expect(left < .seconds(1.4), "the hold ran out before the arm was cancelled, \(left)")
+    await wait { controller.stage == .ended }
+    let result = try #require(controller.result)
+    #expect(result.prompts.map(\.at) == [15.5])
+    #expect(result.cancelledArms == [26.3])
+    #expect(haptics.count == 1)
   }
 
   @Test func endingByHandKeepsWhatWasHeard() async throws {
@@ -257,13 +329,35 @@ import Transcription
 
   /// The short fixture with a segment an hour out, so the session runs until the test ends it.
   func openEndedFixture() throws -> URL {
-    var fixture = try JSONDecoder().decode(
+    let fixture = try JSONDecoder().decode(
       FixtureTranscriber.Fixture.self, from: Data(contentsOf: shortFixture))
-    fixture.segments.append(
-      Segment(text: "and one more thing", start: 3600, end: 3601, isFinal: true))
+    return try write(fixture.segments + [anHourOut])
+  }
+
+  /// Two utterances for speed 1, where the loop's timer runs on the wall clock: the prompt
+  /// fires at 3.0 and is due at 4.5, so `then` lands while the line is in flight or after it.
+  func realTimeFixture(then next: Segment) throws -> URL {
+    try write([
+      Segment(
+        text: "okay so the thing I keep coming back to is pricing", start: 0, end: 1.0,
+        isFinal: true),
+      Segment(
+        text: "but I don't know if people will pay seven dollars", start: 1.5, end: 3.0,
+        isFinal: true),
+      next,
+    ])
+  }
+
+  let speechAgain = Segment(
+    text: "like I know the backend costs about twenty cents an hour", start: 5.5, end: 8.0,
+    isFinal: true)
+
+  let anHourOut = Segment(text: "and one more thing", start: 3600, end: 3601, isFinal: true)
+
+  func write(_ segments: [Segment]) throws -> URL {
     let url = FileManager.default.temporaryDirectory
-      .appendingPathComponent("open-ended-\(UUID().uuidString).json")
-    try JSONEncoder().encode(fixture).write(to: url)
+      .appendingPathComponent("fixture-\(UUID().uuidString).json")
+    try JSONEncoder().encode(FixtureTranscriber.Fixture(segments: segments)).write(to: url)
     return url
   }
 
@@ -452,11 +546,11 @@ import Transcription
     let speaker = Recorder()
     let haptics = Counter()
     var environment = environment(
-      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics)
+      deps(firing: .deepen, at: 3.0), speaker: speaker, haptics: haptics)
     environment.settings = try settings(quiet: .voice)
     let controller = SessionController(environment: environment)
 
-    await controller.start(.fixture(shortFixture, speed: 20))
+    await controller.start(.fixture(try realTimeFixture(then: speechAgain), speed: 1))
     #expect(!controller.quietMode)
     await wait { controller.phase == .speaking }
     #expect(speaker.calls.first == "speak What sits underneath that?")

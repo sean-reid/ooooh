@@ -90,7 +90,7 @@ final class SessionController {
   private var isHearingSpeech = false
   private var promptPending = false
   private var promptPendingSince: Date?
-  private var isSpeaking = false
+  private(set) var isSpeaking = false
   private var voice: any PromptSpeaking = SilentSpeaker()
   private var quietOverride: AppSettings.QuietModeOverride = .auto
   private var generator: (any NotesGenerator)?
@@ -298,7 +298,7 @@ final class SessionController {
       measuredLevel = level
     case .speechStarted:
       isHearingSpeech = true
-      if isSpeaking, !quietMode { await voice.stop() }
+      if !quietMode, delivery != nil { await cancelDelivery() }
     case .speechEnded:
       isHearingSpeech = false
     case .utterance:
@@ -307,9 +307,7 @@ final class SessionController {
       promptPending = true
       promptPendingSince = .now
     case .promptCancelled:
-      delivery?.cancel()
-      promptPending = false
-      promptPendingSince = nil
+      await cancelDelivery()
     case .promptRequested(_, let text, _):
       deliver(text)
     case .askedIfFinished:
@@ -327,6 +325,7 @@ final class SessionController {
   /// The orb turns to speaking when sound starts, not when the request goes out.
   private func deliver(_ text: String) {
     delivery?.cancel()
+    delivery = nil
     guard !text.isEmpty else {
       promptPending = false
       return
@@ -340,6 +339,7 @@ final class SessionController {
       let quiet = quietMode
       let speaker: any PromptSpeaking = quiet ? SilentSpeaker() : voice
       for await event in speaker.speak(text: text) {
+        guard !Task.isCancelled else { return }
         switch event {
         case .started:
           promptPending = false
@@ -355,7 +355,20 @@ final class SessionController {
       guard !Task.isCancelled else { return }
       promptPending = false
       isSpeaking = false
+      delivery = nil
     }
+  }
+
+  /// The one path a line stops by, for End, speech in voice mode, and a cancelled arm. The orb
+  /// leaves speaking at once, whether the request is still waiting on bytes or the line is playing.
+  private func cancelDelivery() async {
+    promptPending = false
+    promptPendingSince = nil
+    isSpeaking = false
+    guard let delivery else { return }
+    self.delivery = nil
+    delivery.cancel()
+    await voice.stop()
   }
 
   private func scheduleOffline(_ offline: Bool) {
@@ -369,9 +382,8 @@ final class SessionController {
   }
 
   private func finish(with result: SessionResult) async {
-    delivery?.cancel()
+    await cancelDelivery()
     offlineChange?.cancel()
-    if isSpeaking { await voice.stop() }
     for observer in observers { observer.cancel() }
     self.result = result
     endedAt = .now
@@ -379,8 +391,6 @@ final class SessionController {
     Self.log.info(
       "Session ended segments=\(result.transcript.count, privacy: .public) final=\(finals, privacy: .public)"
     )
-    isSpeaking = false
-    promptPending = false
     isHearingSpeech = false
     stage = .ended
     try? environment.audio.deactivate()

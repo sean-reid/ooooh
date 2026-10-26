@@ -49,6 +49,17 @@ extension URLRequest {
   }
 }
 
+/// Never answers. Records each request it was handed and each one URLSession took back.
+final class HangingProtocol: URLProtocol {
+  static let started = Mutex<Int>(0)
+  static let stopped = Mutex<Int>(0)
+
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+  override func startLoading() { Self.started.withLock { $0 += 1 } }
+  override func stopLoading() { Self.stopped.withLock { $0 += 1 } }
+}
+
 /// Every suite on `StubProtocol` shares its static reply and log, so they run one at a time.
 @Suite(.serialized) enum StubbedTransportTests {}
 
@@ -94,6 +105,33 @@ extension StubbedTransportTests {
       #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer attest")
       let body = try JSONDecoder().decode([String: String].self, from: request.bodyBytes)
       #expect(body == ["text": "Does that settle it?"])
+    }
+
+    @Test func cancellingTheReaderCancelsTheRequest() async throws {
+      let config = URLSessionConfiguration.ephemeral
+      config.protocolClasses = [HangingProtocol.self]
+      let client = ProxyClient(
+        baseURL: URL(string: "https://ooooh.test")!, token: "attest",
+        session: URLSession(configuration: config))
+      let reading = Task {
+        var chunks = 0
+        for try await _ in client.speak(text: "Does that settle it?") { chunks += 1 }
+        return chunks
+      }
+      await poll { HangingProtocol.started.withLock { $0 } == 1 }
+      #expect(HangingProtocol.stopped.withLock { $0 } == 0)
+      reading.cancel()
+      #expect(try await reading.value == 0)
+      await poll { HangingProtocol.stopped.withLock { $0 } == 1 }
+      #expect(HangingProtocol.stopped.withLock { $0 } == 1)
+    }
+
+    /// Polls until `condition` holds, two seconds at most.
+    func poll(_ condition: () -> Bool) async {
+      let deadline = ContinuousClock.now + .seconds(2)
+      while !condition(), ContinuousClock.now < deadline {
+        try? await Task.sleep(for: .milliseconds(5))
+      }
     }
 
     @Test func surfacesAWorkerErrorWithItsBody() async throws {
