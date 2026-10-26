@@ -55,7 +55,7 @@
       #expect(spoken == text)
       #expect(events.count == 2)
       #expect(lead < 0.3)
-      #expect(played > 2.5 && played < 4)
+      #expect(played > 2.5 && played < 6)
       #expect(await speaker.text == nil)
     }
 

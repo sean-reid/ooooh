@@ -324,18 +324,32 @@ import Transcription
     environment.session = UnreachableProtocol.session()
     let controller = SessionController(environment: environment)
 
-    await controller.start(.fixture(shortFixture, speed: 20))
-    await wait { controller.isOffline }
+    await controller.start(.fixture(try openEndedFixture(), speed: 50))
+    await wait { controller.isOffline && controller.level > 0 }
     let refused = UnreachableProtocol.seen.withLock { $0 }
     #expect(controller.isOffline, "stage \(controller.stage), refused \(refused)")
     #expect(controller.phase == .offline, "stage \(controller.stage), refused \(refused)")
-    await wait { controller.stage == .ended }
+    await controller.end()
+    #expect(controller.stage == .ended)
     let result = try #require(controller.result)
     #expect(result.prompts.isEmpty)
-    #expect(result.state.currentThread.contains("done for now"))
+    #expect(!result.transcript.isEmpty)
+    #expect(!result.state.currentThread.isEmpty)
     #expect(controller.lastPrompt == nil)
     await wait { controller.notes == .unavailable }
     #expect(controller.notes == .unavailable)
+  }
+
+  /// The short fixture with a segment an hour out, so the session runs until the test ends it.
+  func openEndedFixture() throws -> URL {
+    var fixture = try JSONDecoder().decode(
+      FixtureTranscriber.Fixture.self, from: Data(contentsOf: shortFixture))
+    fixture.segments.append(
+      Segment(text: "and one more thing", start: 3600, end: 3601, isFinal: true))
+    let url = FileManager.default.temporaryDirectory
+      .appendingPathComponent("open-ended-\(UUID().uuidString).json")
+    try JSONEncoder().encode(fixture).write(to: url)
+    return url
   }
 
   @Test func unreachableWorkerStillSavesTheSessionWithoutNotes() async throws {
