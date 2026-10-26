@@ -63,7 +63,11 @@ export const chargeModel = (
   now = new Date(),
 ) => charge(env, "anthropic", modelWeight(model) * (usage.input_tokens + usage.output_tokens), now);
 
-/** One device may make this many provider-backed requests a minute. */
+/**
+ * One device may make this many provider-backed requests a minute. The count is a KV read then
+ * a put, so it is approximate under concurrency, and a put KV refuses is logged and the request
+ * goes on.
+ */
 export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {
   const limit = envNumber(env.DEVICE_MINUTE_REQUESTS, 60);
   const minute = Math.floor(now.getTime() / 60_000);
@@ -77,7 +81,9 @@ export async function checkDeviceRate(device: string, env: Env, now = new Date()
       { "retry-after": String(retryAfter) },
     );
   }
-  await env.BUDGET.put(key, String(used + 1), { expirationTtl: 120 });
+  await deferred(`rate ${key}`, () =>
+    env.BUDGET.put(key, String(used + 1), { expirationTtl: 120 }),
+  );
 }
 
 /** Wraps a route so the session, device, and budget checks run before any upstream call. */

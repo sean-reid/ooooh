@@ -168,6 +168,27 @@ describe("guarded routes", () => {
     expect(await kv.get(`budget:jev:${today}`)).toBe("1211");
   });
 
+  it("logs a rate count the store refuses and keeps the 200", async () => {
+    upstream = fakeUpstream([{ body: jevReply }]);
+    vi.stubGlobal("fetch", upstream.fetch);
+    const kv = new MemoryKV();
+    kv.put = async (key, value) => {
+      if (key.startsWith("rate:")) throw new Error("KV PUT failed: 429 Too Many Requests");
+      kv.store.set(key, value);
+    };
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
+    const ctx = createExecutionContext();
+    await worker.fetch(request("/v1/session/start", {}), testEnv, ctx);
+    const res = await worker.fetch(request("/v1/decide", decideBody), testEnv, ctx);
+    expect(res.status).toBe(200);
+    await waitOnExecutionContext(ctx);
+    const minute = Math.floor(Date.now() / 60_000);
+    expect(logged).toHaveBeenCalledWith(`rate rate:direct:${minute}`, expect.any(Error));
+    expect(await kv.get(`budget:jev:${today}`)).toBe(String(jevReply.usage.input_tokens));
+    logged.mockRestore();
+  });
+
   it("logs a charge the store refuses and keeps the 200", async () => {
     upstream = fakeUpstream([{ body: jevReply }]);
     vi.stubGlobal("fetch", upstream.fetch);
