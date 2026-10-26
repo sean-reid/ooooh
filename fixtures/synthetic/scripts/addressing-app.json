@@ -114,13 +114,7 @@
       "text": "Okay, let's wrap up.",
       "pauseAfter": 6,
       "label": "wrapUp",
-      "note": "Direct instruction to the app to close the session. The app should summarize, not ask."
-    },
-    {
-      "text": "Yeah, that is it. I will write the three hundred words tomorrow morning.",
-      "pauseAfter": 2,
-      "label": "finished",
-      "note": "Real end after the wrap up."
+      "note": "Direct instruction to the app to close the session. The app ends here; nothing after it is heard."
     }
   ]
 }

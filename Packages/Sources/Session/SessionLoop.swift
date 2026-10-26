@@ -53,6 +53,7 @@ public actor SessionLoop {
   var lastCompactionAt: TimeInterval = 0
   var lastSpeechEnd: TimeInterval = 0
   var arm: Arm?
+  var compaction: Task<Void, Never>?
   var ending = false
   var ended = false
 
@@ -210,26 +211,36 @@ public actor SessionLoop {
   /// Folds whatever is still raw into the state, then closes the session.
   func end(at now: TimeInterval, byUser: Bool) async {
     guard !ended else { return }
+    ending = true
     if let arm {
       cancel(arm, at: now)
     }
-    if !uncompacted.isEmpty {
-      await compactIfDue(at: now, force: true)
-    }
+    await compactIfDue(at: now, force: true)
     records.append(.ended(at: now, byUser: byUser))
     ended = true
   }
 
+  /// One compaction runs at a time; a second caller waits for it and then sees what is left.
   func compactIfDue(at now: TimeInterval, force: Bool = false) async {
+    if let compaction { await compaction.value }
+    guard !uncompacted.isEmpty else { return }
     let words = uncompacted.reduce(0) { $0 + $1.text.split(separator: " ").count }
     guard force || now - lastCompactionAt >= policy.everySeconds || words >= policy.everyWords
     else { return }
-    guard let patch = try? await deps.compactor.compact(state: state, transcript: uncompacted)
+    let task = Task { await compact(at: now) }
+    compaction = task
+    await task.value
+  }
+
+  private func compact(at now: TimeInterval) async {
+    defer { compaction = nil }
+    let batch = uncompacted
+    guard let patch = try? await deps.compactor.compact(state: state, transcript: batch)
     else { return }
     do {
       state = try state.applying(patch)
       records.append(.compaction(at: now, patch: patch))
-      uncompacted.removeAll()
+      uncompacted.removeFirst(batch.count)
       lastCompactionAt = now
     } catch {
       records.append(.compactionRejected(at: now, reason: "\(error)"))

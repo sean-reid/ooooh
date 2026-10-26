@@ -119,6 +119,52 @@ import Transcription
     #expect(await loop.nextTick == nil)
   }
 
+  @Test func endDuringACompactionWaitsForItInsteadOfCompactingAgain() async throws {
+    let compactor = BlockingCompactor()
+    let loop = SessionLoop(
+      config: .initial,
+      dependencies: .init(
+        decisions: SilentDecisionProvider(), compactor: compactor, phraser: TemplatePhraser()))
+    await loop.handle(.segment(Segment(text: "first", start: 0, end: 1, isFinal: true)))
+    let second = Segment(text: "and the last", start: 300, end: 301, isFinal: true)
+    let handling = Task { await loop.handle(.segment(second)) }
+    while await compactor.calls.count < 1 { await Task.yield() }
+    let ending = Task { await loop.finish() }
+    while await !loop.ending { await Task.yield() }
+    await compactor.release()
+    await handling.value
+    let result = await ending.value
+
+    #expect(await compactor.calls == [["first", "and the last"]])
+    let compactions = result.records.filter { if case .compaction = $0 { true } else { false } }
+    #expect(compactions.count == 1)
+    #expect(result.records.last == .ended(at: 301, byUser: true))
+    #expect(result.state.currentThread == "first and the last")
+    #expect(await loop.uncompacted.isEmpty)
+  }
+
+  @Test func aSegmentHeardDuringACompactionStaysForTheNextOne() async throws {
+    let compactor = BlockingCompactor()
+    let loop = SessionLoop(
+      config: .initial,
+      dependencies: .init(
+        decisions: SilentDecisionProvider(), compactor: compactor, phraser: TemplatePhraser()))
+    let first = Task {
+      await loop.handle(.segment(Segment(text: "first", start: 300, end: 301, isFinal: true)))
+    }
+    while await compactor.calls.count < 1 { await Task.yield() }
+    let second = Task {
+      await loop.handle(.segment(Segment(text: "second", start: 302, end: 303, isFinal: true)))
+    }
+    while await loop.uncompacted.count < 2 { await Task.yield() }
+    await compactor.release()
+    await first.value
+    await second.value
+
+    #expect(await compactor.calls == [["first"]])
+    #expect(await loop.uncompacted.map(\.text) == ["second"])
+  }
+
   @Test func densityDropsThroughAPause() async {
     let loop = SessionLoop(config: .initial, dependencies: deps(SilentDecisionProvider()))
     await loop.handle(.segment(Segment(text: "a b c", start: 0, end: 10, isFinal: true)))
@@ -126,5 +172,26 @@ import Transcription
     let sparse = await loop.density(at: 40)
     #expect(dense == 1)
     #expect(abs(sparse - 0.25) < 0.001)
+  }
+}
+
+/// Parks every compaction until the test releases it, and records what each one was given.
+actor BlockingCompactor: Compactor {
+  private(set) var calls: [[String]] = []
+  private var waiters: [CheckedContinuation<Void, Never>] = []
+  private var open = false
+
+  func compact(state: CompactState, transcript: [Segment]) async throws -> StatePatch {
+    calls.append(transcript.map(\.text))
+    if !open {
+      await withCheckedContinuation { waiters.append($0) }
+    }
+    return StatePatch(currentThread: transcript.map(\.text).joined(separator: " "))
+  }
+
+  func release() {
+    open = true
+    for waiter in waiters { waiter.resume() }
+    waiters.removeAll()
   }
 }
