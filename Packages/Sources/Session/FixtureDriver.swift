@@ -3,7 +3,9 @@ import Governor
 import Transcription
 
 /// Replays a fixture through a loop, inserting pause checks in every gap the
-/// way the live client's timer would.
+/// way the live client's timer would. After the last utterance the user ends the session
+/// before the long-silence check, unless the finished question is already out and the end
+/// check decides.
 public enum FixtureDriver {
   public static func run(
     fixture: FixtureTranscriber.Fixture, config: GovernorConfig,
@@ -13,8 +15,14 @@ public enum FixtureDriver {
     let finals = fixture.segments.filter(\.isFinal)
     for (index, segment) in finals.enumerated() {
       await loop.handle(.segment(segment))
-      let next = index + 1 < finals.count ? finals[index + 1].start : TimeInterval.infinity
+      let last = index + 1 == finals.count
+      let next = last ? TimeInterval.infinity : finals[index + 1].start
       while let tick = await loop.nextTick, tick < next {
+        if last, tick >= segment.end + config.longSilence,
+          await loop.governor.finishedAskedAt == nil
+        {
+          break
+        }
         await loop.pause(until: tick)
       }
     }

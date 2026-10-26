@@ -31,6 +31,7 @@ extension StubbedTransportTests {
       #expect(config.command == .init(probability: 0.9, confidence: 0.7))
       #expect(config.densityWindow == 120)
       #expect(config.endSilence == 30)
+      #expect(config.longSilence == 45)
       #expect(config.silenceChecks == [5, 11, 20])
       #expect(config.armingDelay == 1.5)
       let weights: [String: Double] = [

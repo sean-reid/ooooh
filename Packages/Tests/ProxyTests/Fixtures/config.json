@@ -18,6 +18,7 @@
   },
   "densityWindow": 120,
   "endSilence": 30,
+  "longSilence": 45,
   "silenceChecks": [
     5,
     11,

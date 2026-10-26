@@ -88,7 +88,8 @@ import Testing
 
   @Test func silenceAloneNeverPrompts() {
     var g = Governor(config: .initial)
-    #expect(g.decide(answers(good: 0.3), signals: signals(at: 10, pause: 90)) == .wait)
+    #expect(g.decide(answers(good: 0.3), signals: signals(at: 10, pause: 40)) == .wait)
+    #expect(g.decide(answers(good: 0.3), signals: signals(at: 60, pause: 90)) == .askIfFinished)
   }
 
   @Test func asksIfFinishedThenEndsAfterSilence() {
@@ -97,6 +98,30 @@ import Testing
     #expect(g.decide(done, signals: signals(at: 100, pause: 20)) == .askIfFinished)
     #expect(g.decide(done, signals: signals(at: 110, pause: 30)) == .wait)
     #expect(g.decide(done, signals: signals(at: 131, pause: 51)) == .endSession)
+  }
+
+  @Test func aLongSilenceAsksIfFinishedWhateverJevThinks() {
+    var g = Governor(config: .initial)
+    let talking = answers(finished: 0.05)
+    #expect(g.decide(talking, signals: signals(at: 120, pause: 44)) == .wait)
+    #expect(g.decide(talking, signals: signals(at: 121, pause: 45)) == .askIfFinished)
+    #expect(g.decide(talking, signals: signals(at: 140, pause: 64)) == .wait)
+    #expect(g.decide(talking, signals: signals(at: 151, pause: 75)) == .endSession)
+  }
+
+  @Test func theSilenceScheduleEndsWithTheLongSilenceCheck() {
+    var g = Governor(config: .initial)
+    #expect(g.nextCheck(speechEnd: 100) == 105)
+    for offset in [5.0, 11, 20] {
+      let took = g.takeCheck(now: 100 + offset, speechEnd: 100, utteranceEnded: false)
+      #expect(took)
+    }
+    #expect(g.nextCheck(speechEnd: 100) == 145)
+    let early = g.takeCheck(now: 144, speechEnd: 100, utteranceEnded: false)
+    #expect(!early)
+    let due = g.takeCheck(now: 145, speechEnd: 100, utteranceEnded: false)
+    #expect(due)
+    #expect(g.nextCheck(speechEnd: 100) == nil)
   }
 
   @Test func speechAfterFinishedQuestionResetsIt() {
@@ -125,8 +150,8 @@ import Testing
     let utterance = g.takeCheck(now: 10, speechEnd: 10, utteranceEnded: true)
     #expect(utterance)
     #expect(g.nextCheck(speechEnd: 10) == 15)
-    let took = fired(&g, speechEnd: 10, ticks: [14.9, 15, 15, 21, 30, 30, 60, 600])
-    #expect(took == [15, 21, 30])
+    let took = fired(&g, speechEnd: 10, ticks: [14.9, 15, 15, 21, 30, 30, 55, 55, 600])
+    #expect(took == [15, 21, 30, 55])
     #expect(g.nextCheck(speechEnd: 10) == nil)
   }
 
@@ -141,7 +166,7 @@ import Testing
     var g = Governor(config: .initial)
     _ = g.takeCheck(now: 0, speechEnd: 0, utteranceEnded: true)
     #expect(fired(&g, speechEnd: 0, ticks: [2, 5, 11, 20, 23, 35]) == [5, 11, 20])
-    #expect(g.nextCheck(speechEnd: 0) == nil)
+    #expect(g.nextCheck(speechEnd: 0) == 45)
     let utterance = g.takeCheck(now: 40, speechEnd: 40, utteranceEnded: true)
     #expect(utterance)
     #expect(g.nextCheck(speechEnd: 40) == 45)
@@ -169,10 +194,13 @@ import Testing
   @Test func theScheduleComesFromTheConfig() {
     var config = GovernorConfig.initial
     config.silenceChecks = [1, 3]
+    config.longSilence = 6
     var g = Governor(config: config)
     _ = g.takeCheck(now: 0, speechEnd: 0, utteranceEnded: true)
     #expect(g.nextCheck(speechEnd: 0) == 1)
     #expect(fired(&g, speechEnd: 0, ticks: [2, 3, 4]) == [2, 3])
+    #expect(g.nextCheck(speechEnd: 0) == 6)
+    #expect(fired(&g, speechEnd: 0, ticks: [6, 7]) == [6])
     #expect(g.nextCheck(speechEnd: 0) == nil)
   }
 

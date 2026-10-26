@@ -10,6 +10,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public var command: Thresholds
   public var densityWindow: TimeInterval
   public var endSilence: TimeInterval
+  /// A pause this long gets the finished question whatever Jev answered at the last check.
+  public var longSilence: TimeInterval
   /// Pause lengths at which the loop asks Jev during silence. After the last, nothing until speech resumes.
   public var silenceChecks: [TimeInterval]
   /// How long the pause after an utterance has to hold before an armed decision speaks.
@@ -27,6 +29,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     command: Thresholds,
     densityWindow: TimeInterval,
     endSilence: TimeInterval,
+    longSilence: TimeInterval = 45,
     silenceChecks: [TimeInterval] = [5, 11, 20],
     armingDelay: TimeInterval = 1.5,
     cueWeights: [String: Double] = [:],
@@ -39,6 +42,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     self.command = command
     self.densityWindow = densityWindow
     self.endSilence = endSilence
+    self.longSilence = longSilence
     self.silenceChecks = silenceChecks
     self.armingDelay = armingDelay
     self.cueWeights = cueWeights
@@ -54,6 +58,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     command = try c.decode(Thresholds.self, forKey: .command)
     densityWindow = try c.decode(TimeInterval.self, forKey: .densityWindow)
     endSilence = try c.decode(TimeInterval.self, forKey: .endSilence)
+    longSilence = try c.decodeIfPresent(TimeInterval.self, forKey: .longSilence) ?? 45
     silenceChecks =
       try c.decodeIfPresent([TimeInterval].self, forKey: .silenceChecks) ?? [5, 11, 20]
     armingDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .armingDelay) ?? 1.5
@@ -91,6 +96,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
       command: Thresholds(probability: 0.9, confidence: 0.7),
       densityWindow: 120,
       endSilence: 30,
+      longSilence: 45,
       silenceChecks: [5, 11, 20],
       armingDelay: 1.5,
       cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
