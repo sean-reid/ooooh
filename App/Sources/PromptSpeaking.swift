@@ -30,7 +30,7 @@ struct SilentSpeaker: PromptSpeaking {
   func stop() async {}
 }
 
-/// Voice mode: the Worker's MP3 stream through the barge-in player. One line at a time; a new line cuts the old one off.
+/// Voice mode: the Worker's MP3 stream through the barge-in player. One line at a time; a new line cuts the old one off, and so does dropping a line's stream.
 actor VoiceSpeaker: PromptSpeaking {
   private typealias Continuation = AsyncStream<SpeechEvent>.Continuation
 
@@ -56,38 +56,50 @@ actor VoiceSpeaker: PromptSpeaking {
 
   nonisolated func speak(text: String) -> AsyncStream<SpeechEvent> {
     AsyncStream { continuation in
-      Task { await self.play(text, into: continuation) }
+      let request = Task { await self.play(text, into: continuation) }
+      continuation.onTermination = { _ in request.cancel() }
     }
   }
 
   func stop() async {
+    playing?.cancel()
     await player.stop()
   }
 
   private func play(_ text: String, into events: Continuation) async {
-    await player.stop()
+    playing?.cancel()
     await playing?.value
+    guard !Task.isCancelled else {
+      events.finish()
+      return
+    }
     if forwarder == nil {
       forwarder = Task { await forward() }
     }
     let task = Task { await speakLine(text, into: events) }
     playing = task
-    await task.value
+    await withTaskCancellationHandler {
+      await task.value
+    } onCancel: {
+      task.cancel()
+    }
   }
 
   /// Returns once the player has reported the line finished, however it ended.
   private func speakLine(_ text: String, into events: Continuation) async {
     generation += 1
     let mine = generation
-    await withCheckedContinuation { done in
-      line = Line(events: events, done: done)
-      Task {
-        do {
-          try await player.speak(text, audio: audio(text))
-        } catch {
-          if generation == mine, line != nil { await player.stop() }
-        }
+    let speaking = Task {
+      do {
+        try await player.speak(text, audio: audio(text))
+      } catch {
+        if generation == mine, line != nil { await player.stop() }
       }
+    }
+    await withTaskCancellationHandler {
+      await withCheckedContinuation { done in line = Line(events: events, done: done) }
+    } onCancel: {
+      speaking.cancel()
     }
   }
 
