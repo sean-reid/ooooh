@@ -158,14 +158,17 @@ import Testing
 
     held.transaction.withLock { $0 = monthly }
     held.deliver.yield(monthly)
-    await wait { GateProtocol.requests(to: host).count == 1 }
+    await wait { store.entitlement == .subscribed(expires: paidUntil, product: .monthly) }
     #expect(store.entitlement == .subscribed(expires: paidUntil, product: .monthly))
+    #expect(GateProtocol.requests(to: host).count == 1)
 
     var renewal = monthly
     renewal.jws = renewalJWS
     held.transaction.withLock { $0 = renewal }
     held.deliver.yield(renewal)
-    await wait { GateProtocol.requests(to: host).count == 2 }
+    await wait {
+      GateProtocol.requests(to: host).count == 2 && store.latestTransactionJWS == renewalJWS
+    }
     #expect(try transactions(posted: host) == [jws, renewalJWS])
     #expect(store.latestTransactionJWS == renewalJWS)
   }

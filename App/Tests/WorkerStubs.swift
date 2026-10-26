@@ -1,5 +1,6 @@
 import Foundation
 import Synchronization
+import Testing
 
 /// Answers the Worker routes by host and path, so the tests run side by side; an unanswered
 /// path is a 404 and the end a 204. Reads each body back, since URLSession hands it over as
@@ -103,9 +104,16 @@ final class UnreachableProtocol: URLProtocol {
   override func stopLoading() {}
 }
 
-@MainActor func wait(_ condition: @MainActor () -> Bool, seconds: Double = 10) async {
+/// Polls until `condition` holds, and records a failure at the caller when `seconds` pass first.
+@MainActor func wait(
+  _ condition: @MainActor () -> Bool, seconds: Double = 10,
+  sourceLocation: SourceLocation = #_sourceLocation
+) async {
   let deadline = ContinuousClock.now + .seconds(seconds)
   while !condition(), ContinuousClock.now < deadline {
     try? await Task.sleep(for: .milliseconds(10))
+  }
+  if !condition() {
+    Issue.record("the condition did not hold within \(seconds) s", sourceLocation: sourceLocation)
   }
 }
