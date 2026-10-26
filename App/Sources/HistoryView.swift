@@ -183,9 +183,12 @@ struct StoredNotesScreen: View {
   }
 }
 
+/// Pages of 50. A search waits for typing to pause, then fetches one page; the task that
+/// started it is cancelled when the query changes, so a superseded result is dropped.
 @MainActor @Observable
 final class HistoryModel {
   static let page = 50
+  static let debounce: Duration = .milliseconds(250)
 
   let store: SessionStore
   var query = ""
@@ -215,7 +218,11 @@ final class HistoryModel {
       await load()
       return
     }
-    rows = (try? await store.search(needle)) ?? []
+    guard (try? await Task.sleep(for: Self.debounce)) != nil else { return }
+    guard let found = try? await store.search(needle, limit: Self.page), !Task.isCancelled else {
+      return
+    }
+    rows = found
     exhausted = true
     loaded = true
   }
