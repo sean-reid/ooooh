@@ -14,8 +14,15 @@ enum StartFailure {
     switch error {
     case CaptureError.microphoneDenied, CaptureError.speechDenied:
       return denied
+    case let missing as NoTranscriptionEngine:
+      return unsupported(missing.locale)
     default:
       return unavailable
     }
+  }
+
+  /// No engine on the phone transcribes the language, as against a model still to download.
+  static func unsupported(_ locale: Locale) -> String {
+    "This phone can't transcribe \(TranscriptionEngine.languageName(of: locale)) on its own."
   }
 }
