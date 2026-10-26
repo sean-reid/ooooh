@@ -678,7 +678,7 @@ describe("POST /v1/phrase", () => {
     expect(retry.messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
     expect(retry.messages[1].content).toBe(longSentence);
     expect(retry.messages[2].content).toContain("3 words over");
-    expect(await spent()).toBe(before + 2 * 0.5 * (640 + 18));
+    await expect.poll(spent).toBe(before + 2 * 0.5 * (640 + 18));
   });
 
   it("ends the SSE stream with the 503 body when the deltas stop", async () => {
