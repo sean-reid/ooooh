@@ -14,10 +14,12 @@ final class FakeAttestor: Attestor {
     self.reply = reply
   }
 
-  func assertion(bodyHash: Data) async throws -> Assertion? {
-    hashes.withLock { $0.append(bodyHash) }
+  func assertion(clientDataHash: Data) async throws -> Assertion? {
+    hashes.withLock { $0.append(clientDataHash) }
     return reply
   }
+
+  func keyId() async throws -> String? { reply?.keyId }
 }
 
 extension StubbedTransportTests {
@@ -30,12 +32,13 @@ extension StubbedTransportTests {
         attestor: attestor)
     }
 
-    @Test func signsTheExactBodyBytesAndSendsBothHeaders() async throws {
+    @Test func signsTheMethodPathTimeAndBodyAndSendsAllThreeHeaders() async throws {
       let attestor = FakeAttestor(
         reply: Assertion(keyId: "key-1", assertion: Data([0xa2, 0x01, 0x02])))
       StubProtocol.reply = .init(status: 200, chunks: [Data(#"{"text":"Which part?"}"#.utf8)])
       StubProtocol.seen.withLock { $0 = [] }
 
+      let before = Int(Date().timeIntervalSince1970)
       let response: SonnetPhraser.Response = try await client(attestor).post(
         "v1/phrase", body: ["kind": "clarify"])
       #expect(response.text == "Which part?")
@@ -44,8 +47,13 @@ extension StubbedTransportTests {
       #expect(request.value(forHTTPHeaderField: "x-device") == "key-1")
       #expect(request.value(forHTTPHeaderField: "x-assertion") == "ogEC")
       #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
-      let hashes = attestor.hashes.withLock { $0 }
-      #expect(hashes == [Data(SHA256.hash(data: request.bodyBytes))])
+      let header = try #require(request.value(forHTTPHeaderField: "x-assertion-time"))
+      let time = try #require(Int(header))
+      #expect((before...before + 5).contains(time))
+      let signed = ClientData(
+        method: "POST", path: "/v1/phrase", time: time,
+        bodyHash: Data(SHA256.hash(data: request.bodyBytes)))
+      #expect(attestor.hashes.withLock { $0 } == [signed.hash])
     }
 
     @Test func sendsNoAttestationHeadersWhenTheAttestorHasNone() async throws {
@@ -59,11 +67,13 @@ extension StubbedTransportTests {
       let request = try #require(StubProtocol.seen.withLock { $0.first })
       #expect(request.value(forHTTPHeaderField: "x-device") == nil)
       #expect(request.value(forHTTPHeaderField: "x-assertion") == nil)
+      #expect(request.value(forHTTPHeaderField: "x-assertion-time") == nil)
       #expect(attestor.hashes.withLock { $0.count } == 1)
     }
 
-    @Test func simulatorAttestorSignsNothing() async throws {
-      #expect(try await SimulatorAttestor().assertion(bodyHash: Data(count: 32)) == nil)
+    @Test func simulatorAttestorSignsNothingAndHasNoKeyId() async throws {
+      #expect(try await SimulatorAttestor().assertion(clientDataHash: Data(count: 32)) == nil)
+      #expect(try await SimulatorAttestor().keyId() == nil)
     }
 
     @Test func attestBodyUsesTheWorkerFieldNames() throws {

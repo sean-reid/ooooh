@@ -314,6 +314,7 @@ import Transcription
     let result = try #require(controller.result)
     #expect(result.state.openQuestions.map(\.id) == ["carried-free-tier-purpose"])
     #expect(result.state.currentThread.contains("done for now"))
+    await wait { controller.savedSessionID != nil }
     #expect(try await store.sessions().count == 2)
   }
 

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Proxy
 import StoreKit
 
 public enum BillingError: Error, Equatable {
@@ -23,9 +24,14 @@ public final class BillingStore {
 
   private var products: [ProductID: Product] = [:]
   private var updates: Task<Void, Never>?
+  /// Its key id fixes the `appAccountToken` every purchase carries.
+  private let attestor: (any Attestor)?
 
-  public init(freeSessionsRemaining: Int = FreeTier.sessionsPerMonth) {
+  public init(
+    freeSessionsRemaining: Int = FreeTier.sessionsPerMonth, attestor: (any Attestor)? = nil
+  ) {
     self.freeSessionsRemaining = freeSessionsRemaining
+    self.attestor = attestor
     self.entitlement = .free(remainingSessions: freeSessionsRemaining)
     updates = Task { [weak self] in
       for await result in Transaction.updates {
@@ -38,6 +44,7 @@ public final class BillingStore {
   /// Fixed plans and nothing from StoreKit, for previews and snapshots.
   init(plans: [Plan]) {
     self.plans = plans
+    attestor = nil
     freeSessionsRemaining = FreeTier.sessionsPerMonth
     entitlement = .free(remainingSessions: FreeTier.sessionsPerMonth)
   }
@@ -59,7 +66,8 @@ public final class BillingStore {
     guard let product = products[id] else { throw BillingError.productUnavailable(id) }
     isPurchasing = true
     defer { isPurchasing = false }
-    switch try await product.purchase() {
+    let token = AppAccountToken.forInstall(keyId: try await attestor?.keyId())
+    switch try await product.purchase(options: [.appAccountToken(token)]) {
     case .success(let verification):
       let transaction = try verification.payloadValue
       await transaction.finish()

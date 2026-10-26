@@ -57,7 +57,7 @@ final class HistoryTests: XCTestCase {
     XCTAssertTrue(notes.staticTexts["Carver Street or the park"].exists)
     XCTAssertTrue(notes.staticTexts["Open threads"].exists)
     attach(app.screenshot(), named: "\(name)-stored-notes")
-    app.buttons["Done"].firstMatch.tap()
+    app.buttons["notes.done"].tap()
     waitUntilHittable(list)
 
     let search = app.textFields["history.search"]

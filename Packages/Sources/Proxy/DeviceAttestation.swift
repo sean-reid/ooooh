@@ -5,7 +5,7 @@
   import Security
 
   /// App Attest for one install: a key made once and attested through the Worker, then one
-  /// assertion per request body. The key id lives in the keychain so a relaunch reuses it.
+  /// assertion per request. The key id lives in the keychain so a relaunch reuses it.
   public actor DeviceAttestation: Attestor {
     let baseURL: URL
     let session: URLSession
@@ -19,20 +19,22 @@
       keyId = KeyIdStore.read()
     }
 
-    public func assertion(bodyHash: Data) async throws -> Assertion? {
+    public func assertion(clientDataHash: Data) async throws -> Assertion? {
       let keyId = try await attestedKeyId()
       do {
         return Assertion(
           keyId: keyId,
-          assertion: try await service.generateAssertion(keyId, clientDataHash: bodyHash))
+          assertion: try await service.generateAssertion(keyId, clientDataHash: clientDataHash))
       } catch let error as DCError where error.code == .invalidKey {
         forget()
         let fresh = try await attestedKeyId()
         return Assertion(
           keyId: fresh,
-          assertion: try await service.generateAssertion(fresh, clientDataHash: bodyHash))
+          assertion: try await service.generateAssertion(fresh, clientDataHash: clientDataHash))
       }
     }
+
+    public func keyId() async throws -> String? { try await attestedKeyId() }
 
     private func attestedKeyId() async throws -> String {
       if let keyId { return keyId }

@@ -23,7 +23,6 @@ export interface StoreKitSettings {
   bundleId: string;
   environment: "Sandbox" | "Production";
   rootPem?: string;
-  now?: Date;
 }
 
 export const storeKitSettingsFrom = (env: Env): StoreKitSettings => ({
@@ -36,6 +35,9 @@ export const storeKitSettingsFrom = (env: Env): StoreKitSettings => ({
 export interface Transaction {
   productId: (typeof productIds)[number];
   originalTransactionId: string;
+  signedDate: number;
+  /** The UUID the purchase carried, which binds the transaction to one install. */
+  appAccountToken?: string;
   expiresDate?: number;
   gracePeriodExpiresDate?: number;
   revocationDate?: number;
@@ -91,7 +93,8 @@ export async function verifyTransaction(
   const [leaf, intermediate] = chain;
   const root = parseCertificate(pemToDer(settings.rootPem ?? appleRootPem));
   const signedDate = date(payload.signedDate);
-  const at = signedDate === undefined ? (settings.now ?? new Date()) : new Date(signedDate);
+  if (signedDate === undefined) throw new TransactionError("bad-format");
+  const at = new Date(signedDate);
   if (
     leaf.curve !== "P-256" ||
     !leaf.extensions.has(leafMarker) ||
@@ -113,10 +116,16 @@ export async function verifyTransaction(
   if (payload.type !== "Auto-Renewable Subscription") throw new TransactionError("bad-type");
   if (payload.environment !== settings.environment) throw new TransactionError("bad-environment");
   if (typeof payload.originalTransactionId !== "string") throw new TransactionError("bad-format");
+  const appAccountToken = payload.appAccountToken;
+  if (appAccountToken !== undefined && typeof appAccountToken !== "string") {
+    throw new TransactionError("bad-format");
+  }
 
   return {
     productId,
     originalTransactionId: payload.originalTransactionId,
+    signedDate,
+    appAccountToken,
     expiresDate: date(payload.expiresDate),
     gracePeriodExpiresDate: date(payload.gracePeriodExpiresDate),
     revocationDate: date(payload.revocationDate),

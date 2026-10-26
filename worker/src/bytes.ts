@@ -14,6 +14,9 @@ export const sha256 = async (...parts: Bytes[]) => {
 export const equalBytes = (a: Bytes, b: Bytes) =>
   a.length === b.length && a.every((byte, i) => byte === b[i]);
 
+export const toHex = (bytes: Bytes) =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+
 export const toBase64 = (bytes: Bytes) => btoa(String.fromCharCode(...bytes));
 export const fromBase64 = (text: string) => {
   try {

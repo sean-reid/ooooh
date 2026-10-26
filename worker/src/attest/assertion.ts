@@ -4,7 +4,7 @@ import { decodeCbor, field, isBytes } from "./cbor";
 import type { DeviceRecord } from "./record";
 import type { AttestationSettings } from "./verify";
 
-export type AssertionFailure = "bad-assertion" | "replay";
+export type AssertionFailure = "bad-assertion" | "replay" | "stale";
 
 export class AssertionError extends Error {
   constructor(public reason: AssertionFailure) {

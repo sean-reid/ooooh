@@ -33,7 +33,7 @@ let package = Package(
       name: "Proxy", dependencies: ["State", "Governor", "Session", "Transcription", "Notes"]),
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .target(name: "Persistence", dependencies: ["State", "Notes", "Session", "Transcription"]),
-    .target(name: "Billing", dependencies: ["Design"]),
+    .target(name: "Billing", dependencies: ["Design", "Proxy"]),
     .target(name: "Settings", dependencies: ["Persistence", "Design", "Notes"]),
     .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),

@@ -2,7 +2,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
+import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
+import { sha256, toBase64, toHex } from "../../src/bytes";
 import { memoryKV } from "../kv";
 import {
   compactBody,
@@ -70,6 +73,14 @@ const cases = [
   { name: "notes", path: "/v1/notes", body: notesBody, replies: [{ body: opusReply() }] },
 ];
 
+/** One request the Swift side signs the same way; both suites check against the written file. */
+const signedRequest = {
+  method: "POST",
+  path: "/v1/notes",
+  time: 1761430000,
+  body: JSON.stringify({ state: {}, transcript: [] }),
+};
+
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ProxyTests fixtures", () => {
@@ -79,6 +90,31 @@ describe("ProxyTests fixtures", () => {
       compare(resolve(fixturesDir, `${name}.json`), JSON.stringify(actual, null, 2) + "\n");
     });
   }
+
+  it("clientdata.json matches the string an assertion covers", async () => {
+    const { method, path, time } = signedRequest;
+    const body = new TextEncoder().encode(signedRequest.body);
+    const canonical = canonicalClientData(method, path, time, await sha256(body));
+    const hash = toHex(await clientDataHash(method, path, time, body));
+    const actual = JSON.stringify({ ...signedRequest, canonical, hash }, null, 2) + "\n";
+    compare(resolve(fixturesDir, "clientdata.json"), actual);
+  });
+
+  // Key ids in App Attest's shape, base64 of 32 bytes. ProxyTests derives the same tokens from them.
+  it("app-account-token.json matches the Worker's derivation", async () => {
+    const cases = [];
+    for (const name of ["first install", "second install", "third install"]) {
+      const keyId = toBase64(await sha256(new TextEncoder().encode(name)));
+      cases.push({ keyId, appAccountToken: await appAccountTokenFor(keyId) });
+    }
+    expect(new Set(cases.map((c) => c.appAccountToken)).size).toBe(cases.length);
+    for (const { appAccountToken } of cases) {
+      expect(appAccountToken).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
+    }
+    compare(resolve(fixturesDir, "app-account-token.json"), JSON.stringify(cases, null, 2) + "\n");
+  });
 
   it("phrase.sse matches the streamed route", async () => {
     const replies = [

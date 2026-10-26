@@ -82,6 +82,7 @@ public struct NotesView: View {
       .accessibilityLabel("Share notes")
       Spacer()
       Button("Done", action: onDone)
+        .accessibilityIdentifier("notes.done")
         .font(.body.weight(.semibold))
         .frame(minWidth: 44, minHeight: 44)
     }
