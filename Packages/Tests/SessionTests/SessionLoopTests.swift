@@ -84,7 +84,7 @@ import Transcription
     #expect(result.state.currentThread.contains("done for now"))
   }
 
-  @Test func aLongPauseGetsThreeChecksThenNone() async {
+  @Test func aLongPauseGetsTheScheduleThenTheFinishedQuestionThenTheEnd() async {
     let loop = SessionLoop(config: .initial, dependencies: deps(SilentDecisionProvider()))
     await loop.handle(.segment(Segment(text: "a b c", start: 0, end: 10, isFinal: true)))
     for now in stride(from: 11.0, through: 610, by: 1) {
@@ -93,10 +93,24 @@ import Transcription
     let checks = await loop.records.compactMap {
       if case .check(let at, _, _, _) = $0 { at } else { nil }
     }
-    #expect(checks == [10, 15, 21, 30])
+    #expect(checks == [10, 15, 21, 30, 55, 85])
+    #expect(await loop.records.contains(.askedIfFinished(at: 55)))
+    #expect(await loop.records.last == .ended(at: 85, byUser: false))
     #expect(await loop.nextCheckAt == nil)
-    await loop.handle(.segment(Segment(text: "d", start: 700, end: 701, isFinal: true)))
-    #expect(await loop.nextCheckAt == 706)
+  }
+
+  @Test func speechBeforeTheLongSilenceRestartsTheSchedule() async {
+    let loop = SessionLoop(config: .initial, dependencies: deps(SilentDecisionProvider()))
+    await loop.handle(.segment(Segment(text: "a b c", start: 0, end: 10, isFinal: true)))
+    for now in stride(from: 11.0, through: 50, by: 1) {
+      await loop.pause(until: now)
+    }
+    #expect(await loop.nextCheckAt == 55)
+    await loop.handle(.segment(Segment(text: "d", start: 52, end: 53, isFinal: true)))
+    #expect(await loop.nextCheckAt == 58)
+    #expect(
+      await loop.records.contains { if case .askedIfFinished = $0 { true } else { false } } == false
+    )
   }
 
   @Test func theFinishedQuestionEndsTheSessionAfterOneMoreCheck() async {

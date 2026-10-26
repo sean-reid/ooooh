@@ -84,14 +84,15 @@ public struct Governor: Sendable {
     return true
   }
 
-  /// When the next silence check falls after speech ended at `speechEnd`, nil once the
-  /// schedule is spent until speech resumes.
+  /// When the next silence check falls after speech ended at `speechEnd`: the schedule, then
+  /// the long-silence check, then nil until speech resumes.
   public func nextCheck(speechEnd: TimeInterval) -> TimeInterval? {
     let last = lastCheckAt ?? -.infinity
     if finishedAskedAt != nil {
       return max(speechEnd, last) + config.endSilence
     }
-    return config.silenceChecks.map { speechEnd + $0 }.filter { $0 > last }.min()
+    let offsets = config.silenceChecks + [config.longSilence]
+    return offsets.map { speechEnd + $0 }.filter { $0 > last }.min()
   }
 
   public mutating func decide(_ answers: JevAnswers, signals: Signals) -> Decision {
@@ -113,7 +114,9 @@ public struct Governor: Sendable {
       return .wait
     }
 
-    if answers.seemsFinished.probability >= config.finished.probability {
+    if signals.pauseLength >= config.longSilence
+      || answers.seemsFinished.probability >= config.finished.probability
+    {
       finishedAskedAt = signals.now
       return .askIfFinished
     }

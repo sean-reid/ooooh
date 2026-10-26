@@ -342,7 +342,7 @@ final class SessionController {
     case .promptRequested(_, let text, _):
       deliver(text)
     case .askedIfFinished:
-      deliver("Done for now?")
+      deliver("Done for now?", quietly: true)
     case .compactionApplied:
       compactions += 1
     case .offline(let offline):
@@ -354,7 +354,7 @@ final class SessionController {
 
   /// Keeps the orb in aboutToSpeak for at least the configured hold since it armed, then speaks.
   /// The orb turns to speaking when sound starts, not when the request goes out.
-  private func deliver(_ text: String) {
+  private func deliver(_ text: String, quietly: Bool = false) {
     delivery?.cancel()
     delivery = nil
     guard !text.isEmpty else {
@@ -367,7 +367,7 @@ final class SessionController {
     delivery = Task {
       if hold > .zero { try? await Task.sleep(for: hold) }
       guard !Task.isCancelled, stage == .running else { return }
-      let quiet = quietMode
+      let quiet = quietMode || quietly
       let speaker: any PromptSpeaking = quiet ? SilentSpeaker() : voice
       for await event in speaker.speak(text: text) {
         guard !Task.isCancelled else { return }

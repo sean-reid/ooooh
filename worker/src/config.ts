@@ -7,6 +7,8 @@ export const governorConfig = {
   command: { probability: 0.9, confidence: 0.7 },
   densityWindow: 120,
   endSilence: 30,
+  // A pause this long gets the finished question whatever Jev answered at the last check.
+  longSilence: 45,
   // Pause lengths in seconds at which the phone asks Jev during silence; after the last, nothing until speech resumes.
   silenceChecks: [5, 11, 20],
   armingDelay: 1.5,
