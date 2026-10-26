@@ -11,14 +11,11 @@ public enum FixtureDriver {
   ) async -> SessionResult {
     let loop = SessionLoop(config: config, policy: policy, dependencies: dependencies)
     let finals = fixture.segments.filter(\.isFinal)
-    let trailing = config.endSilence + 2 * config.minCheckInterval
     for (index, segment) in finals.enumerated() {
       await loop.handle(.segment(segment))
-      let next = index + 1 < finals.count ? finals[index + 1].start : segment.end + trailing
-      var tick = segment.end + config.checkPause
-      while tick < next {
+      let next = index + 1 < finals.count ? finals[index + 1].start : TimeInterval.infinity
+      while let tick = await loop.nextTick, tick < next {
         await loop.pause(until: tick)
-        tick += config.minCheckInterval
       }
     }
     return await loop.finish()

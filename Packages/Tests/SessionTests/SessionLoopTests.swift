@@ -84,6 +84,41 @@ import Transcription
     #expect(result.state.currentThread.contains("done for now"))
   }
 
+  @Test func aLongPauseGetsThreeChecksThenNone() async {
+    let loop = SessionLoop(config: .initial, dependencies: deps(SilentDecisionProvider()))
+    await loop.handle(.segment(Segment(text: "a b c", start: 0, end: 10, isFinal: true)))
+    for now in stride(from: 11.0, through: 610, by: 1) {
+      await loop.pause(until: now)
+    }
+    let checks = await loop.records.compactMap {
+      if case .check(let at, _, _, _) = $0 { at } else { nil }
+    }
+    #expect(checks == [10, 15, 21, 30])
+    #expect(await loop.nextCheckAt == nil)
+    await loop.handle(.segment(Segment(text: "d", start: 700, end: 701, isFinal: true)))
+    #expect(await loop.nextCheckAt == 706)
+  }
+
+  @Test func theFinishedQuestionEndsTheSessionAfterOneMoreCheck() async {
+    let finished = ScriptedDecisionProvider { input in
+      var answers = JevAnswers.quiet
+      if input.signals.pauseLength == 0 { answers.seemsFinished = .init(0.97) }
+      return answers
+    }
+    let loop = SessionLoop(config: .initial, dependencies: deps(finished))
+    await loop.handle(.segment(Segment(text: "done", start: 0, end: 10, isFinal: true)))
+    #expect(await loop.nextTick == 11.5)
+    await loop.pause(until: 11.5)
+    #expect(await loop.nextTick == 40)
+    await loop.pause(until: 40)
+    let checks = await loop.records.compactMap {
+      if case .check(let at, _, _, _) = $0 { at } else { nil }
+    }
+    #expect(checks == [10, 40])
+    #expect(await loop.records.last == .ended(at: 40, byUser: false))
+    #expect(await loop.nextTick == nil)
+  }
+
   @Test func densityDropsThroughAPause() async {
     let loop = SessionLoop(config: .initial, dependencies: deps(SilentDecisionProvider()))
     await loop.handle(.segment(Segment(text: "a b c", start: 0, end: 10, isFinal: true)))

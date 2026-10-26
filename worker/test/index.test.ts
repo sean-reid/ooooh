@@ -17,10 +17,13 @@ describe("worker", () => {
       version: number;
       floor: { min: number; max: number };
       armingDelay: number;
+      silenceChecks: number[];
     };
-    expect(body.version).toBe(4);
+    expect(body.version).toBe(5);
     expect(body.floor).toEqual({ min: 30, max: 120 });
     expect(body.armingDelay).toBe(1.5);
+    expect(body.silenceChecks).toEqual([5, 11, 20]);
+    expect(body).not.toHaveProperty("minCheckInterval");
   });
 
   it("rejects writes and unknown paths", async () => {

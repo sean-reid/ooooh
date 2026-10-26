@@ -71,10 +71,27 @@ public struct Governor: Sendable {
     return answers.intervention.choice
   }
 
-  public func shouldCheck(signals: Signals, utteranceEnded: Bool) -> Bool {
-    if utteranceEnded { return true }
-    if let last = lastCheckAt, signals.now - last < config.minCheckInterval { return false }
-    return signals.pauseLength >= config.checkPause
+  /// Whether to ask Jev at `now`. Every utterance end is a check. In silence the schedule
+  /// fires once per offset, then the end check after the finished question. Taking a check
+  /// moves the schedule on even when the call fails.
+  public mutating func takeCheck(now: TimeInterval, speechEnd: TimeInterval, utteranceEnded: Bool)
+    -> Bool
+  {
+    if !utteranceEnded {
+      guard let due = nextCheck(speechEnd: speechEnd), due <= now else { return false }
+    }
+    lastCheckAt = now
+    return true
+  }
+
+  /// When the next silence check falls after speech ended at `speechEnd`, nil once the
+  /// schedule is spent until speech resumes.
+  public func nextCheck(speechEnd: TimeInterval) -> TimeInterval? {
+    let last = lastCheckAt ?? -.infinity
+    if finishedAskedAt != nil {
+      return max(speechEnd, last) + config.endSilence
+    }
+    return config.silenceChecks.map { speechEnd + $0 }.filter { $0 > last }.min()
   }
 
   public mutating func decide(_ answers: JevAnswers, signals: Signals) -> Decision {
@@ -90,7 +107,7 @@ public struct Governor: Sendable {
       if signals.now - asked >= config.endSilence, signals.pauseLength >= config.endSilence {
         return .endSession
       }
-      if signals.pauseLength < config.checkPause {
+      if signals.now - signals.pauseLength > asked {
         finishedAskedAt = nil
       }
       return .wait
