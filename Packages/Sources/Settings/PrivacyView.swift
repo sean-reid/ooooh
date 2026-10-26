@@ -117,10 +117,12 @@ public struct PrivacyView: View {
         }
       }
       VStack(alignment: .leading, spacing: 4) {
-        Link(destination: Self.policyURL) { Text(verbatim: "Read the full policy at ooooh.app") }
-          .frame(minHeight: 44)
-        Link(destination: Self.contactURL) { Text(verbatim: "Write to hello@ooooh.app") }
-          .frame(minHeight: 44)
+        Link(destination: Self.policyURL) {
+          Text(verbatim: "Read the full policy at ooooh.app").tapTarget(alignment: .leading)
+        }
+        Link(destination: Self.contactURL) {
+          Text(verbatim: "Write to hello@ooooh.app").tapTarget(alignment: .leading)
+        }
       }
       .font(Typography.body)
       .foregroundStyle(Palette.accent)

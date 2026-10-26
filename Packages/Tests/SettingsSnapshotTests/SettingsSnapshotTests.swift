@@ -19,6 +19,14 @@
         named: "402-\(scheme.name)")
     }
 
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsWithChallengeOff(scheme: ColorScheme) throws {
+      let image = render(try settingsView(challengeEnabled: false), scheme: scheme)
+      assertSnapshot(
+        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+        named: "402-challenge-off-\(scheme.name)")
+    }
+
     @Test func settingsAccessibility3() throws {
       let image = render(try settingsView(), scheme: .dark, type: .accessibility3)
       assertSnapshot(
@@ -43,12 +51,14 @@
         named: "402-accessibility3-dark")
     }
 
-    private func settingsView() throws -> SettingsView {
+    private func settingsView(challengeEnabled: Bool = true) throws -> SettingsView {
       let suite = "settings-snapshots"
       let defaults = try #require(UserDefaults(suiteName: suite))
       defaults.removePersistentDomain(forName: suite)
+      let settings = AppSettings(defaults: defaults)
+      settings.challengeEnabled = challengeEnabled
       return SettingsView(
-        settings: AppSettings(defaults: defaults),
+        settings: settings,
         store: try SessionStore(configuration: .inMemory), version: "0.1.0 (1)",
         sessionCount: 12, subscribeAction: {}, openHistory: {}, onDone: {})
     }
