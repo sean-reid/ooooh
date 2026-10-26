@@ -58,6 +58,8 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private var currentEnded = false
   private var activity = VoiceActivity()
   private var isRunning = false
+  private var startedAt: ContinuousClock.Instant?
+  private var heardResult = false
 
   private struct Report: Sendable {
     var generation: Int
@@ -83,19 +85,17 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     (results, reports) = AsyncStream.makeStream(of: Report.self)
   }
 
-  public static func supportsOnDevice(_ locale: Locale) -> Bool {
-    SFSpeechRecognizer(locale: locale)?.supportsOnDeviceRecognition ?? false
-  }
-
   public nonisolated func events() -> AsyncStream<TranscriptEvent> { stream }
 
   public func start() async throws {
     guard !isRunning else { return }
-    try beginRecognition()
     do {
+      try beginRecognition()
       try installTap()
       try audioEngine.start()
+      log("started")
     } catch {
+      log("start failed error=\(String(describing: error))", error: true)
       recognizer.cancelAll()
       consumer?.cancel()
       throw error
@@ -106,6 +106,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   func beginRecognition() throws {
     guard recognizer.isAvailable else { throw SpeechRecognizerError.unavailable }
     isRunning = true
+    startedAt = .now
     consumer = Task { [weak self] in
       guard let self else { return }
       for await report in results {
@@ -133,10 +134,13 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private func installTap() throws {
     let node = audioEngine.inputNode
     let format = node.outputFormat(forBus: 0)
+    log("input format=\(format.logDescription)")
     guard format.sampleRate > 0 else { throw SpeechRecognizerError.noMicrophoneInput }
     let sink = audioSink
     let feed = feed
+    let monitor = TapMonitor(engine: engine)
     node.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
+      monitor.observe(buffer)
       sink?.write(buffer)
       if feed.append(buffer) {
         Task { await self?.rotateAtLimit() }
@@ -164,8 +168,15 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     splitters[generation] = UtteranceSplitter(offset: start, pause: pause)
     heard = false
     currentEnded = false
+    log("request generation=\(generation) audioTime=\(Int(start))")
     let reports = reports
     recognizer.recognize(request) { result, error in
+      if let error {
+        let failure = error as NSError
+        Self.log(
+          "request failed generation=\(generation) domain=\(failure.domain) code=\(failure.code)",
+          error: true)
+      }
       reports.yield(Report(generation: generation, result: result, failed: error != nil))
     }
   }
@@ -174,6 +185,11 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     guard splitters[report.generation] != nil else { return }
     let now = feed.audioTime
     if let result = report.result {
+      if !heardResult, let startedAt {
+        heardResult = true
+        let latency = startedAt.duration(to: .now).wholeMilliseconds
+        log("first result latencyMs=\(latency) final=\(result.isFinal)")
+      }
       if report.generation == generation { heard = true }
       let segments = splitters[report.generation]?.segments(for: result, at: now) ?? []
       emit(segments)
@@ -243,6 +259,18 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     continuation.yield(.ended)
     continuation.finish()
     reports.finish()
+  }
+
+  private nonisolated func log(_ message: String, error: Bool = false) {
+    Self.log(message, error: error)
+  }
+
+  private static func log(_ message: String, error: Bool = false) {
+    if error {
+      transcriptionLog.error("\(message, privacy: .public) engine=speechRecognizer")
+    } else {
+      transcriptionLog.info("\(message, privacy: .public) engine=speechRecognizer")
+    }
   }
 }
 

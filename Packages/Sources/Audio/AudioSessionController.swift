@@ -1,9 +1,12 @@
 #if os(iOS)
   import AVFAudio
   import Foundation
+  import OSLog
 
   /// Owns the shared audio session. Voice chat mode keeps hardware echo cancellation on, so the app can speak while the mic stays open.
   public struct AudioSessionController: Sendable {
+    private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "audio")
+
     public init() {}
 
     public func activate() throws {
@@ -12,6 +15,21 @@
         .playAndRecord, mode: .voiceChat,
         options: [.allowBluetoothHFP, .allowBluetoothA2DP, .defaultToSpeaker])
       try session.setActive(true)
+      let route = session.currentRoute
+      Self.log.info(
+        """
+        session active category=\(session.category.rawValue, privacy: .public) \
+        mode=\(session.mode.rawValue, privacy: .public) \
+        input=\(Self.describe(route.inputs), privacy: .public) \
+        output=\(Self.describe(route.outputs), privacy: .public) \
+        sampleRate=\(Int(session.sampleRate), privacy: .public)
+        """)
+    }
+
+    /// "MicrophoneBuiltIn(iPhone Microphone)", one per port.
+    private static func describe(_ ports: [AVAudioSessionPortDescription]) -> String {
+      ports.isEmpty
+        ? "none" : ports.map { "\($0.portType.rawValue)(\($0.portName))" }.joined(separator: ",")
     }
 
     public func deactivate() throws {
