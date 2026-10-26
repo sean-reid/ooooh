@@ -8,6 +8,7 @@ import {
   type EntitlementRecord,
   type TransactionClaim,
 } from "../src/entitlement";
+import { claimTransferQuietMs } from "../src/routes/entitlement";
 import { endSession } from "../src/routes/session";
 import { assertionHeaders, makeRoot, type Device, type TestRoot } from "./appattest";
 import { jsonRequest, openSession } from "./request";
@@ -258,6 +259,109 @@ describe("binding a transaction to the device", () => {
     );
     expect(missing.status).toBe(401);
     expect(await missing.json()).toEqual({ error: "unauthorized", reason: "no-account-token" });
+  });
+});
+
+describe("moving a claim to the key that posts it", () => {
+  /** Backdates the device's last accepted assertion through its own object. */
+  const lastSeen = (from: Device, at: number) =>
+    env.DEVICE_COUNTER.getByName(from.keyId).advance(++counter, 0, at);
+
+  const token = () => appAccountTokenFor(device.keyId);
+
+  it("keeps refusing a new key while the claiming key was seen 6 days ago", async () => {
+    expect((await submitTransaction()).status).toBe(200);
+    await lastSeen(device, Date.now() - claimTransferQuietMs + day);
+    const second = await seedDevice();
+    const res = await submitTransaction({ appAccountToken: await token() }, { from: second });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "unauthorized", reason: "wrong-device" });
+    expect(await stored(second.keyId)).toBeNull();
+    expect(await stored()).not.toBeNull();
+    expect(await claim()).toMatchObject({ keyId: device.keyId });
+  });
+
+  it("moves the claim once the claiming key has been quiet for 8 days", async () => {
+    const now = Date.now();
+    expect((await submitTransaction()).status).toBe(200);
+    await lastSeen(device, now - claimTransferQuietMs - day);
+    const second = await seedDevice();
+    const res = await submitTransaction({ appAccountToken: await token() }, { from: second });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ entitlement: "paid" });
+    expect(await stored(second.keyId)).toMatchObject({ appAccountToken: await token() });
+    expect(await stored()).toBeNull();
+    expect(await claim()).toMatchObject({ keyId: second.keyId });
+    expect(await entitlement(second.keyId, env)).toBe("paid");
+    expect(await entitlement(device.keyId, env)).toBe("free");
+
+    const renewal = await submitTransaction(
+      {
+        appAccountToken: await token(),
+        transactionId: "2000000123456790",
+        signedDate: now + hour,
+        expiresDate: now + 60 * day,
+      },
+      { from: second },
+    );
+    expect(renewal.status).toBe(200);
+    expect((await stored(second.keyId))?.expiresDate).toBe(now + 60 * day);
+
+    const back = await submitTransaction();
+    expect(back.status).toBe(401);
+    expect(await back.json()).toEqual({ error: "unauthorized", reason: "wrong-device" });
+    expect(await claim()).toMatchObject({ keyId: second.keyId });
+  });
+
+  it("never moves the claim between two keys that both post within a day", async () => {
+    const now = Date.now();
+    const second = await seedDevice();
+    for (let round = 0; round < 3; round++) {
+      const mine = await submitTransaction({ signedDate: now + round * hour });
+      expect(mine.status).toBe(200);
+      const theirs = await submitTransaction(
+        { appAccountToken: await token(), signedDate: now + round * hour },
+        { from: second },
+      );
+      expect(theirs.status).toBe(401);
+      expect(await theirs.json()).toEqual({ error: "unauthorized", reason: "wrong-device" });
+    }
+    expect(await stored(second.keyId)).toBeNull();
+    expect(await claim()).toMatchObject({ keyId: device.keyId });
+  });
+
+  it("treats a claim held by a key with no stamp as quiet and moves it", async () => {
+    const other = await seedDevice();
+    const now = Date.now();
+    const record: EntitlementRecord = {
+      productId: "com.seanreid.ooooh.monthly",
+      originalTransactionId: "2000000123456000",
+      appAccountToken: await appAccountTokenFor(other.keyId),
+      signedDate: now - day,
+      expiresDate: now + 29 * day,
+      verifiedAt: now - day,
+    };
+    const held: TransactionClaim = { keyId: other.keyId, claimedAt: now - day };
+    await env.BUDGET.put(`entitlement:${other.keyId}`, JSON.stringify(record));
+    await env.BUDGET.put("transaction:2000000123456000", JSON.stringify(held));
+    expect(await env.DEVICE_COUNTER.getByName(other.keyId).lastSeen()).toBeUndefined();
+
+    const res = await submitTransaction({ appAccountToken: await appAccountTokenFor(other.keyId) });
+    expect(res.status).toBe(200);
+    expect(await stored()).toMatchObject({ originalTransactionId: "2000000123456000" });
+    expect(await stored(other.keyId)).toBeNull();
+    expect(await claim()).toMatchObject({ keyId: device.keyId });
+    expect(await entitlement(device.keyId, env)).toBe("paid");
+  });
+
+  it("still refuses a brand new transaction whose token is another key's", async () => {
+    const other = await seedDevice();
+    await lastSeen(other, Date.now() - claimTransferQuietMs - day);
+    await unauthorized(
+      await submitTransaction({ appAccountToken: await appAccountTokenFor(other.keyId) }),
+      "wrong-device",
+    );
+    expect(await claim()).toBeNull();
   });
 });
 
