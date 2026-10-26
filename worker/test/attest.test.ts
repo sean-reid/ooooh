@@ -76,6 +76,8 @@ beforeEach(async () => {
   await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
 });
 
+const counterOf = (keyId: string) => env.DEVICE_COUNTER.getByName(keyId).current();
+
 const reason = async (res: Response) => {
   expect(res.status).toBe(401);
   return ((await res.json()) as { reason: string }).reason;
@@ -106,7 +108,8 @@ describe("POST /v1/attest", () => {
   it("stores the public key of a good attestation under the key id", async () => {
     const device = await enrol();
     const stored = await env.BUDGET.get<DeviceRecord>(`device:${device.keyId}`, "json");
-    expect(stored?.counter).toBe(0);
+    expect(stored?.counter).toBeUndefined();
+    expect(await counterOf(device.keyId)).toBe(0);
     expect(stored?.publicKey).toMatchObject({
       kty: "EC",
       crv: "P-256",
@@ -132,11 +135,26 @@ describe("POST /v1/attest", () => {
     const challenge = await getChallenge();
     const again = await buildAttestation({ device, authority, challenge: fromBase64(challenge)! });
     expect((await postAttestation(device, challenge, again)).status).toBe(204);
-    const stored = await env.BUDGET.get<DeviceRecord>(`device:${device.keyId}`, "json");
-    expect(stored?.counter).toBe(5);
+    expect(await counterOf(device.keyId)).toBe(5);
     expect(await reason(await start(headers))).toBe("replay");
     const next = await assertionHeaders(device, { path: "/v1/session/start", body, counter: 6 });
     expect((await start(next)).status).toBe(200);
+  });
+
+  it("moves a counter still stored on the record into the device's object when the key attests again", async () => {
+    const device = await makeDevice();
+    const record: DeviceRecord = {
+      publicKey: device.jwk,
+      counter: 9,
+      createdAt: new Date().toISOString(),
+    };
+    await env.BUDGET.put(`device:${device.keyId}`, JSON.stringify(record));
+    const challenge = await getChallenge();
+    const again = await buildAttestation({ device, authority, challenge: fromBase64(challenge)! });
+    expect((await postAttestation(device, challenge, again)).status).toBe(204);
+    const stored = await env.BUDGET.get<DeviceRecord>(`device:${device.keyId}`, "json");
+    expect(stored?.counter).toBeUndefined();
+    expect(await counterOf(device.keyId)).toBe(9);
   });
 
   it("burns the challenge even when the attestation is good", async () => {

@@ -1,8 +1,9 @@
 import { fromBase64 } from "../bytes";
+import { deferred } from "../defer";
 import { readBytes } from "../http";
 import { AssertionError, verifyAssertion } from "./assertion";
 import { assertionTime, assertionTimeHeader, clientDataHash } from "./clientdata";
-import { deviceKey, unauthorized, type DeviceRecord } from "./record";
+import { counterFor, deviceKey, readDevice, unauthorized } from "./record";
 import { settingsFrom } from "./verify";
 
 export type DeviceHandler = (
@@ -43,7 +44,7 @@ export const attested =
       throw unauthorized("bad-assertion");
     }
 
-    const stored = await env.BUDGET.get<DeviceRecord>(deviceKey(keyId), "json");
+    const stored = await readDevice(env, keyId);
     if (!stored) throw unauthorized("unknown-device");
 
     const body = new Uint8Array(await readBytes(request));
@@ -52,11 +53,17 @@ export const attested =
       const time = assertionTime(request.headers.get(assertionTimeHeader));
       const path = new URL(request.url).pathname;
       const hash = await clientDataHash(request.method, path, time, body);
-      counter = await verifyAssertion(assertion, hash, stored, settingsFrom(env));
+      counter = await verifyAssertion(assertion, hash, stored.publicKey, settingsFrom(env));
     } catch (e) {
       if (e instanceof AssertionError) throw unauthorized(e.reason);
       throw e;
     }
-    await env.BUDGET.put(deviceKey(keyId), JSON.stringify({ ...stored, counter }));
+    const { counter: legacy, ...record } = stored;
+    if (!(await counterFor(env, keyId).advance(counter, legacy))) throw unauthorized("replay");
+    if (legacy !== undefined) {
+      void deferred(`migrate ${deviceKey(keyId)}`, () =>
+        env.BUDGET.put(deviceKey(keyId), JSON.stringify(record)),
+      );
+    }
     return handler(new Request(request, { body }), env, keyId);
   };

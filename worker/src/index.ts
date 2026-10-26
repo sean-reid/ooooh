@@ -2,6 +2,7 @@ import "./env";
 import { attested } from "./attest/device";
 import { guarded } from "./budget";
 import { governorConfig } from "./config";
+import { withContext } from "./defer";
 import { HttpError, json, methodNotAllowed, notFound } from "./http";
 import { compact } from "./routes/compact";
 import { decide } from "./routes/decide";
@@ -11,6 +12,8 @@ import { phrase } from "./routes/phrase";
 import { attest, challenge } from "./routes/attest";
 import { endSession, startSession } from "./routes/session";
 import { speak } from "./routes/speak";
+
+export { DeviceCounter } from "./attest/counter";
 
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
 
@@ -30,14 +33,14 @@ const routes: Record<string, Partial<Record<string, Handler>>> = {
 };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     try {
       const route = routes[url.pathname];
       if (!route) throw notFound();
       const handler = route[request.method];
       if (!handler) throw methodNotAllowed(Object.keys(route).join(", "));
-      return await handler(request, env);
+      return await withContext(ctx, () => handler(request, env));
     } catch (e) {
       if (e instanceof HttpError) return e.response();
       console.error(e);

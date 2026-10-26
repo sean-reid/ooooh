@@ -1,4 +1,5 @@
 import type { DeviceHandler } from "./attest/device";
+import { deferred } from "./defer";
 import { envNumber, HttpError } from "./http";
 import { checkSession, readCount, type Window } from "./session";
 
@@ -31,17 +32,17 @@ export async function checkBudget(env: Env, provider: Provider, now = new Date()
   }
 }
 
-/** Adds what a response cost. KV is eventually consistent, so the cap is approximate by design. */
-export async function charge(
-  env: Env,
-  provider: Provider,
-  amount: number,
-  now = new Date(),
-): Promise<void> {
-  if (!(amount > 0)) return;
+/**
+ * Adds what a response cost without holding the response on the write. KV is eventually
+ * consistent and takes one write a second per key, so the cap is approximate by design.
+ */
+export function charge(env: Env, provider: Provider, amount: number, now = new Date()) {
+  if (!(amount > 0)) return Promise.resolve();
   const key = `budget:${provider}:${day(now)}`;
-  const used = await readCount(env.BUDGET, key);
-  await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
+  return deferred(`charge ${key}`, async () => {
+    const used = await readCount(env.BUDGET, key);
+    await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
+  });
 }
 
 /** Each family's list price over Opus's, so the Anthropic cap counts Opus-equivalent tokens. */
@@ -62,7 +63,11 @@ export const chargeModel = (
   now = new Date(),
 ) => charge(env, "anthropic", modelWeight(model) * (usage.input_tokens + usage.output_tokens), now);
 
-/** One device may make this many provider-backed requests a minute. */
+/**
+ * One device may make this many provider-backed requests a minute. The count is a KV read then
+ * a put, so it is approximate under concurrency, and a put KV refuses is logged and the request
+ * goes on.
+ */
 export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {
   const limit = envNumber(env.DEVICE_MINUTE_REQUESTS, 60);
   const minute = Math.floor(now.getTime() / 60_000);
@@ -76,7 +81,9 @@ export async function checkDeviceRate(device: string, env: Env, now = new Date()
       { "retry-after": String(retryAfter) },
     );
   }
-  await env.BUDGET.put(key, String(used + 1), { expirationTtl: 120 });
+  await deferred(`rate ${key}`, () =>
+    env.BUDGET.put(key, String(used + 1), { expirationTtl: 120 }),
+  );
 }
 
 /** Wraps a route so the session, device, and budget checks run before any upstream call. */
@@ -88,7 +95,6 @@ export const guarded =
   ): DeviceHandler =>
   async (request, env, device) => {
     await checkSession(device, env, window);
-    await checkDeviceRate(device, env);
-    await checkBudget(env, provider);
+    await Promise.all([checkDeviceRate(device, env), checkBudget(env, provider)]);
     return handler(request, env);
   };

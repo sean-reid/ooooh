@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import worker from "../../src/index";
-import { memoryKV } from "../kv";
+import { memoryKV, noCounter } from "../kv";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +17,7 @@ const env: Env = {
   ...vars,
   REQUIRE_ATTESTATION: "false",
   BUDGET: memoryKV(),
+  DEVICE_COUNTER: noCounter,
   TYPESAFE_API_KEY: secret("TYPESAFE_API_KEY"),
   ANTHROPIC_API_KEY: secret("ANTHROPIC_API_KEY"),
   ANTHROPIC_AUTH_TOKEN: secret("ANTHROPIC_AUTH_TOKEN"),

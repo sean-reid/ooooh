@@ -1,7 +1,6 @@
 import { equalBytes, sha256, type Bytes } from "../bytes";
 import { ecdsaDerToRaw } from "../x509";
 import { decodeCbor, field, isBytes } from "./cbor";
-import type { DeviceRecord } from "./record";
 import type { AttestationSettings } from "./verify";
 
 export type AssertionFailure = "bad-assertion" | "replay" | "stale";
@@ -13,13 +12,14 @@ export class AssertionError extends Error {
 }
 
 /**
- * Checks one assertion over `clientDataHash` and returns the counter to store.
+ * Checks one assertion over `clientDataHash` and returns the counter it carries; whether that
+ * counter moves forward is the device's `DeviceCounter` to decide.
  * The signature covers `SHA256(authenticatorData || clientDataHash)`.
  */
 export async function verifyAssertion(
   assertion: Bytes,
   clientDataHash: Bytes,
-  device: DeviceRecord,
+  publicKey: JsonWebKey,
   settings: Pick<AttestationSettings, "appId">,
 ): Promise<number> {
   let signature: Bytes;
@@ -35,7 +35,7 @@ export async function verifyAssertion(
 
   const key = await crypto.subtle.importKey(
     "jwk",
-    device.publicKey,
+    publicKey,
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["verify"],
@@ -54,11 +54,5 @@ export async function verifyAssertion(
     throw new AssertionError("bad-assertion");
   }
 
-  const counter = new DataView(
-    authenticatorData.buffer,
-    authenticatorData.byteOffset + 33,
-    4,
-  ).getUint32(0);
-  if (counter <= device.counter) throw new AssertionError("replay");
-  return counter;
+  return new DataView(authenticatorData.buffer, authenticatorData.byteOffset + 33, 4).getUint32(0);
 }

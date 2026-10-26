@@ -1,6 +1,9 @@
+import type { DeviceCounter } from "./attest/counter";
+
 declare global {
   interface Env {
     BUDGET: KVNamespace;
+    DEVICE_COUNTER: DurableObjectNamespace<DeviceCounter>;
     CF_VERSION_METADATA?: WorkerVersionMetadata;
     TYPESAFE_API_KEY?: string;
     ANTHROPIC_API_KEY?: string;

@@ -33,6 +33,7 @@ export default defineConfig({
       },
       {
         test: { name: "node", include: ["test/node/*.test.ts"], environment: "node" },
+        resolve: { alias: { "cloudflare:workers": "./test/node/cloudflare-workers.ts" } },
       },
     ],
   },
