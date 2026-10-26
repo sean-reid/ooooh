@@ -4,6 +4,10 @@ import Transcription
 
 /// Turns every microphone buffer into one voice level from 0 to 1.
 final class AudioLevelMeter: AudioBufferSink, Sendable {
+  /// A phone microphone hears room tone near -65 dBFS and speech at arm's length near -45.
+  nonisolated static let floorDecibels = -65.0
+  nonisolated static let rangeDecibels = 45.0
+
   private let stream: AsyncStream<Double>
   private let continuation: AsyncStream<Double>.Continuation
 
@@ -17,7 +21,11 @@ final class AudioLevelMeter: AudioBufferSink, Sendable {
     let frames = Int(buffer.frameLength)
     guard frames > 0, let samples = buffer.floatChannelData?[0] else { return }
     let rms = vDSP.rootMeanSquare(UnsafeBufferPointer(start: samples, count: frames))
+    continuation.yield(Self.level(rms: Double(rms)))
+  }
+
+  nonisolated static func level(rms: Double) -> Double {
     let decibels = 20 * log10(max(rms, 1e-6))
-    continuation.yield(Double(min(max((decibels + 50) / 44, 0), 1)))
+    return min(max((decibels - floorDecibels) / rangeDecibels, 0), 1)
   }
 }
