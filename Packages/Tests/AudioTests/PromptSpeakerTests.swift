@@ -43,7 +43,7 @@
       let events = await collected.value
 
       guard case .started(let spoken, let startedAt) = try #require(events.first),
-        case .finished(let finishedAt) = try #require(events.last)
+        case .finished(let finishedAt, _) = try #require(events.last)
       else {
         Issue.record("expected started then finished, got \(events)")
         return
@@ -75,7 +75,7 @@
       let returned = Date().timeIntervalSince(stoppedAt)
       var finishedAt = Date.distantFuture
       while let event = await events.next() {
-        if case .finished(let at) = event {
+        if case .finished(let at, _) = event {
           finishedAt = at
           break
         }
@@ -84,6 +84,27 @@
       #expect(returned < 0.1)
       #expect(abs(finishedAt.timeIntervalSince(stoppedAt)) < 0.1)
       #expect(await speaker.text == nil)
+    }
+
+    @Test func renderedFollowsThePlayerClock() async throws {
+      let speaker = PromptSpeaker()
+      #expect(await speaker.rendered == nil)
+      var events = speaker.events.makeAsyncIterator()
+      let audio = try network { _ in }
+      let speaking = Task { try await speaker.speak(text, audio: audio) }
+      while let event = await events.next() {
+        if case .started = event { break }
+      }
+      try await Task.sleep(for: .milliseconds(100))
+      let early = try #require(await speaker.rendered)
+      try await Task.sleep(for: .milliseconds(100))
+      let later = try #require(await speaker.rendered)
+      await speaker.stop()
+      try await speaking.value
+      print("player clock read \(early) then \(later) frames")
+      #expect(early >= 0)
+      #expect(later > early)
+      #expect(await speaker.rendered == nil)
     }
   }
 #endif

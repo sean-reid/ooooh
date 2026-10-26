@@ -6,12 +6,18 @@
   public actor PromptSpeaker {
     public enum Event: Equatable, Sendable {
       case started(text: String, at: Date)
-      case finished(at: Date)
+      /// `rendered` is the player's own frame count at the moment playback ended or was cut.
+      case finished(at: Date, rendered: AVAudioFramePosition)
     }
 
     public nonisolated let events: AsyncStream<Event>
     /// The line being spoken, for the caption. Nil between prompts.
     public private(set) var text: String?
+    /// Frames of the current prompt the player has rendered, on the engine's clock. Nil while nothing plays.
+    public var rendered: AVAudioFramePosition? {
+      guard let now = player.lastRenderTime else { return nil }
+      return player.playerTime(forNodeTime: now)?.sampleTime
+    }
 
     private let emit: AsyncStream<Event>.Continuation
     private let engine = AVAudioEngine()
@@ -89,10 +95,11 @@
 
     private func finish() {
       generation += 1
+      let rendered = rendered ?? 0
       player.stop()
       engine.stop()
       text = nil
-      emit.yield(.finished(at: Date()))
+      emit.yield(.finished(at: Date(), rendered: rendered))
       done?.resume()
       done = nil
     }
