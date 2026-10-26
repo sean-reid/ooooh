@@ -3,7 +3,7 @@ import XCTest
 /// The moments the store screenshots need, with the Demo row hidden, each held three seconds so
 /// a screen recording of the run has a shot to cut. The session test runs the demo against a
 /// Worker, tools/store/worker.mjs or a real one, and skips when nothing answers at its URL.
-final class StoreCaptureTests: XCTestCase {
+final class StoreCaptureTests: UITestCase {
   private let common =
     ["-onboardingComplete", "1", "-reset-store", "1", "-hide-debug", "1"]
     + ["-ui-color-scheme", "dark"]
@@ -15,10 +15,10 @@ final class StoreCaptureTests: XCTestCase {
     app.launchArguments += common + ["-seed-history", "1"]
     app.launch()
     let card = app.otherElements["home.carryover"]
-    XCTAssertTrue(card.waitForExistence(timeout: 15))
+    XCTAssertTrue(card.appears())
     XCTAssertFalse(app.buttons["home.demo"].exists)
     try? await Task.sleep(for: hold)
-    attach(app.screenshot(), named: "store-carryover")
+    attach(app, named: "store-carryover")
   }
 
   @MainActor
@@ -26,12 +26,12 @@ final class StoreCaptureTests: XCTestCase {
     let app = XCUIApplication()
     app.launchArguments += common + ["-onboarding", "1"]
     app.launch()
-    XCTAssertTrue(app.staticTexts["Think out loud."].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.staticTexts["Think out loud."].appears())
     try? await Task.sleep(for: hold)
     app.swipeLeft()
-    XCTAssertTrue(app.staticTexts["It waits."].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.staticTexts["It waits."].appears())
     try? await Task.sleep(for: hold)
-    attach(app.screenshot(), named: "store-quiet")
+    attach(app, named: "store-quiet")
   }
 
   @MainActor
@@ -42,10 +42,10 @@ final class StoreCaptureTests: XCTestCase {
     let settings = app.buttons["home.settings"]
     waitUntilHittable(settings)
     settings.tap()
-    XCTAssertTrue(app.buttons["settings.done"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.buttons["settings.done"].appears())
     XCTAssertTrue(app.buttons["settings.deleteAll"].exists)
     try? await Task.sleep(for: hold)
-    attach(app.screenshot(), named: "store-settings")
+    attach(app, named: "store-settings")
   }
 
   /// The orb listening before anything is asked, speaking with the question beneath it, listening
@@ -58,35 +58,31 @@ final class StoreCaptureTests: XCTestCase {
     app.launch()
 
     let orb = app.descendants(matching: .any)
-    let elapsed = app.staticTexts["session.elapsed"]
-    let tenSecondsIn = expectation(
-      for: NSPredicate(format: "label MATCHES %@", "Elapsed 0:1[0-9]"), evaluatedWith: elapsed)
-    await fulfillment(of: [tenSecondsIn], timeout: 30)
-    XCTAssertTrue(orb["Your listener is listening"].exists)
+    let listening = orb["Your listener is listening"]
     let prompt = app.staticTexts["session.prompt"]
-    XCTAssertTrue(!prompt.exists || prompt.label.isEmpty)
-    attach(app.screenshot(), named: "store-listening")
+    wait(
+      until: { listening.exists && (!prompt.exists || prompt.label.isEmpty) },
+      "the session never settled into listening")
+    try? await Task.sleep(for: hold)
+    attach(app, named: "store-listening")
 
     let speaking = orb["Your listener is speaking"]
+    // A real Jev may ask anywhere in the 410 s fixture.
     XCTAssertTrue(speaking.waitForExistence(timeout: 420))
-    attach(app.screenshot(), named: "store-speaking")
+    attach(app, named: "store-speaking")
 
-    let listening = orb["Your listener is listening"]
-    let settled = expectation(
-      for: NSPredicate { _, _ in listening.exists && prompt.exists && !prompt.label.isEmpty },
-      evaluatedWith: nil)
-    await fulfillment(of: [settled], timeout: 60)
-    try? await Task.sleep(for: .seconds(2))
-    attach(app.screenshot(), named: "store-prompt")
+    wait(
+      until: { listening.exists && prompt.exists && !prompt.label.isEmpty },
+      "the question never stayed beside the listening orb")
+    try? await Task.sleep(for: hold)
+    attach(app, named: "store-prompt")
 
     // The seeded notes quote utterance 9, which ends at 2:16, so End waits for 2:20.
-    let pastTheQuote = expectation(
-      for: NSPredicate(format: "label BEGINSWITH %@", "Elapsed 2:2"), evaluatedWith: elapsed)
-    await fulfillment(of: [pastTheQuote], timeout: 150)
+    let elapsed = app.staticTexts["session.elapsed"]
+    wait(until: { elapsed.label.hasPrefix("Elapsed 2:2") }, "the session never reached 2:20")
     app.buttons["session.end"].tap()
-    let notes = app.otherElements["notes.view"]
-    XCTAssertTrue(notes.waitForExistence(timeout: 90))
+    XCTAssertTrue(app.otherElements["notes.view"].appears())
     try? await Task.sleep(for: hold)
-    attach(app.screenshot(), named: "store-notes")
+    attach(app, named: "store-notes")
   }
 }

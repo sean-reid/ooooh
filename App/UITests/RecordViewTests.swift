@@ -1,6 +1,6 @@
 import XCTest
 
-final class RecordViewTests: XCTestCase {
+final class RecordViewTests: UITestCase {
   @MainActor
   func testRecordViewDark() {
     captureRecordView(named: "record-dark", arguments: [])
@@ -25,17 +25,13 @@ final class RecordViewTests: XCTestCase {
     app.launch()
 
     let open = app.buttons["Record a fixture"]
-    XCTAssertTrue(open.waitForExistence(timeout: 5))
+    waitUntilHittable(open)
     open.tap()
 
-    XCTAssertTrue(app.buttons["record.start"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["record.start"].appears())
     XCTAssertEqual(app.staticTexts["record.elapsed"].label, "0:00")
     XCTAssertEqual(app.staticTexts["record.finals"].label, "0 final segments")
     XCTAssertTrue(app.buttons["Close"].exists)
-
-    let attachment = XCTAttachment(screenshot: app.screenshot())
-    attachment.name = name
-    attachment.lifetime = .keepAlways
-    add(attachment)
+    attach(app, named: name)
   }
 }
