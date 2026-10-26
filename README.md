@@ -23,7 +23,7 @@ cd .. && xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPho
 npm --prefix worker run format && swift format format -i -r Packages App   # what CI's lint jobs check
 ```
 
-Debug builds talk to `http://localhost:8787`; release builds take `xcodebuild OOOOH_WORKER_URL=https://<your worker> ...`. The simulator cannot transcribe, so Debug builds add a Demo button that replays a recorded fixture through the whole pipeline. Launch arguments for the simulator and the UI tests:
+Debug builds talk to `http://localhost:8787`; release builds take `xcodebuild OOOOH_WORKER_URL=https://<your worker> ...`. The simulator cannot transcribe, so Debug builds add a Demo button that replays a synthetic fixture through the whole pipeline. Launch arguments for the simulator and the UI tests:
 
 | Argument                            | Effect                                       |
 | ----------------------------------- | -------------------------------------------- |
