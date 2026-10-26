@@ -71,13 +71,4 @@ final class NotesFlowTests: XCTestCase {
     XCTAssertGreaterThan(card.buttons.count, 0)
     attach(app.screenshot(), named: "\(name)-carryover")
   }
-
-  @MainActor
-  private func requireWorker() async throws {
-    let url = try XCTUnwrap(URL(string: Worker.url)).appending(path: "v1/config")
-    var request = URLRequest(url: url)
-    request.timeoutInterval = 3
-    let reachable = (try? await URLSession.shared.data(for: request)) != nil
-    try XCTSkipUnless(reachable, "no Worker at \(Worker.url)")
-  }
 }
