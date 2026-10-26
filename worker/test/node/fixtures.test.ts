@@ -22,7 +22,6 @@ import {
   sonnetStream,
   type Reply,
 } from "../upstream";
-import { vars } from "./env";
 
 // Regenerate with: cd worker && WRITE_FIXTURES=1 npx vitest run --project node
 const fixturesDir = resolve(
@@ -30,15 +29,14 @@ const fixturesDir = resolve(
   "../../../Packages/Tests/ProxyTests/Fixtures",
 );
 
-export const testEnv: Env = {
-  ...vars,
+export const testEnv = {
   BUDGET: memoryKV(),
   DEVICE_COUNTER: noCounter,
   TYPESAFE_API_KEY: "test-jev",
   ANTHROPIC_API_KEY: "test-anthropic",
   ELEVENLABS_API_KEY: "test-elevenlabs",
   REQUIRE_ATTESTATION: "false",
-};
+} as Env;
 
 const call = async (
   path: string,

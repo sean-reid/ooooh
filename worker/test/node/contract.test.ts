@@ -9,7 +9,7 @@ import type { StatePatch } from "../../src/routes/compact";
 import { sectionNames } from "../../src/routes/notes";
 import { compactState, existingIds, listNames } from "../../src/schema";
 import { compactBody, decideBody, opusNotes, phraseBody, speakBody, state } from "../upstream";
-import { secret, vars } from "./env";
+import { secret } from "./env";
 
 // Real provider calls. Each runs only when its key is set, in the environment or in .dev.vars.
 // The Worker does not enforce any assertion here, so a reply shaped like the fixtures in
@@ -19,8 +19,7 @@ const decisionFixture = resolve(
   "../../../fixtures/synthetic/estimate/decision.fixture.json",
 );
 
-const env: Env = {
-  ...vars,
+const env = {
   REQUIRE_ATTESTATION: "false",
   BUDGET: memoryKV(),
   DEVICE_COUNTER: noCounter,
@@ -28,7 +27,7 @@ const env: Env = {
   ANTHROPIC_API_KEY: secret("ANTHROPIC_API_KEY"),
   ANTHROPIC_AUTH_TOKEN: secret("ANTHROPIC_AUTH_TOKEN"),
   ELEVENLABS_API_KEY: secret("ELEVENLABS_API_KEY"),
-};
+} as Env;
 const anthropic = env.ANTHROPIC_AUTH_TOKEN ?? env.ANTHROPIC_API_KEY;
 
 const post = (path: string, body: unknown) =>

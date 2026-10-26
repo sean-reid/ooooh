@@ -1,5 +1,6 @@
 import { charge } from "../budget";
 import { HttpError, maxRetryWaitMs, readBody, requireSecret, retryAfterFrom, sleep } from "../http";
+import { settings } from "../settings";
 import { obj, str, ValidationError, type Validator } from "../validate";
 
 export const speech = {
@@ -87,7 +88,7 @@ export const speakWith =
   async (request: Request, env: Env): Promise<Response> => {
     const { text } = await readBody(request, body);
     const apiKey = requireSecret(env.ELEVENLABS_API_KEY, "ELEVENLABS_API_KEY");
-    const voice = requireSecret(env.ELEVENLABS_VOICE_ID, "ELEVENLABS_VOICE_ID");
+    const { voiceId: voice } = settings(env);
 
     let res = await synthesize(apiKey, voice, text, fetchMs);
     if (res.status === 429) {

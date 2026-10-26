@@ -70,13 +70,6 @@ export const requireSecret = (value: string | undefined, name: string) => {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** A positive, finite number from a var, else the fallback; a typo must not disable a cap. */
-export const envNumber = (value: string | undefined, fallback: number) => {
-  if (value === undefined || value === "") return fallback;
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
-
 /** Seconds from a Retry-After header, a count or an HTTP date, clamped to 1..60. */
 export const retryAfterFrom = (
   header: string | null | undefined,

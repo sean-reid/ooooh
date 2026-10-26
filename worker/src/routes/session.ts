@@ -1,8 +1,6 @@
 import { entitlement } from "../entitlement";
 import { json, readBody } from "../http";
 import {
-  freePromptMinutes,
-  freeSessionsPerMonth,
   minutesKey,
   openSession,
   readCount,
@@ -11,6 +9,7 @@ import {
   sessionTtlSeconds,
   type SessionRecord,
 } from "../session";
+import { settings } from "../settings";
 import { num, obj } from "../validate";
 
 const keepSeconds = 62 * 24 * 3600;
@@ -47,13 +46,13 @@ export async function startSession(
   }
   const key = sessionsKey(device, now);
   const used = await readCount(env.BUDGET, key);
-  const limit = freeSessionsPerMonth(env);
+  const { freeSessionsPerMonth: limit, freePromptMinutes: promptMinutes } = settings(env);
   if (used >= limit) return json({ allowed: false, reason: "free-exhausted" });
   const session: SessionRecord = {
     startedAt,
     free: true,
     remainingFree: limit - used - 1,
-    promptMinutes: freePromptMinutes(env),
+    promptMinutes,
   };
   await open(env, device, session);
   await env.BUDGET.put(key, String(used + 1), { expirationTtl: keepSeconds });
