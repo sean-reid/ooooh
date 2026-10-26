@@ -105,14 +105,27 @@ public struct ProxyClient: Sendable {
 
 public enum ProxyError: Error, Equatable, Sendable {
   case status(Int, body: String)
+  /// 402 `no-session`: the device has no open session, or its free prompt minutes are spent.
+  case noSession(reason: String)
   case notHTTP
   case stream(String)
   case attestation(String)
 
   static func check(_ response: URLResponse, data: Data) throws {
     guard let http = response as? HTTPURLResponse else { throw ProxyError.notHTTP }
-    guard (200..<300).contains(http.statusCode) else {
-      throw ProxyError.status(http.statusCode, body: String(decoding: data, as: UTF8.self))
+    guard (200..<300).contains(http.statusCode) else { throw failure(http.statusCode, data) }
+  }
+
+  static func failure(_ status: Int, _ body: Data) -> ProxyError {
+    struct Refusal: Decodable {
+      var error: String
+      var reason: String
     }
+    if status == 402, let refusal = try? JSONDecoder().decode(Refusal.self, from: body),
+      refusal.error == "no-session"
+    {
+      return .noSession(reason: refusal.reason)
+    }
+    return .status(status, body: String(decoding: body, as: UTF8.self))
   }
 }

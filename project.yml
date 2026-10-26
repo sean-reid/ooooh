@@ -48,10 +48,14 @@ targets:
         product: Session
       - package: Packages
         product: Persistence
+      - package: Packages
+        product: Settings
     info:
       path: App/Resources/Info.plist
       properties:
         CFBundleDisplayName: ooooh
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIBackgroundModes: [audio]

@@ -103,6 +103,7 @@ public struct SettingsView: View {
           .font(.body.weight(.semibold))
           .foregroundStyle(Palette.accent)
           .frame(minWidth: 44, minHeight: 44)
+          .accessibilityIdentifier("settings.done")
       }
     }
     .padding(.horizontal, 24)
@@ -114,6 +115,7 @@ public struct SettingsView: View {
       listener
       SettingsSection(title: "Subscription") {
         ActionRow(title: "Subscribe", action: subscribeAction)
+          .accessibilityIdentifier("settings.subscribe")
       }
       data
       SettingsSection(title: "Privacy") {
@@ -168,8 +170,10 @@ public struct SettingsView: View {
       }
       .buttonStyle(.plain)
       .accessibilityLabel("Export everything as a zip of Markdown")
+      .accessibilityIdentifier("settings.export")
       RowDivider()
       ActionRow(title: "Delete one session", detail: "In History", action: openHistory)
+        .accessibilityIdentifier("settings.history")
       RowDivider()
       ActionRow(
         title: "Delete everything", detail: countLine, symbol: "trash", color: Palette.accent
@@ -177,6 +181,7 @@ public struct SettingsView: View {
         confirmingDelete = true
       }
       .disabled(sessionCount == 0)
+      .accessibilityIdentifier("settings.deleteAll")
     }
   }
 
@@ -189,6 +194,7 @@ public struct SettingsView: View {
           .foregroundStyle(Palette.inkDim)
       }
       .accessibilityElement(children: .combine)
+      .accessibilityIdentifier("settings.version")
       RowDivider()
       Link(destination: Self.siteURL) { linkLabel("ooooh.app") }
       RowDivider()

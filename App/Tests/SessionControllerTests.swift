@@ -77,8 +77,9 @@ import Transcription
 
   final class Counter { var count = 0 }
 
-  /// Answers the session routes as the Worker does, with the start body picked by host so the
-  /// tests run side by side. Reads each body back, since URLSession hands it over as a stream.
+  /// Answers the Worker routes by host and path, so the tests run side by side; an unanswered
+  /// path is a 404 and the end a 204. Reads each body back, since URLSession hands it over as
+  /// a stream.
   final class GateProtocol: URLProtocol {
     struct Request: Sendable {
       var host: String
@@ -86,8 +87,12 @@ import Transcription
       var body: Data
     }
 
-    static let starts = Mutex<[String: (status: Int, body: Data)]>([:])
+    static let answers = Mutex<[String: [String: (status: Int, body: Data)]]>([:])
     static let seen = Mutex<[Request]>([])
+
+    static func answer(_ host: String, _ path: String, _ status: Int, _ body: Data) {
+      answers.withLock { $0[host, default: [:]][path] = (status, body) }
+    }
 
     static func session() -> URLSession {
       let configuration = URLSessionConfiguration.ephemeral
@@ -107,11 +112,8 @@ import Transcription
       let path = request.url?.path() ?? ""
       Self.seen.withLock { $0.append(Request(host: host, path: path, body: readBody())) }
       let (status, body): (Int, Data) =
-        switch path {
-        case "/v1/session/start": Self.starts.withLock { $0[host] } ?? (404, Data())
-        case "/v1/session/end": (204, Data())
-        default: (404, Data())
-        }
+        Self.answers.withLock { $0[host]?[path] }
+        ?? (path == "/v1/session/end" ? (204, Data()) : (404, Data()))
       let response = HTTPURLResponse(
         url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
       client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -137,14 +139,20 @@ import Transcription
   }
 
   /// A fixture session gated through a real `ProxyClient` against `GateProtocol`, answering the
-  /// start with `body` for this `host`.
+  /// start with `body` for this `host`. With no `deps`, the Worker's own providers run against
+  /// the same host.
   func gated(
-    _ host: String, answering body: Data, status: Int = 200, deps: SessionLoop.Dependencies
+    _ host: String, answering body: Data, status: Int = 200, deps: SessionLoop.Dependencies?
   ) -> SessionController.Environment {
-    GateProtocol.starts.withLock { $0[host] = (status, body) }
+    GateProtocol.answer(host, "/v1/session/start", status, body)
     var environment = environment(deps, speaker: Recorder(), haptics: Counter())
-    environment.gate = .worker(
-      ProxyClient(baseURL: URL(string: "http://\(host)")!, session: GateProtocol.session()))
+    let client = ProxyClient(
+      baseURL: URL(string: "http://\(host)")!, session: GateProtocol.session())
+    environment.gate = .worker(client)
+    if deps == nil {
+      environment.workerURL = client.baseURL
+      environment.session = client.session
+    }
     environment.notesGenerator = CannedNotes()
     return environment
   }
@@ -493,10 +501,54 @@ import Transcription
     #expect(controller.result?.prompts.isEmpty == true)
     #expect(controller.lastPrompt == nil)
     #expect(controller.result?.transcript.count == 17)
-    await wait { controller.notes == .written(CannedNotes.notes) }
+    #expect(controller.notes == .unavailable)
 
     try? await Task.sleep(for: .milliseconds(200))
     #expect(GateProtocol.requests(to: "refused").map(\.path) == ["/v1/session/start"])
+  }
+
+  @Test func aRefusedSessionSendsTheWorkerNothingElse() async throws {
+    var environment = gated(
+      "refused-quiet", answering: try workerFixture("session-start-refused"), deps: nil)
+    environment.notesGenerator = nil
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == .refused(reason: "free-exhausted"))
+    #expect(controller.startRefused)
+    #expect(controller.notes == .unavailable)
+    #expect(controller.result?.prompts.isEmpty == true)
+    #expect(controller.result?.state.currentThread.contains("done for now") == true)
+
+    try? await Task.sleep(for: .milliseconds(200))
+    #expect(GateProtocol.requests(to: "refused-quiet").map(\.path) == ["/v1/session/start"])
+  }
+
+  @Test func aNoSessionAnswerTurnsThePromptsOffAndStillPostsTheEnd() async throws {
+    let host = "cutoff"
+    GateProtocol.answer(
+      host, "/v1/decide", 402, Data(#"{"error":"no-session","reason":"minutes-used"}"#.utf8))
+    let controller = SessionController(
+      environment: gated(host, answering: try workerFixture("session-start-free"), deps: nil))
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == .free(remaining: 2, promptMinutes: 20))
+    await wait { controller.cutoff != nil }
+    #expect(controller.cutoff == "minutes-used")
+    #expect(controller.promptsRefused)
+    #expect(!controller.startRefused)
+    #expect(SessionView.status(for: controller)?.id == "session.quota")
+    #expect(controller.result?.prompts.isEmpty == true)
+    #expect(controller.result?.state.currentThread.contains("done for now") == true)
+
+    await wait { GateProtocol.requests(to: host).contains { $0.path == "/v1/session/end" } }
+    let paths = GateProtocol.requests(to: host).map(\.path)
+    #expect(paths.first == "/v1/session/start")
+    #expect(paths.filter { $0 == "/v1/decide" }.count == 1)
+    #expect(paths.contains("/v1/compact"))
+    #expect(paths.last == "/v1/session/end")
   }
 
   @Test func aPaidSessionPromptsWithoutACap() async throws {

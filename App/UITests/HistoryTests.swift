@@ -85,13 +85,6 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(card.exists, !searchesAndDeletes)
   }
 
-  @MainActor
-  private func waitUntilHittable(_ element: XCUIElement) {
-    let hittable = expectation(
-      for: NSPredicate(format: "isHittable == true"), evaluatedWith: element)
-    XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: wait), .completed)
-  }
-
   /// Taps until the field has keyboard focus, since a tap during a sheet transition is lost.
   @MainActor
   private func focus(_ field: XCUIElement) {

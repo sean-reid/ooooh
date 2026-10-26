@@ -36,6 +36,8 @@ final class SessionController {
   struct Environment {
     var workerURL: URL?
     var session: URLSession = .shared
+    /// Signs every Worker request when set.
+    var attestor: (any Attestor)?
     var audio: AudioAccess = .device
     /// Set to replace the Worker-fed voice, as the tests do.
     var speaker: (any PromptSpeaking)?
@@ -70,6 +72,9 @@ final class SessionController {
   private(set) var compactions = 0
   /// The Worker's answer for this session. Nil until it answers, and when the start failed.
   private(set) var admission: SessionStart?
+  /// The reason of the first 402 the Worker answered in this session, nil while every call
+  /// went through.
+  private(set) var cutoff: String?
 
   private var measuredLevel: Double?
   private var isHearingSpeech = false
@@ -100,8 +105,11 @@ final class SessionController {
     return .listening
   }
 
-  /// True once the Worker has refused the session, so it listens without prompts.
-  var promptsRefused: Bool {
+  /// True once the Worker has refused the session or a call in it, so it listens without prompts.
+  var promptsRefused: Bool { startRefused || cutoff != nil }
+
+  /// True once the Worker refused the start, so nothing else is sent to it.
+  var startRefused: Bool {
     if case .refused = admission { return true }
     return false
   }
@@ -144,12 +152,28 @@ final class SessionController {
       let guardian = OfflineGuard(
         offline: environment.workerURL == nil && environment.dependencies == nil)
       let client = environment.workerURL.map {
-        ProxyClient(baseURL: $0, session: environment.session, offline: guardian)
+        ProxyClient(
+          baseURL: $0, session: environment.session, attestor: environment.attestor,
+          offline: guardian)
       }
+      if case .microphone = source {
+        gate = environment.gate ?? client.map(SessionGate.worker)
+      } else {
+        gate = environment.gate
+      }
+      let admission = gate.map { gate in
+        Admission(start: Task { await Self.admit(gate) }) { [weak self] reason in
+          Task { @MainActor in self?.cutoff = reason }
+        }
+      }
+      if let admission { admitting = Task { self.admission = await admission.start.value } }
       if let speaker = environment.speaker {
         voice = speaker
       } else if let client {
-        voice = VoiceSpeaker(audio: client.speak)
+        voice = VoiceSpeaker { text in
+          let audio = client.speak(text: text)
+          return admission?.admit(audio) ?? audio
+        }
       }
       generator = environment.notesGenerator ?? client.map { OpusNotesGenerator(client: $0) }
       var dependencies =
@@ -157,17 +181,7 @@ final class SessionController {
         ?? SessionLoop.Dependencies(
           decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
           phraser: TemplatePhraser())
-      if case .microphone = source {
-        gate = environment.gate ?? client.map(SessionGate.worker)
-      } else {
-        gate = environment.gate
-      }
-      if let gate {
-        let admission = Task { await Self.admit(gate) }
-        dependencies.decisions = AdmittedDecisions(
-          base: dependencies.decisions, admission: admission)
-        admitting = Task { self.admission = await admission.value }
-      }
+      if let admission { dependencies = admission.wrap(dependencies) }
       if let thread {
         dependencies = CarriedThread(thread).wrap(dependencies)
       }
@@ -219,7 +233,7 @@ final class SessionController {
 
   /// Posts the wall-clock minutes once the Worker has counted the session.
   private func postEnd() {
-    guard let gate, admission != nil, !promptsRefused else { return }
+    guard let gate, admission != nil, !startRefused else { return }
     let minutes = (elapsed(at: .now) / 60 * 100).rounded() / 100
     Task {
       do {
@@ -334,14 +348,15 @@ final class SessionController {
     writeNotes(for: result)
   }
 
-  /// Saves the session first, so a failed generation still leaves it in history.
+  /// Saves the session first, so a failed generation still leaves it in history. A refused
+  /// session is saved without notes and Opus is not asked.
   private func writeNotes(for result: SessionResult) {
     guard result.transcript.contains(where: \.isFinal) else {
       notes = .empty
       return
     }
     let store = environment.store
-    let generator = generator
+    let generator = startRefused ? nil : generator
     let startedAt = startedAt ?? .now
     notes = generator == nil ? .unavailable : .writing
     writing = Task {

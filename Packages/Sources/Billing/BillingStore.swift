@@ -68,10 +68,10 @@ public final class BillingStore {
 
   @discardableResult
   public func purchase(_ id: ProductID) async throws -> Entitlement {
+    let token = AppAccountToken.forInstall(keyId: try await attestor?.keyId())
     guard let product = products[id] else { throw BillingError.productUnavailable(id) }
     isPurchasing = true
     defer { isPurchasing = false }
-    let token = AppAccountToken.forInstall(keyId: try await attestor?.keyId())
     switch try await product.purchase(options: [.appAccountToken(token)]) {
     case .success(let verification):
       let transaction = try verification.payloadValue
