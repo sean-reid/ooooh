@@ -111,7 +111,10 @@ public enum ProxyError: Error, Equatable, Sendable {
   case unauthorized(reason: String)
   case notHTTP
   case stream(String)
+  /// App Attest or the keychain failed this request; the next request enrols or signs again.
   case attestation(String)
+  /// App Attest refused this install in a way a retry does not change; held until relaunch.
+  case cannotAttest(String)
 
   static func check(_ response: URLResponse, data: Data) throws {
     guard let http = response as? HTTPURLResponse else { throw ProxyError.notHTTP }
