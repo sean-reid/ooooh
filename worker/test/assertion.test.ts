@@ -234,9 +234,9 @@ describe("assertion middleware", () => {
     const res = await post("/v1/session/start", body, await sign("/v1/session/start", body, 1));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ allowed: true, free: true, remainingFree: 2 });
-    expect(
-      await env.BUDGET.get(`sessions:${device.keyId}:${new Date().toISOString().slice(0, 7)}`),
-    ).toBe("1");
+    expect(await env.BUDGET.get(`session:${device.keyId}`, "json")).toMatchObject({
+      pending: true,
+    });
   });
 
   it("leaves health and config open", async () => {

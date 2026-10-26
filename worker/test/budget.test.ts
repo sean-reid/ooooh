@@ -12,7 +12,7 @@ import { HttpError } from "../src/http";
 import worker from "../src/index";
 import { checkSession } from "../src/session";
 import { jsonRequest, openSession } from "./request";
-import { post, spent, wipeStorage } from "./workers";
+import { post, sessionsOf, spent, wipeStorage } from "./workers";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
 import {
   audioBytes,
@@ -349,6 +349,18 @@ describe("session gate", () => {
     expect((await post("/v1/decide", decideBody, device)).status).toBe(200);
   });
 
+  it("counts a free session at its first provider call and never again", async () => {
+    expectUpstream({ body: jevReply }, { body: haikuReply });
+    await start("gated");
+    expect(await sessionsOf("gated")).toBe(0);
+    expect((await post("/v1/decide", decideBody, device)).status).toBe(200);
+    await expect.poll(() => sessionsOf("gated")).toBe(1);
+    expect((await post("/v1/compact", compactBody, device)).status).toBe(200);
+    expect((await end("gated", 1)).status).toBe(204);
+    expect(await sessionsOf("gated")).toBe(1);
+    expect(await (await start("gated")).json()).toMatchObject({ remainingFree: 1 });
+  });
+
   it("answers 402 not-started with no session, before the rate counter moves", async () => {
     expectUpstream();
     await refused(await post("/v1/decide", decideBody, device), "not-started");
@@ -380,9 +392,7 @@ describe("session gate", () => {
     for (let i = 0; i < 4; i++) {
       expect(await (await start("gated")).json()).toEqual({ allowed: true, free: false });
     }
-    expect(
-      await env.BUDGET.get(`sessions:gated:${new Date().toISOString().slice(0, 7)}`),
-    ).toBeNull();
+    expect(await sessionsOf("gated")).toBe(0);
     expect((await post("/v1/decide", decideBody, device)).status).toBe(200);
   });
 

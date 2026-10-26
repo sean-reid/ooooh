@@ -24,6 +24,11 @@ export const attestEnv = (authority: TestRoot, overrides: Partial<Env> = {}): En
 export const counterOf = (keyId: string) => env.DEVICE_COUNTER.getByName(keyId).current();
 
 export const today = () => new Date().toISOString().slice(0, 10);
+export const thisMonth = () => new Date().toISOString().slice(0, 7);
+
+/** Free sessions the device's object has counted for the month. */
+export const sessionsOf = (device: string, month = thisMonth()) =>
+  env.DEVICE_COUNTER.getByName(device).sessions(month);
 
 /** What the provider's object holds for the day. */
 export const spent = (provider: Provider, day = today()) =>

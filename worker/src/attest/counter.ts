@@ -2,13 +2,16 @@ import { DurableObject } from "cloudflare:workers";
 
 const counterKey = "counter";
 const rateKey = "rate";
+const countedKey = "session-counted";
+const sessionsPrefix = "sessions:";
+const sessionsKey = (month: string) => `${sessionsPrefix}${month}`;
 
 type Rate = { minute: number; count: number };
 
 /**
- * One per key id, holding the last assertion counter it accepted and its requests this minute.
- * The storage calls are synchronous, so a check and the write behind it run with nothing in
- * between.
+ * One per key id, holding the last assertion counter it accepted, its requests this minute, and
+ * its free sessions by month. The storage calls are synchronous, so a check and the write behind
+ * it run with nothing in between.
  */
 export class DeviceCounter extends DurableObject<Env> {
   private stored(): number {
@@ -38,5 +41,26 @@ export class DeviceCounter extends DurableObject<Env> {
     if (count >= limit) return false;
     this.ctx.storage.kv.put(rateKey, { minute, count: count + 1 });
     return true;
+  }
+
+  /** Free sessions counted toward `month`, a UTC year and month. */
+  sessions(month: string): number {
+    return this.ctx.storage.kv.get<number>(sessionsKey(month)) ?? 0;
+  }
+
+  /**
+   * Counts the free session `id` toward `month` and returns the month's total; a session already
+   * counted changes nothing, and the months before are dropped.
+   */
+  countSession(month: string, id: string): number {
+    if (this.ctx.storage.kv.get<string>(countedKey) === id) return this.sessions(month);
+    const total = this.sessions(month) + 1;
+    this.ctx.storage.kv.put(countedKey, id);
+    this.ctx.storage.kv.put(sessionsKey(month), total);
+    const stale = [
+      ...this.ctx.storage.kv.list({ prefix: sessionsPrefix, end: sessionsKey(month) }),
+    ];
+    for (const [key] of stale) this.ctx.storage.kv.delete(key);
+    return total;
   }
 }
