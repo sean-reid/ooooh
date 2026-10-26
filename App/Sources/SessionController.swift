@@ -227,7 +227,8 @@ final class SessionController {
     }
   }
 
-  /// Posts the wall-clock minutes once the Worker has counted the session.
+  /// Posts the wall-clock minutes after the notes, since the Worker answers nothing for a session
+  /// it has closed.
   private func postEnd() {
     guard let gate, admission != nil, !startRefused else { return }
     let minutes = (elapsed(at: .now) / 60 * 100).rounded() / 100
@@ -340,7 +341,6 @@ final class SessionController {
     isHearingSpeech = false
     stage = .ended
     try? environment.audio.deactivate()
-    postEnd()
     writeNotes(for: result)
   }
 
@@ -349,6 +349,7 @@ final class SessionController {
   private func writeNotes(for result: SessionResult) {
     guard result.transcript.contains(where: \.isFinal) else {
       notes = .empty
+      postEnd()
       return
     }
     let store = environment.store
@@ -359,15 +360,17 @@ final class SessionController {
       let saved = try? await store?.save(
         result: result, notes: nil, title: "", startedAt: startedAt)
       savedSessionID = saved
-      guard let generator else { return }
-      do {
-        let written = try await generator.generate(
-          state: result.state, transcript: result.transcript)
-        if let saved { try? await store?.attachNotes(written, to: saved) }
-        notes = .written(written)
-      } catch {
-        notes = .unavailable
+      if let generator {
+        do {
+          let written = try await generator.generate(
+            state: result.state, transcript: result.transcript)
+          if let saved { try? await store?.attachNotes(written, to: saved) }
+          notes = .written(written)
+        } catch {
+          notes = .unavailable
+        }
       }
+      postEnd()
     }
   }
 }

@@ -568,6 +568,21 @@ import Transcription
     #expect(paths.last == "/v1/session/end")
   }
 
+  @Test func theEndIsPostedAfterTheNotes() async throws {
+    let host = "ordered"
+    var environment = gated(host, answering: try workerFixture("session-start-free"), deps: nil)
+    environment.notesGenerator = nil
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    await wait { GateProtocol.requests(to: host).contains { $0.path == "/v1/session/end" } }
+    #expect(controller.notes == .unavailable)
+    let paths = GateProtocol.requests(to: host).map(\.path)
+    #expect(paths.contains("/v1/notes"))
+    #expect(paths.last == "/v1/session/end")
+  }
+
   @Test func aPaidSessionPromptsWithoutACap() async throws {
     let seen = Seen()
     let controller = SessionController(
