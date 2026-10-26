@@ -1,0 +1,89 @@
+/* One App Store screenshot: the night sky, a caption, a phone frame with the capture inside.
+   Everything is sized from the viewport so one template renders at every accepted size. */
+
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("../fonts/InstrumentSerif-Regular.ttf") format("truetype");
+  font-weight: 400;
+}
+
+:root {
+  --sky: #0c0d11;
+  --raised: #16171c;
+  --ink: #ece9e2;
+  --dim: rgba(236, 233, 226, 0.64);
+  --amber: #fabd58;
+  --line: rgba(236, 233, 226, 0.14);
+}
+
+html,
+body {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--sky);
+}
+
+.caption {
+  position: absolute;
+  top: 6.4vh;
+  left: 7vw;
+  right: 7vw;
+  margin: 0;
+  text-align: center;
+  font:
+    400 7.6vw/1.08 "Instrument Serif",
+    ui-serif,
+    Georgia,
+    serif;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.caption em {
+  font-style: normal;
+  color: var(--amber);
+}
+
+.phone {
+  position: absolute;
+  top: 22.5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 82vw;
+  aspect-ratio: 1320 / 2868;
+  padding: 1.1vw;
+  box-sizing: border-box;
+  border: 0.25vw solid var(--line);
+  border-radius: 11.4vw;
+  background: #1a1b21;
+  box-shadow: 0 3vw 14vw rgba(0, 0, 0, 0.7);
+}
+
+.phone img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10.2vw;
+  object-fit: cover;
+}
+
+/* A faint orb behind the phone's shoulder, for screens that have none of their own. */
+.orb {
+  --side: 56vw;
+  position: absolute;
+  top: 14.5vh;
+  left: 36vw;
+  margin-left: calc(var(--side) * -0.75);
+  opacity: 0.42;
+}
+
+.orb.still {
+  animation: none;
+}
+
+.store {
+  display: none;
+}

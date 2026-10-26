@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ooooh app preview frame</title>
+    <link rel="stylesheet" href="../site/site.css" />
+    <link rel="stylesheet" href="store.css" />
+    <style>
+      /* 886 by 1920 with a transparent window where preview.sh lays the recording. */
+      html,
+      body {
+        width: 886px;
+        height: 1920px;
+        background: transparent;
+      }
+      .caption {
+        z-index: 1;
+      }
+      .window {
+        position: absolute;
+        left: 80px;
+        top: 432px;
+        width: 726px;
+        height: 1577px;
+        box-sizing: border-box;
+        border: 10px solid #1a1b21;
+        border-radius: 90px;
+        outline: 2px solid var(--line);
+        box-shadow: 0 0 0 2000px var(--sky);
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="caption"></h1>
+    <div class="window"></div>
+    <script>
+      document.querySelector(".caption").textContent = decodeURIComponent(
+        location.hash.slice(1),
+      );
+    </script>
+  </body>
+</html>
