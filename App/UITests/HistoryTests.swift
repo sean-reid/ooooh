@@ -44,9 +44,8 @@ final class HistoryTests: XCTestCase {
     app.swipeDown()
 
     let history = app.buttons["home.history"]
-    waitUntilHittable(history)
-    history.tap()
     let list = app.collectionViews["history.list"]
+    tap(history, until: list)
     waitUntilHittable(list)
     let row = list.buttons.containing(
       NSPredicate(format: "label BEGINSWITH %@", "Carver Street or the park,")

@@ -9,6 +9,17 @@ extension XCTestCase {
     XCTAssertEqual(XCTWaiter().wait(for: [hittable], timeout: timeout), .completed)
   }
 
+  /// Taps until the screen the button opens is there; a tap that lands mid-scroll is lost.
+  @MainActor
+  func tap(_ button: XCUIElement, until target: XCUIElement) {
+    for _ in 0..<3 where !target.exists {
+      waitUntilHittable(button)
+      button.tap()
+      _ = target.waitForExistence(timeout: 5)
+    }
+    XCTAssertTrue(target.exists)
+  }
+
   /// Swipes up until the element can be tapped, for rows below the fold at large type.
   @MainActor
   func scrollUntilHittable(_ element: XCUIElement, in app: XCUIApplication) {
