@@ -6,6 +6,7 @@ import Transcription
 
 // eval <fixture.json> <labels.json> [--config c.json] [--answers a.jsonl]
 // eval --corpus <dir> [--config c.json] [--answers-dir <dir>] [--require-perfect]
+// eval --corpus <dir> --answers-dir <dir> --gate precision=0.28,recall=0.45,...
 // eval --corpus <dir> --live <worker url> --record-dir <dir>
 // Any form takes --arming-delay <seconds> to override the config's, 0 to speak at the decision.
 //
@@ -15,6 +16,9 @@ import Transcription
 // to run with REQUIRE_ATTESTATION=false.
 // Without answers the oracle runs with the floor off, so the loop and the scorer
 // are checked against each other and a session must score 1.00 everywhere.
+// --gate scores a recorded run at the config and exits 2 when the combined
+// precision, recall, or finished recall drop under a floor or intrusions or
+// collisions rise over a cap. Every fixture needs its answers file.
 
 let args = Array(CommandLine.arguments.dropFirst())
 
@@ -126,12 +130,15 @@ struct Outcome {
   var checks: Int
   /// Checks in a pause, so nothing was said since the check before.
   var silent: Int
+  /// Checks the recording has no answer for, which replayed as quiet.
+  var unanswered: Int
 }
 
 @MainActor func evaluate(_ run: Run, config base: GovernorConfig) async throws -> Outcome {
   var config = base
   let decisions: any DecisionProvider
   var recorder: RecordingDecisionProvider?
+  var recorded: RecordedDecisionProvider?
   var live: (client: ProxyClient, jev: LiveJev)?
   if let liveURL {
     guard let recordDir else { fail("--live needs --record-dir") }
@@ -149,7 +156,9 @@ struct Outcome {
     decisions = recording
     live = (client, jev)
   } else if let answers = run.answers {
-    decisions = try RecordedDecisionProvider(contentsOf: URL(filePath: answers))
+    let replay = try RecordedDecisionProvider(contentsOf: URL(filePath: answers))
+    recorded = replay
+    decisions = replay
   } else {
     config.floor = .init(min: 0, max: 0)
     decisions = OracleDecisionProvider(labels: run.labels)
@@ -179,7 +188,8 @@ struct Outcome {
   }
   return Outcome(
     report: EvalReport.score(result, against: run.labels), checks: checks.count,
-    silent: checks.filter { !ends.contains($0) }.count)
+    silent: checks.filter { !ends.contains($0) }.count,
+    unanswered: recorded.map { replay in checks.filter { !replay.hasAnswer(at: $0) }.count } ?? 0)
 }
 
 /// One line per check: time, answers, and whether a label sits within one utterance before it.
@@ -215,6 +225,13 @@ if let delay = option("--arming-delay") {
   config.armingDelay = seconds
 }
 
+let gate: EvalGate?
+do {
+  gate = try option("--gate").map { try EvalGate(spec: $0) }
+} catch {
+  fail("--gate: \(error)")
+}
+
 var runs: [Run]
 if let directory = option("--corpus") {
   runs = try corpus(in: directory, answersDir: option("--answers-dir"))
@@ -230,6 +247,13 @@ if let directory = option("--corpus") {
       labels: try load(Labels.self, args[1]),
       answers: option("--answers"))
   ]
+}
+
+if gate != nil {
+  let missing = runs.filter { $0.answers == nil }.map(\.name)
+  guard missing.isEmpty else {
+    fail("--gate needs answers for every fixture, none for \(missing.joined(separator: ", "))")
+  }
 }
 
 let mode =
@@ -258,9 +282,17 @@ if runs.count > 1 { print("") }
 print(combined.summary)
 let checks = outcomes.reduce(0) { $0 + $1.checks }
 let silent = outcomes.reduce(0) { $0 + $1.silent }
-print("checks \(checks)  silent \(silent)  (\(checks == 0 ? 0 : silent * 100 / checks)%)")
+var counts = "checks \(checks)  silent \(silent)  (\(checks == 0 ? 0 : silent * 100 / checks)%)"
+if runs.contains(where: { $0.answers != nil }) {
+  counts += "  unanswered \(outcomes.reduce(0) { $0 + $1.unanswered })"
+}
+print(counts)
 if liveURL != nil { print("jev input tokens \(jevTokens)") }
 
 if args.contains("--require-perfect"), !reports.allSatisfy(\.isPerfect) {
   fail("oracle did not score 1.00 on every session")
+}
+if let gate {
+  let crossed = gate.failures(combined)
+  if !crossed.isEmpty { fail(crossed.joined(separator: "\n")) }
 }

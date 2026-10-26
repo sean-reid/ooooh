@@ -27,6 +27,10 @@ jobs:
       - run: swift build --package-path Packages
       - run: swift test --package-path Packages
       - run: swift run --package-path Packages eval --corpus fixtures/synthetic/estimate --require-perfect
+      - run: >
+          swift run --package-path Packages eval --corpus fixtures/synthetic/estimate
+          --answers-dir fixtures/synthetic/estimate/answers
+          --gate precision=0.28,recall=0.45,finished-recall=0.55,intrusions=3,collisions=14
 
   worker:
     runs-on: ubuntu-latest
