@@ -16,15 +16,20 @@
     let lateness: AVAudioFramePosition = 48_000
 
     /// Yields the fixture 1 KiB at a time with a short gap, the way bytes land from the Worker.
-    /// `ended` is told how the stream ended: `cancelled` when the player dropped it.
+    /// `ended` is told how the stream ended: `cancelled` when the player dropped it. With
+    /// `holding`, the stream stops before that chunk until `release` yields.
     func network(
-      firstByte: @escaping @Sendable (Date) -> Void, ended: Ended? = nil
+      firstByte: @escaping @Sendable (Date) -> Void, ended: Ended? = nil,
+      holding held: Int = .max, until release: AsyncStream<Void>? = nil
     ) throws -> AsyncThrowingStream<Data, Error> {
       let chunks = Fixture.chunks(try Fixture.line(), size: 1024)
       return AsyncThrowingStream { continuation in
         let task = Task {
           for (i, chunk) in chunks.enumerated() {
             if i == 0 { firstByte(Date()) }
+            if i == held, let release {
+              for await _ in release { break }
+            }
             continuation.yield(chunk)
             try await Task.sleep(for: .milliseconds(20))
           }
@@ -186,11 +191,13 @@
       let speaker = PromptSpeaker()
       var events = speaker.events.makeAsyncIterator()
       let ended = Ended()
-      let audio = try network(firstByte: { _ in }, ended: ended)
+      let (release, releasing) = AsyncStream.makeStream(of: Void.self)
+      let audio = try network(firstByte: { _ in }, ended: ended, holding: 2, until: release)
       let speaking = Task { try await speaker.speak(text, audio: audio) }
       await wait { await speaker.text == text }
       await speaker.stop()
       try await speaking.value
+      releasing.finish()
       await wait { !ended.all.isEmpty }
       #expect(ended.all == ["cancelled"])
       #expect(await speaker.text == nil)
