@@ -41,7 +41,7 @@ struct RootView: View {
           } else {
             home
           }
-        case .starting, .running:
+        case .starting, .downloading, .running:
           SessionView(controller: controller)
         case .ended:
           ended

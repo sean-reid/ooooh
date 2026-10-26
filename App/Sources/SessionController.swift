@@ -22,7 +22,7 @@ final class SessionController {
   }
 
   enum Stage: Equatable {
-    case idle, starting, running, ended
+    case idle, starting, downloading, running, ended
     case failed(StartFailure)
   }
 
@@ -64,9 +64,13 @@ final class SessionController {
     var clock: WorkerClock = .shared
     /// The listener switches, read at Start. Nil runs with their defaults.
     var settings: AppSettings?
+    /// Set to replace the permission check and the engine chain, as the tests do.
+    var transcriber: (any LiveTranscriber)?
   }
 
   private(set) var stage: Stage = .idle
+  /// The fraction of the speech model downloaded while the stage is `.downloading`.
+  private(set) var downloadProgress: Double = 0
   private(set) var startedAt: Date?
   /// The moment End was tapped, or the loop ended on its own; the session the user is charged for.
   private(set) var endedAt: Date?
@@ -141,25 +145,31 @@ final class SessionController {
   func start(_ source: Source, carrying thread: OpenThread? = nil) async {
     switch stage {
     case .idle, .failed: break
-    case .starting, .running, .ended: return
+    case .starting, .downloading, .running, .ended: return
     }
     stage = .starting
+    downloadProgress = 0
     do {
       var levels: AsyncStream<Double>?
       let transcriber: any Transcriber
       switch source {
       case .microphone:
-        try await CapturePermissions.request()
-        try environment.audio.activate()
-        let meter = AudioLevelMeter()
-        levels = meter.levels()
-        let locale = Locale.current
-        guard let engine = await TranscriptionEngine.available(for: locale) else {
-          throw NoTranscriptionEngine(locale: locale)
+        let microphone: any LiveTranscriber
+        if let stub = environment.transcriber {
+          microphone = stub
+        } else {
+          try await CapturePermissions.request()
+          try environment.audio.activate()
+          let meter = AudioLevelMeter()
+          levels = meter.levels()
+          let locale = Locale.current
+          guard let engine = await TranscriptionEngine.available(for: locale) else {
+            throw NoTranscriptionEngine(locale: locale)
+          }
+          microphone = engine.makeTranscriber(locale: locale, audioSink: meter)
         }
-        let microphone = engine.makeTranscriber(locale: locale, audioSink: meter)
-        try await microphone.start()
-        Self.log.info("Transcribing with \(engine.title, privacy: .public)")
+        try await start(microphone)
+        Self.log.info("Transcribing with \(microphone.engine.title, privacy: .public)")
         transcriber = microphone
       case .fixture(let url, let speed):
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
@@ -243,6 +253,24 @@ final class SessionController {
       stage = .failed(StartFailure(error))
       try? environment.audio.deactivate()
     }
+  }
+
+  /// Shows the speech model download while the transcriber installs it. The progress stream is
+  /// drained before this returns either way, so no late value lands on a stage that has moved on.
+  private func start(_ microphone: any LiveTranscriber) async throws {
+    let download = Task {
+      for await fraction in microphone.downloadProgress() {
+        stage = .downloading
+        downloadProgress = fraction
+      }
+    }
+    do {
+      try await microphone.start()
+    } catch {
+      await download.value
+      throw error
+    }
+    await download.value
   }
 
   func end() async {

@@ -4,6 +4,8 @@ import SwiftUI
 /// The screen during a session: elapsed time, the orb, the last prompt, End.
 struct SessionView: View {
   let controller: SessionController
+  /// A fixed time renders one still orb, as the snapshots do.
+  var orbTime: TimeInterval?
   @ScaledMetric(relativeTo: .title2) private var promptMinHeight = 72
 
   var body: some View {
@@ -12,15 +14,34 @@ struct SessionView: View {
       VStack(spacing: 0) {
         clock
         Spacer(minLength: 12)
-        Orb(level: controller.level, phase: controller.phase)
+        Orb(level: controller.level, phase: controller.phase, time: orbTime)
           .frame(maxWidth: 320)
           .padding(.horizontal, 28)
         Spacer(minLength: 12)
-        prompt
-        statusLine
+        if controller.stage == .downloading {
+          download
+        } else {
+          prompt
+          statusLine
+        }
         endButton
       }
     }
+  }
+
+  private var download: some View {
+    VStack(spacing: 14) {
+      Text("Downloading the speech model")
+        .font(Typography.caption)
+        .foregroundStyle(Palette.inkDim)
+        .accessibilityIdentifier("session.download")
+      DownloadBar(fraction: controller.downloadProgress)
+        .frame(maxWidth: 180)
+        .accessibilityLabel("Speech model download")
+        .accessibilityValue("\(Int((controller.downloadProgress * 100).rounded())) percent")
+    }
+    .frame(maxWidth: .infinity, minHeight: promptMinHeight)
+    .padding(.horizontal, 32)
   }
 
   private var clock: some View {
@@ -98,5 +119,22 @@ struct SessionView: View {
   static func clockText(_ elapsed: TimeInterval) -> String {
     let seconds = Int(elapsed.rounded(.down))
     return "\(seconds / 60):" + String(format: "%02d", seconds % 60)
+  }
+}
+
+/// A 3 pt track in the raised sky, filled in amber to `fraction`.
+private struct DownloadBar: View {
+  var fraction: Double
+
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack(alignment: .leading) {
+        Capsule().fill(Palette.skyRaised)
+        Capsule().fill(Palette.amber)
+          .frame(width: proxy.size.width * min(max(fraction, 0), 1))
+      }
+    }
+    .frame(height: 3)
+    .animation(.linear(duration: 0.2), value: fraction)
   }
 }
