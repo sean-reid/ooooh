@@ -632,6 +632,23 @@ import Transcription
     #expect(GateProtocol.requests(to: "down").map(\.path) == ["/v1/session/start"])
   }
 
+  @Test func aStartThatCannotReachTheWorkerLeavesTheGuardAlone() async throws {
+    var environment = environment(
+      deps(firing: .deepen, at: 14.0), speaker: Recorder(), haptics: Counter())
+    environment.workerURL = URL(string: "http://worker.invalid")
+    environment.session = UnreachableProtocol.session()
+    environment.notesGenerator = CannedNotes()
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == nil)
+    #expect(!controller.isOffline)
+    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    let refused = UnreachableProtocol.seen.withLock { $0 }
+    #expect(refused.contains { $0.hasPrefix("/v1/session/start@") }, "\(refused)")
+  }
+
   @Test func aFixtureWithAWorkerOpensASessionAndPostsItsEnd() async throws {
     let host = "demo"
     GateProtocol.answer(host, "/v1/session/start", 200, try workerFixture("session-start-free"))

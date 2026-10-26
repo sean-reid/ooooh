@@ -156,7 +156,14 @@ final class SessionController {
           baseURL: $0, session: environment.session, attestor: environment.attestor,
           offline: guardian)
       }
-      gate = environment.gate ?? client.map(SessionGate.worker)
+      // The start and end are bookkeeping; the guard watches the provider calls, as it did before
+      // the session routes, so a Worker nobody reaches shows offline at the first prompt check.
+      gate =
+        environment.gate
+        ?? environment.workerURL.map {
+          SessionGate.worker(
+            ProxyClient(baseURL: $0, session: environment.session, attestor: environment.attestor))
+        }
       let admission = gate.map { gate in
         Admission(start: Task { await Self.admit(gate) }) { [weak self] reason in
           Task { @MainActor in self?.cutoff = reason }
