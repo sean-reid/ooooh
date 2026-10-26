@@ -1,18 +1,20 @@
 import Billing
 import Persistence
 import Proxy
+import Settings
 import SwiftUI
 import UIKit
 
 extension SessionController.Environment {
   /// The device's Worker, voice, haptic, and store. Debug builds take `-force-voice 1` to speak on
   /// the phone speaker and `-free-exhausted 1` to run every session as one the Worker refused.
-  static var app: Self {
+  @MainActor static var app: Self {
     var environment = Self(workerURL: WorkerURL.fromBundle)
     environment.haptic = { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
     environment.announce = { AccessibilityNotification.Announcement($0).post() }
     environment.store = AppStore.shared
     environment.attestor = AppAttestor.shared
+    environment.settings = AppSettings()
     #if DEBUG
       environment.forceVoice = UserDefaults.standard.bool(forKey: "force-voice")
       if UserDefaults.standard.bool(forKey: "free-exhausted") { environment.gate = .exhausted }
