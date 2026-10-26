@@ -30,16 +30,62 @@ export const anthropicClient = (cred: Credential, options: { timeout?: number } 
     timeout: options.timeout ?? 30_000,
   });
 
+const unavailable = (retryAfter: number) =>
+  new HttpError(503, { error: "anthropic unavailable", retryAfter });
+
+const isAbort = (e: unknown) =>
+  e instanceof Anthropic.APIUserAbortError ||
+  (e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError"));
+
 export const upstreamError = (e: unknown): never => {
+  if (isAbort(e)) throw unavailable(1);
   if (e instanceof Anthropic.RateLimitError) {
-    const retryAfter = retryAfterFrom(e.headers?.get("retry-after"));
-    throw new HttpError(503, { error: "anthropic unavailable", retryAfter });
+    throw unavailable(retryAfterFrom(e.headers?.get("retry-after")));
   }
   if (e instanceof Anthropic.APIError) {
     throw new HttpError(502, { error: "anthropic", status: e.status, detail: e.message });
   }
   throw e;
 };
+
+/** Runs one call under `ms`, body read included; the SDK's own timeout stops at the headers. */
+export const within = <T>(ms: number, call: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+  const signal = AbortSignal.timeout(ms);
+  const expired = new Promise<never>((_, reject) =>
+    signal.addEventListener("abort", () => reject(signal.reason)),
+  );
+  return Promise.race([call(signal), expired]);
+};
+
+/** Yields upstream events and aborts the stream when the gap between two of them passes `stallMs`. */
+export async function* paced<T>(events: AsyncIterable<T>, stallMs: number): AsyncGenerator<T> {
+  const iterator = events[Symbol.asyncIterator]();
+  let finished = false;
+  try {
+    for (;;) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const stalled = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new DOMException("anthropic stalled", "TimeoutError")),
+          stallMs,
+        );
+      });
+      let next: IteratorResult<T>;
+      try {
+        next = await Promise.race([iterator.next(), stalled]);
+      } finally {
+        clearTimeout(timer);
+      }
+      if (next.done) {
+        finished = true;
+        return;
+      }
+      yield next.value;
+    }
+  } finally {
+    if (!finished) await iterator.return?.().catch(() => undefined);
+  }
+}
 
 export const textOf = (content: Array<{ type: string; text?: string }>) =>
   content

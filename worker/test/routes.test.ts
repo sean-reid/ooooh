@@ -22,6 +22,8 @@ import {
   type Reply,
 } from "./upstream";
 import worker from "../src/index";
+import { compactWith } from "../src/routes/compact";
+import { phraseWith } from "../src/routes/phrase";
 import { speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
 
@@ -33,6 +35,23 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
   });
 
 const startRequest = () => new Request("https://ooooh.test/v1/session/start", { method: "POST" });
+
+// A route called directly, past the attestation and budget wrappers, the way the deadline tests do.
+const direct = (path: string, body: unknown, headers: Record<string, string> = {}) =>
+  new Request(`https://ooooh.test${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+
+const sseEvents = (text: string) =>
+  text
+    .trim()
+    .split("\n\n")
+    .map((chunk) => {
+      const [event, data] = chunk.split("\n");
+      return { event: event.slice(7), data: JSON.parse(data.slice(6)) as { text: string } };
+    });
 
 beforeEach(async () => {
   expect((await post("/v1/session/start", {})).status).toBe(200);
@@ -254,6 +273,16 @@ describe("POST /v1/compact", () => {
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "anthropic truncated", maxTokens: 4096 });
     expect(await spent()).toBe(before + 27.5);
+  });
+
+  it("answers 503 inside the deadline when the reply body stalls", async () => {
+    expectUpstream({ body: new ReadableStream<Uint8Array>() });
+    const started = Date.now();
+    await expect(compactWith(100)(direct("/v1/compact", compactBody), env)).rejects.toMatchObject({
+      status: 503,
+      body: { error: "anthropic unavailable", retryAfter: 1 },
+    });
+    expect(Date.now() - started).toBeLessThan(1000);
   });
 });
 
@@ -485,13 +514,7 @@ describe("POST /v1/phrase", () => {
     const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/event-stream");
-    const events = (await res.text())
-      .trim()
-      .split("\n\n")
-      .map((chunk) => {
-        const [event, data] = chunk.split("\n");
-        return { event: event.slice(7), data: JSON.parse(data.slice(6)) as { text: string } };
-      });
+    const events = sseEvents(await res.text());
     const deltas = events.filter((e) => e.event === "delta").map((e) => e.data.text);
     expect(deltas.join("").trim()).toBe(shortSentence);
     expect(events.at(-1)).toEqual({ event: "done", data: { text: shortSentence } });
@@ -510,6 +533,27 @@ describe("POST /v1/phrase", () => {
     const [event, data] = (await res.text()).trim().split("\n");
     expect(event).toBe("event: error");
     expect(JSON.parse(data.slice(6))).toEqual({ error: "anthropic unavailable", retryAfter: 5 });
+  });
+
+  it("ends the SSE stream with the 503 body when the deltas stop", async () => {
+    const opening = sonnetStream(shortSentence).split("\n\n").slice(0, 4).join("\n\n") + "\n\n";
+    const stalled = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(opening));
+      },
+    });
+    expectUpstream({ body: stalled, headers: { "content-type": "text/event-stream" } });
+
+    const res = await phraseWith({ callMs: 5000, stallMs: 100 })(
+      direct("/v1/phrase", phraseBody, { accept: "text/event-stream" }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const started = Date.now();
+    const events = sseEvents(await res.text());
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(events.map((e) => e.event)).toEqual(["delta", "delta", "error"]);
+    expect(events.at(-1)?.data).toEqual({ error: "anthropic unavailable", retryAfter: 1 });
   });
 });
 
