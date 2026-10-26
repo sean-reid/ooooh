@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { jsonRequest, startRequest } from "../request";
+import { jsonRequest, openSession, origin, startRequest } from "../request";
 import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
@@ -10,6 +10,8 @@ import { sha256, toBase64, toHex } from "../../src/bytes";
 import { memoryKV, noCounter } from "../kv";
 import { makeStoreChain, signTransaction, transactionPayload, type StoreChain } from "../storekit";
 import {
+  audioBytes,
+  bodyOf,
   compactBody,
   decideBody,
   haikuReply,
@@ -29,6 +31,10 @@ const fixturesDir = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../Packages/Tests/ProxyTests/Fixtures",
 );
+
+// The phone's bodies, written by WRITE_REQUEST_FIXTURES=1 swift test --package-path Packages.
+const requestFixture = (route: string) =>
+  readFileSync(resolve(fixturesDir, "requests", `${route}.json`), "utf8");
 
 export const testEnv = {
   BUDGET: memoryKV(),
@@ -62,6 +68,8 @@ const compare = (file: string, actual: string) => {
   }
   expect(actual).toBe(readFileSync(file, "utf8"));
 };
+
+const pretty = (value: unknown) => JSON.stringify(value, null, 2) + "\n";
 
 const cases = [
   { name: "decide", path: "/v1/decide", body: decideBody, replies: [{ body: jevReply }] },
@@ -169,6 +177,79 @@ describe("ProxyTests fixtures", () => {
     ];
     const actual = await call("/v1/phrase", phraseBody, replies, "text/event-stream");
     compare(resolve(fixturesDir, "phrase.sse"), actual);
+  });
+
+  it("config.json is what /v1/config serves", async () => {
+    const response = await worker.fetch(new Request(`${origin}/v1/config`), testEnv);
+    expect(response.status).toBe(200);
+    compare(resolve(fixturesDir, "config.json"), pretty(await response.json()));
+  });
+
+  const refused = async (device: string) => {
+    const request = jsonRequest("/v1/decide", decideBody, { "x-device": device });
+    const response = await worker.fetch(request, testEnv);
+    expect(response.status).toBe(402);
+    return pretty(await response.json());
+  };
+
+  it("no-session-not-started.json is a prompt from a device with no session", async () => {
+    compare(resolve(fixturesDir, "no-session-not-started.json"), await refused("fixture-idle"));
+  });
+
+  it("no-session-free-used.json is a prompt after the month's free sessions", async () => {
+    for (let i = 0; i < 3; i++) {
+      await startSession("fixture-spent");
+      await endSession("fixture-spent");
+    }
+    compare(resolve(fixturesDir, "no-session-free-used.json"), await refused("fixture-spent"));
+  });
+
+  it("no-session-minutes-used.json is a prompt past a free session's minutes", async () => {
+    const started = new Date(Date.now() - 21 * 60_000);
+    expect((await openSession(testEnv, "fixture-late", started)).status).toBe(200);
+    compare(resolve(fixturesDir, "no-session-minutes-used.json"), await refused("fixture-late"));
+  });
+});
+
+// Each body the phone posts goes through the route's own readBody, so a field one side renamed is a 422 here.
+describe("ProxyTests request fixtures", () => {
+  beforeAll(async () => {
+    expect((await worker.fetch(startRequest(), testEnv)).status).toBe(200);
+  });
+
+  const accepted = [
+    { route: "compact", path: "/v1/compact", replies: [{ body: haikuReply }] },
+    { route: "phrase", path: "/v1/phrase", replies: [{ body: sonnetReply(shortSentence) }] },
+    { route: "notes", path: "/v1/notes", replies: [{ body: opusReply() }] },
+    {
+      route: "speak",
+      path: "/v1/speak",
+      replies: [{ body: audioBytes, headers: { "content-type": "audio/mpeg" } }],
+    },
+    { route: "session-start", path: "/v1/session/start", replies: [] },
+  ];
+
+  for (const { route, path, replies } of accepted) {
+    it(`requests/${route}.json passes ${path}`, async () => {
+      await call(path, requestFixture(route), replies);
+    });
+  }
+
+  // The state validator defaults every field, so a renamed one would pass as empty; Jev's copy shows what survived.
+  it("requests/decide.json passes /v1/decide with the whole state", async () => {
+    const upstream = stubUpstream({ body: jevReply });
+    const request = jsonRequest("/v1/decide", requestFixture("decide"));
+    expect((await worker.fetch(request, testEnv)).status).toBe(200);
+    const posted = JSON.parse(requestFixture("decide"));
+    const { lastIntervention, ...state } = posted.state;
+    const jev = bodyOf<{ state: Record<string, unknown> }>(upstream.requests[0]).state;
+    expect(jev).toEqual({
+      state,
+      lastIntervention,
+      signals: posted.signals,
+      recentTranscript: expect.stringContaining(posted.recentTranscript[1].text),
+      earlierLinesInWindow: 0,
+    });
   });
 });
 

@@ -56,11 +56,12 @@ extension StubbedTransportTests {
       #expect(body == ["minutes": 12.5])
     }
 
-    @Test func aNoSessionAnswerIsItsOwnError() async throws {
-      StubProtocol.reply = .init(
-        status: 402, chunks: [Data(#"{"error":"no-session","reason":"minutes-used"}"#.utf8)])
+    /// The three 402 bodies the Worker's session check answers, written by its node project.
+    @Test(arguments: ["not-started", "free-used", "minutes-used"])
+    func aNoSessionAnswerIsItsOwnError(reason: String) async throws {
+      StubProtocol.reply = .init(status: 402, chunks: [try fixture("no-session-\(reason)")])
       StubProtocol.seen.withLock { $0 = [] }
-      await #expect(throws: ProxyError.noSession(reason: "minutes-used")) {
+      await #expect(throws: ProxyError.noSession(reason: reason)) {
         try await client.endSession(minutes: 1)
       }
     }
