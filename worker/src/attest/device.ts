@@ -4,15 +4,13 @@ import { readBytes } from "../http";
 import { AssertionError, verifyAssertion } from "./assertion";
 import { assertionTime, assertionTimeHeader, clientDataHash } from "./clientdata";
 import { counterFor, deviceKey, readDevice, unauthorized } from "./record";
-import { settingsFrom } from "./verify";
+import { settings } from "../settings";
 
 export type DeviceHandler = (
   request: Request,
   env: Env,
   device: string,
 ) => Promise<Response> | Response;
-
-export const requiresAttestation = (env: Env) => (env.REQUIRE_ATTESTATION ?? "true") !== "false";
 
 /** Key ids are 44 characters of base64; KV refuses keys past 512, so longer labels are not labels. */
 export const maxLabelLength = 128;
@@ -36,7 +34,8 @@ const callerFrom = (request: Request) => {
 export const attested =
   (handler: DeviceHandler) =>
   async (request: Request, env: Env): Promise<Response> => {
-    if (!requiresAttestation(env)) return handler(request, env, callerFrom(request));
+    const { requireAttestation, attestation } = settings(env);
+    if (!requireAttestation) return handler(request, env, callerFrom(request));
 
     const keyId = request.headers.get("x-device");
     const assertion = fromBase64(request.headers.get("x-assertion") ?? "");
@@ -53,7 +52,7 @@ export const attested =
       const time = assertionTime(request.headers.get(assertionTimeHeader));
       const path = new URL(request.url).pathname;
       const hash = await clientDataHash(request.method, path, time, body);
-      counter = await verifyAssertion(assertion, hash, stored.publicKey, settingsFrom(env));
+      counter = await verifyAssertion(assertion, hash, stored.publicKey, attestation);
     } catch (e) {
       if (e instanceof AssertionError) throw unauthorized(e.reason);
       throw e;

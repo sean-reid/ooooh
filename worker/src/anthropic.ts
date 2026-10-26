@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { HttpError, missingSecret, retryAfterFrom } from "./http";
+import { chargeModel } from "./budget";
+import { HttpError, missingSecret, unavailable, upstreamFailure } from "./http";
+import { ValidationError } from "./validate";
 
 export const models = {
   compact: "claude-haiku-5-5",
@@ -30,21 +32,14 @@ export const anthropicClient = (cred: Credential, options: { timeout?: number } 
     timeout: options.timeout ?? 30_000,
   });
 
-const unavailable = (retryAfter: number) =>
-  new HttpError(503, { error: "anthropic unavailable", retryAfter });
-
 const isAbort = (e: unknown) =>
   e instanceof Anthropic.APIUserAbortError ||
   (e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError"));
 
 export const upstreamError = (e: unknown): never => {
-  if (isAbort(e)) throw unavailable(1);
-  if (e instanceof Anthropic.RateLimitError) {
-    throw unavailable(retryAfterFrom(e.headers?.get("retry-after")));
-  }
+  if (isAbort(e)) throw unavailable("anthropic", 1);
   if (e instanceof Anthropic.APIError) {
-    console.error("anthropic", e.status, e.message);
-    throw new HttpError(502, { error: "anthropic", status: e.status, detail: "upstream error" });
+    throw upstreamFailure("anthropic", e.status, e.headers?.get("retry-after") ?? null, e.message);
   }
   throw e;
 };
@@ -99,3 +94,48 @@ export const textOf = (content: Array<{ type: string; text?: string }>) =>
     .filter((b) => b.type === "text")
     .map((b) => b.text ?? "")
     .join("");
+
+type StructuredReply = {
+  model: string;
+  stop_reason: string | null;
+  stop_details: unknown;
+  content: Array<{ type: string; text?: string }>;
+  usage: { input_tokens: number; output_tokens: number };
+};
+
+/**
+ * Charges a structured-output reply and reads its JSON through `read`. A reply cut off at
+ * `maxTokens`, refused, not JSON, or outside the shape is a 502 under `error` that still counts
+ * against the day.
+ */
+export async function structured<T>(
+  env: Env,
+  response: StructuredReply,
+  maxTokens: number,
+  error: string,
+  read: (parsed: unknown) => T,
+) {
+  await chargeModel(env, response.model, response.usage);
+  if (response.stop_reason === "max_tokens") {
+    throw new HttpError(502, { error: "anthropic truncated", maxTokens });
+  }
+  if (response.stop_reason === "refusal") throw refused(response);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(textOf(response.content));
+  } catch {
+    throw new HttpError(502, { error, field: "", expected: "json" });
+  }
+  try {
+    const usage = {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
+    return { value: read(parsed), usage };
+  } catch (e) {
+    if (e instanceof ValidationError) {
+      throw new HttpError(502, { error, field: e.field, expected: e.expected });
+    }
+    throw e;
+  }
+}

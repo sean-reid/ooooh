@@ -68,10 +68,56 @@ test("the landing page links the documents from the footer and carries the store
   assert.match(footer, /href="privacy.html"/);
   assert.match(footer, /href="terms.html"/);
   assert.match(html, /<canvas\s+class="orb"/);
-  assert.match(read("landing.mjs"), /^const APP_STORE_URL = "[^"]+";$/m);
-  for (const image of ["session-dark.png", "session-light.png"]) {
-    assert.ok(existsSync(join(here, "images", image)), image);
-    assert.ok(html.includes(`images/${image}`), image);
+  assert.match(html, /<span class="store">Coming to the App Store<\/span>/);
+  assert.match(read("landing.mjs"), /^const APP_STORE_URL = "[^"]*";$/m);
+});
+
+test("the session screenshot ships at display size in WebP with a PNG fallback", () => {
+  const html = read("index.html");
+  const picture = html.slice(html.indexOf("<picture>"), html.indexOf("</picture>"));
+  for (const scheme of ["dark", "light"]) {
+    for (const ext of ["webp", "png"]) {
+      const pair = `images/session-${scheme}-280.${ext} 1x, images/session-${scheme}-560.${ext} 2x`;
+      assert.ok(picture.includes(pair), pair);
+      for (const width of [280, 560])
+        assert.ok(existsSync(join(here, "images", `session-${scheme}-${width}.${ext}`)), `${scheme} ${width} ${ext}`);
+    }
+  }
+  assert.match(picture, /<source\s+media="\(prefers-color-scheme: dark\)"\s+type="image\/webp"/);
+  assert.match(picture, /loading="lazy"/);
+  assert.match(picture, /decoding="async"/);
+  assert.match(picture, /width="280"\s+height="609"/);
+  const png = readFileSync(join(here, "images/session-dark-560.png"));
+  assert.equal(png.readUInt32BE(16), 560);
+  assert.ok(!existsSync(join(here, "images/session-dark.png")));
+});
+
+test("the price line holds each amount with its period", () => {
+  assert.match(read("index.html"), /\$6\.99&nbsp;a&nbsp;month or \$49\.99&nbsp;a&nbsp;year/);
+});
+
+test("every link row reaches 44px", () => {
+  const css = read("site.css");
+  assert.match(css, /footer a \{\s+display: inline-block;\s+padding: 10px 0;/);
+  assert.match(css, /\.doc main a \{\s+display: inline-block;\s+padding: 9px 0;\s+margin: -9px 0;/);
+});
+
+test("the orb holds still under reduced motion", () => {
+  const css = read("site.css");
+  assert.ok(!css.includes("@keyframes"));
+  assert.ok(!css.includes(".still"));
+  assert.match(read("landing.mjs"), /prefers-reduced-motion: reduce/);
+});
+
+test("the orb script runs without the observers and the newer syntax", () => {
+  const script = read("landing.mjs");
+  assert.match(script, /"ResizeObserver" in window/);
+  assert.match(script, /"IntersectionObserver" in window/);
+  assert.match(script, /list\.addListener\(handler\)/);
+  for (const name of ["landing.mjs", "orb-geometry.mjs"]) {
+    const source = read(name);
+    assert.ok(!source.includes("??"), name);
+    assert.ok(!source.includes("?."), name);
   }
 });
 

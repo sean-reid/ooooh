@@ -59,13 +59,18 @@ a:focus-visible {
   text-underline-offset: 3px;
 }
 
+/* About 68 characters of the 17px body text; ch measures the zero glyph, a third wider than the average letter. */
 .wrap {
-  max-width: 68ch;
+  max-width: 510px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
 /* Landing */
+
+main {
+  overflow-x: clip;
+}
 
 .hero {
   display: flex;
@@ -82,20 +87,6 @@ a:focus-visible {
   width: calc(var(--side) * 1.5);
   height: calc(var(--side) * 1.5);
   margin: calc(var(--side) * -0.25);
-}
-
-.orb.still {
-  animation: breath 8s ease-in-out infinite;
-}
-
-@keyframes breath {
-  0%,
-  100% {
-    opacity: 0.62;
-  }
-  50% {
-    opacity: 0.95;
-  }
 }
 
 .wordmark {
@@ -123,8 +114,8 @@ a:focus-visible {
   font-size: 16px;
 }
 
-.store:hover,
-.store:focus-visible {
+a.store:hover,
+a.store:focus-visible {
   background: var(--amber);
   color: var(--sky);
   text-decoration: none;
@@ -158,7 +149,7 @@ a:focus-visible {
 .phone {
   margin: 0;
   width: min(62vw, 300px);
-  aspect-ratio: 804 / 1748;
+  aspect-ratio: 280 / 609;
   padding: 10px;
   box-sizing: border-box;
   border: 1px solid var(--line);
@@ -213,6 +204,13 @@ a:focus-visible {
   margin: 14px 0 0;
 }
 
+.doc .back,
+.doc main a {
+  display: inline-block;
+  padding: 9px 0;
+  margin: -9px 0;
+}
+
 .doc ul {
   padding-left: 22px;
   margin: 0;
@@ -223,7 +221,7 @@ a:focus-visible {
 footer {
   margin-top: clamp(96px, 14vh, 160px);
   border-top: 1px solid var(--line);
-  padding: 32px 0 48px;
+  padding: 22px 0 38px;
   color: var(--dim);
   font-size: 15px;
 }
@@ -240,5 +238,6 @@ footer .made {
 }
 
 footer a {
-  padding: 4px 0;
+  display: inline-block;
+  padding: 10px 0;
 }

@@ -98,7 +98,13 @@ struct ChoiceRow<Choice: Hashable>: View {
               .foregroundStyle(chosen ? Palette.inkOnAmber : Palette.ink)
               .padding(.horizontal, 12)
               .frame(maxWidth: .infinity, minHeight: 44)
-              .background(chosen ? Palette.amber : Palette.sky.opacity(0.6), in: Capsule())
+              .background {
+                if chosen {
+                  Capsule().fill(Palette.amber)
+                } else {
+                  Capsule().skyOutlined(lineWidth: 1)
+                }
+              }
           }
           .buttonStyle(.plain)
           .accessibilityAddTraits(chosen ? .isSelected : [])
@@ -122,19 +128,35 @@ struct SkyToggleStyle: ToggleStyle {
     } label: {
       HStack(spacing: 12) {
         configuration.label
-        Capsule()
-          .fill(configuration.isOn ? Palette.amber : Palette.inkDim.opacity(0.35))
+        track(isOn: configuration.isOn)
           .frame(width: width, height: height)
           .overlay(alignment: configuration.isOn ? .trailing : .leading) {
             Circle()
-              .fill(Palette.sky)
-              .padding(2)
+              .fill(configuration.isOn ? Palette.sky : Palette.inkDim)
+              .padding(4)
           }
           .animation(.easeInOut(duration: 0.15), value: configuration.isOn)
       }
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityAddTraits(.isToggle)
+    .accessibilityValue(configuration.isOn ? "On" : "Off")
+  }
+
+  @ViewBuilder private func track(isOn: Bool) -> some View {
+    if isOn {
+      Capsule().fill(Palette.amber)
+    } else {
+      Capsule().skyOutlined(lineWidth: 2)
+    }
+  }
+}
+
+extension Capsule {
+  /// The off state of a control: the sky inside an inkDim edge, which clears 3:1 on both skies.
+  func skyOutlined(lineWidth: CGFloat) -> some View {
+    fill(Palette.sky).overlay(strokeBorder(Palette.inkDim, lineWidth: lineWidth))
   }
 }
 

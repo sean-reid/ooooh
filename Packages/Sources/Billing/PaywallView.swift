@@ -67,20 +67,22 @@ public struct PaywallView<Header: View>: View {
           .font(Typography.caption)
           .foregroundStyle(Palette.accent)
       }
-      Button("Restore purchases") { restore() }
-        .font(Typography.body)
-        .foregroundStyle(Palette.accent)
-        .frame(minHeight: 44)
-        .disabled(store.isPurchasing)
+      Button {
+        restore()
+      } label: {
+        Text("Restore purchases").tapTarget(alignment: .leading)
+      }
+      .font(Typography.body)
+      .foregroundStyle(Palette.accent)
+      .disabled(store.isPurchasing)
       HStack(spacing: 24) {
-        Link("Privacy", destination: Self.privacyURL)
+        Link(destination: Self.privacyURL) { Text("Privacy").tapTarget(alignment: .leading) }
           .accessibilityLabel("Privacy policy")
-        Link("Terms", destination: Self.termsURL)
+        Link(destination: Self.termsURL) { Text("Terms").tapTarget(alignment: .leading) }
           .accessibilityLabel("Terms of use")
       }
       .font(Typography.caption)
       .foregroundStyle(Palette.inkDim)
-      .frame(minHeight: 44)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 24)
@@ -92,10 +94,13 @@ public struct PaywallView<Header: View>: View {
       Text("The plans couldn't be loaded.")
         .font(Typography.body)
         .foregroundStyle(Palette.ink)
-      Button("Try again") { reload() }
-        .font(Typography.body)
-        .foregroundStyle(Palette.accent)
-        .frame(minHeight: 44)
+      Button {
+        reload()
+      } label: {
+        Text("Try again").tapTarget(alignment: .leading)
+      }
+      .font(Typography.body)
+      .foregroundStyle(Palette.accent)
     }
   }
 
@@ -116,7 +121,7 @@ public struct PaywallView<Header: View>: View {
       Button(action: onClose) {
         Image(systemName: "xmark")
           .font(.body.weight(.medium))
-          .frame(minWidth: 44, minHeight: 44)
+          .tapTarget()
       }
       .accessibilityLabel("Close")
     }

@@ -7,12 +7,14 @@ import SwiftUI
     @State private var showsGallery = false
 
     var body: some View {
-      Button("Gallery") { showsGallery = true }
-        .font(Typography.caption)
-        .foregroundStyle(Palette.inkDim)
-        .frame(minWidth: 44, minHeight: 44)
-
-        .sheet(isPresented: $showsGallery) { OrbGallery() }
+      Button {
+        showsGallery = true
+      } label: {
+        Text("Gallery").tapTarget()
+      }
+      .font(Typography.caption)
+      .foregroundStyle(Palette.inkDim)
+      .sheet(isPresented: $showsGallery) { OrbGallery() }
     }
   }
 
@@ -44,10 +46,13 @@ import SwiftUI
           }
           Toggle("Cycle phases and level", isOn: $cycling)
           Toggle("Light", isOn: $light)
-          Button("Speak a line through the Worker") { speakLine() }
-            .frame(minHeight: 44)
-            .disabled(WorkerURL.fromBundle == nil)
-            .accessibilityIdentifier("gallery.speak")
+          Button {
+            speakLine()
+          } label: {
+            Text("Speak a line through the Worker").tapTarget()
+          }
+          .disabled(WorkerURL.fromBundle == nil)
+          .accessibilityIdentifier("gallery.speak")
         }
         .foregroundStyle(Palette.ink)
         .tint(Palette.accent)

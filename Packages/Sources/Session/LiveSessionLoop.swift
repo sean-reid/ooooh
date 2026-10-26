@@ -12,7 +12,6 @@ import Transcription
 public actor LiveSessionLoop {
   let loop: SessionLoop
   let transcriber: any Transcriber
-  let config: GovernorConfig
   let clock: LoopClock
   let levels: AsyncStream<Double>?
   let offline: AsyncStream<Bool>?
@@ -24,6 +23,8 @@ public actor LiveSessionLoop {
   private var timer: Task<Void, Never>?
   private var nextTick: TimeInterval?
   private var armDue: TimeInterval?
+  /// Set from a final segment to the next speech start; only then do silence checks run.
+  private var inPause = false
   private var emitted = 0
   private var loopEnded = false
   private var completed = false
@@ -37,7 +38,6 @@ public actor LiveSessionLoop {
     let (stream, continuation) = AsyncStream.makeStream(of: SessionEvent.self)
     self.loop = SessionLoop(config: config, policy: policy, dependencies: dependencies)
     self.transcriber = transcriber
-    self.config = config
     self.clock = LoopClock(clock)
     self.levels = levels
     self.offline = offline
@@ -88,6 +88,7 @@ public actor LiveSessionLoop {
       case .speechStarted(let at):
         await catchUp(before: at)
         cancelTimer()
+        inPause = false
         continuation.yield(.speechStarted(at: at))
         await loop.handle(event)
         await drain()
@@ -97,10 +98,10 @@ public actor LiveSessionLoop {
           cancelTimer()
         }
         await loop.handle(event)
+        if segment.isFinal { inPause = true }
         await drain()
         if segment.isFinal, !loopEnded {
           continuation.yield(.utterance(segment))
-          nextTick = segment.end + config.checkPause
           scheduleTimer()
         }
       case .speechEnded(let at):
@@ -114,10 +115,10 @@ public actor LiveSessionLoop {
     await complete()
   }
 
-  /// Sleeps until the earlier of the next pause check and the armed decision's due time.
+  /// Sleeps until the earlier of the next silence check and the armed decision's due time.
   private func scheduleTimer() {
     timer?.cancel()
-    guard let due = [nextTick, armDue].compactMap({ $0 }).min(), let startedAt else { return }
+    guard let due = nextDue, let startedAt else { return }
     timer = Task {
       let deadline = startedAt + .seconds(due)
       if deadline > clock.now() { try? await clock.sleep(deadline) }
@@ -126,17 +127,13 @@ public actor LiveSessionLoop {
     }
   }
 
+  private var nextDue: TimeInterval? { [nextTick, armDue].compactMap { $0 }.min() }
+
+  /// One tick: speaks the armed decision when it is due and runs the silence check when one is.
   private func fire(_ due: TimeInterval) async {
     guard !completed else { return }
-    if armDue == due {
-      await loop.speakArmed(by: due)
-      await drain()
-    }
-    if nextTick == due {
-      nextTick = due + config.minCheckInterval
-      await loop.pause(until: due)
-      await drain()
-    }
+    await loop.pause(until: due)
+    await drain()
     if loopEnded {
       await complete()
     } else {
@@ -146,8 +143,7 @@ public actor LiveSessionLoop {
 
   /// Runs the ticks the clock has not reached that fall before `start`, in order.
   private func catchUp(before start: TimeInterval) async {
-    while let tick = nextTick, tick < start, !completed, !loopEnded {
-      nextTick = tick + config.minCheckInterval
+    while let tick = nextDue, tick < start, !completed, !loopEnded {
       await loop.pause(until: tick)
       await drain()
     }
@@ -162,6 +158,7 @@ public actor LiveSessionLoop {
   private func drain() async {
     let snapshot = await loop.snapshot()
     armDue = snapshot.armDue
+    nextTick = inPause ? snapshot.nextCheckAt : nil
     guard !completed, snapshot.records.count > emitted else { return }
     let fresh = snapshot.records[emitted...]
     emitted = snapshot.records.count
@@ -198,8 +195,11 @@ public actor LiveSessionLoop {
 }
 
 extension SessionLoop {
-  func snapshot() -> (records: [SessionRecord], state: CompactState, armDue: TimeInterval?) {
-    (records, state, armDue)
+  func snapshot() -> (
+    records: [SessionRecord], state: CompactState, armDue: TimeInterval?,
+    nextCheckAt: TimeInterval?
+  ) {
+    (records, state, armDue, nextCheckAt)
   }
 }
 

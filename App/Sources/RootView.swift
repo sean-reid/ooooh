@@ -155,15 +155,21 @@ struct RootView: View {
           Spacer().frame(height: 24)
         } else {
           HStack(spacing: 24) {
-            Button("Demo") { startDemo() }
-              .font(.footnote)
-              .foregroundStyle(Palette.inkDim)
-              .frame(minWidth: 44, minHeight: 44)
-              .accessibilityIdentifier("home.demo")
-            Button("Record a fixture") { isRecordingFixture = true }
-              .font(.footnote)
-              .foregroundStyle(Palette.inkDim)
-              .frame(minHeight: 44)
+            Button {
+              startDemo()
+            } label: {
+              Text("Demo").tapTarget()
+            }
+            .font(.footnote)
+            .foregroundStyle(Palette.inkDim)
+            .accessibilityIdentifier("home.demo")
+            Button {
+              isRecordingFixture = true
+            } label: {
+              Text("Record a fixture").tapTarget()
+            }
+            .font(.footnote)
+            .foregroundStyle(Palette.inkDim)
             OrbGalleryButton()
           }
           .padding(.bottom, 8)
@@ -175,16 +181,10 @@ struct RootView: View {
   }
 
   private var startButton: some View {
-    Button {
+    Button("Start") {
       Task { await controller.start(.microphone) }
-    } label: {
-      Text("Start")
-        .font(.headline)
-        .frame(maxWidth: .infinity, minHeight: 56)
     }
-    .buttonStyle(.plain)
-    .foregroundStyle(Palette.inkOnAmber)
-    .background(Palette.amber, in: Capsule())
+    .buttonStyle(.amber)
     .padding(.horizontal, 32)
     .accessibilityLabel("Start a session")
     .accessibilityIdentifier("home.start")
@@ -207,7 +207,7 @@ struct RootView: View {
       Image(systemName: symbol)
         .font(.body.weight(.medium))
         .foregroundStyle(Palette.inkDim)
-        .frame(minWidth: 44, minHeight: 44)
+        .tapTarget()
     }
     .accessibilityLabel(label)
     .accessibilityIdentifier(id)

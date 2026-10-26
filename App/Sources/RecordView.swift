@@ -34,10 +34,13 @@
           .font(.system(.title2, design: .serif))
           .foregroundStyle(Palette.ink)
         Spacer()
-        Button("Close") { dismiss() }
-          .font(.body)
-          .foregroundStyle(Palette.inkDim)
-          .frame(minHeight: 44)
+        Button {
+          dismiss()
+        } label: {
+          Text("Close").tapTarget()
+        }
+        .font(.body)
+        .foregroundStyle(Palette.inkDim)
       }
     }
 
@@ -73,17 +76,10 @@
     }
 
     private var control: some View {
-      Button {
+      Button(model.isRecording ? "Stop" : "Start") {
         Task { model.isRecording ? await model.stop() : await model.start() }
-      } label: {
-        Text(model.isRecording ? "Stop" : "Start")
-          .font(.headline)
-          .frame(maxWidth: .infinity, minHeight: 56)
       }
-      .buttonStyle(.plain)
-      .foregroundStyle(model.isRecording ? Palette.ink : Palette.inkOnAmber)
-      .background(model.isRecording ? Palette.skyRaised : Palette.amber, in: Capsule())
-      .overlay(Capsule().strokeBorder(Palette.amberDim, lineWidth: model.isRecording ? 1 : 0))
+      .buttonStyle(model.isRecording ? .amberOutlined : .amber)
       .disabled(!model.canStart && !model.isRecording)
       .accessibilityIdentifier(model.isRecording ? "record.stop" : "record.start")
     }

@@ -22,7 +22,7 @@ struct CarryoverCard: View {
           Image(systemName: "xmark")
             .font(.caption.weight(.semibold))
             .foregroundStyle(Palette.inkDim)
-            .frame(minWidth: 44, minHeight: 44)
+            .tapTarget()
         }
         .accessibilityLabel("Dismiss the open threads")
         .accessibilityIdentifier("home.carryover.dismiss")

@@ -15,6 +15,20 @@ enum Fixture {
   static func chunks(_ data: Data, size: Int) -> [Data] {
     stride(from: 0, to: data.count, by: size).map { data[$0..<min($0 + size, data.count)] }
   }
+
+  /// PCM frames the fixture decodes to when fed in `size` byte chunks, the count a player schedules.
+  static func frames(chunked size: Int) throws -> AVAudioFramePosition {
+    let output = try #require(AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1))
+    let parser = try AudioStreamParser()
+    let decoder = SpeechDecoder(output: output)
+    var frames: AVAudioFramePosition = 0
+    for chunk in chunks(try line(), size: size) {
+      for packets in try parser.parse(chunk) {
+        frames += AVAudioFramePosition(try decoder.decode(packets)?.frameLength ?? 0)
+      }
+    }
+    return frames
+  }
 }
 
 @Suite struct AudioStreamParserTests {

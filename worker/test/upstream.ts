@@ -1,4 +1,5 @@
 // Request bodies the phone sends and upstream replies shaped like recorded ones.
+import { vi } from "vitest";
 
 export const state = {
   currentThread: "Whether to rebuild the sync layer or patch the queue.",
@@ -245,5 +246,12 @@ export function fakeUpstream(replies: Reply[]): FakeUpstream {
   };
   return { fetch: impl, requests, pending: () => queue.length };
 }
+
+/** Puts a fake upstream in place of `fetch` for the test; `vi.unstubAllGlobals()` takes it out. */
+export const stubUpstream = (...replies: Reply[]) => {
+  const upstream = fakeUpstream(replies);
+  vi.stubGlobal("fetch", upstream.fetch);
+  return upstream;
+};
 
 export const bodyOf = <T = Record<string, unknown>>(seen: Seen) => JSON.parse(seen.body) as T;

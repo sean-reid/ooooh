@@ -85,7 +85,8 @@ public struct OnboardingScreen: View {
   }
 }
 
-/// One dot per page, read by VoiceOver as one adjustable element.
+/// One dot per page, the current one stretched to a bar, read by VoiceOver as one adjustable
+/// element.
 struct OnboardingDots: View {
   var page: OnboardingPage
   var select: @MainActor (OnboardingPage) -> Void
@@ -93,9 +94,10 @@ struct OnboardingDots: View {
   var body: some View {
     HStack(spacing: 10) {
       ForEach(OnboardingPage.allCases, id: \.self) { candidate in
-        Circle()
-          .fill(candidate == page ? Palette.accent : Palette.inkDim)
-          .frame(width: 8, height: 8)
+        let current = candidate == page
+        Capsule()
+          .fill(current ? Palette.accent : Palette.inkDim)
+          .frame(width: current ? 20 : 8, height: 8)
       }
     }
     .frame(minHeight: 44)

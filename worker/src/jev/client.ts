@@ -1,4 +1,11 @@
-import { HttpError, maxRetryWaitMs, retryAfterFrom, sleep } from "../http";
+import {
+  HttpError,
+  maxRetryWaitMs,
+  retryAfterFrom,
+  sleep,
+  unavailable,
+  upstreamFailure,
+} from "../http";
 import { num, obj, oneOf, optional, ValidationError, type Validator } from "../validate";
 import { jevModel, questions, type QuestionName } from "./questions";
 
@@ -84,9 +91,7 @@ export async function askJev(apiKey: string, state: unknown): Promise<JevRespons
         signal: AbortSignal.timeout(jevTimeoutMs),
       });
     } catch (e) {
-      if (e instanceof DOMException && e.name === "TimeoutError") {
-        throw new HttpError(503, { error: "jev unavailable", retryAfter: 1 });
-      }
+      if (e instanceof DOMException && e.name === "TimeoutError") throw unavailable("jev", 1);
       throw e;
     }
     if (res.ok) return readJevReply(await res.text());
@@ -98,12 +103,8 @@ export async function askJev(apiKey: string, state: unknown): Promise<JevRespons
         await sleep(waitMs);
         continue;
       }
-      throw new HttpError(503, {
-        error: "jev unavailable",
-        retryAfter: retryAfterFrom(header, Math.ceil(defaultWaitMs / 1000)),
-      });
+      throw unavailable("jev", retryAfterFrom(header, Math.ceil(defaultWaitMs / 1000)));
     }
-    console.error("jev", res.status, (await res.text()).slice(0, 500));
-    throw new HttpError(502, { error: "jev", status: res.status, detail: "upstream error" });
+    throw upstreamFailure("jev", res.status, null, await res.text());
   }
 }
