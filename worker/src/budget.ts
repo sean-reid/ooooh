@@ -89,7 +89,6 @@ export const guarded =
   ): DeviceHandler =>
   async (request, env, device) => {
     await checkSession(device, env, window);
-    await checkDeviceRate(device, env);
-    await checkBudget(env, provider);
+    await Promise.all([checkDeviceRate(device, env), checkBudget(env, provider)]);
     return handler(request, env);
   };
