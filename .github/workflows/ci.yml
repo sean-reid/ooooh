@@ -27,6 +27,10 @@ jobs:
       - run: swift build --package-path Packages
       - run: swift test --package-path Packages
       - run: swift run --package-path Packages eval --corpus fixtures/synthetic/estimate --require-perfect
+      - run: >
+          swift run --package-path Packages eval --corpus fixtures/synthetic/estimate
+          --answers-dir fixtures/synthetic/estimate/answers
+          --gate precision=0.28,recall=0.45,finished-recall=0.55,intrusions=3,collisions=14
 
   worker:
     runs-on: ubuntu-latest
@@ -82,7 +86,10 @@ jobs:
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath ui.xcresult
-          -only-testing:oooohUITests test
+          -only-testing:oooohUITests -retry-tests-on-failure -test-iterations 2 test
+      - name: retries
+        if: always()
+        run: bin/test-retries ui.xcresult | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

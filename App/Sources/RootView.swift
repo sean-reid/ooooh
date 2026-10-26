@@ -252,11 +252,12 @@ struct RootView: View {
   }
 
   #if DEBUG
-    /// Replays the bundled decision fixture through the whole pipeline at 1x. Also runs on launch with `-demo 1`.
+    /// Replays the bundled decision fixture through the whole pipeline at the `-demo-speed` pace.
+    /// Also runs on launch with `-demo 1`.
     private func startDemo() {
       guard let url = Bundle.main.url(forResource: "decision.fixture", withExtension: "json")
       else { return }
-      Task { await controller.start(.fixture(url, speed: 1)) }
+      Task { await controller.start(.fixture(url, speed: DemoSpeed.read())) }
     }
   #endif
 }

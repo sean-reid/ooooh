@@ -66,5 +66,10 @@ public struct RecordedDecisionProvider: DecisionProvider {
     answers[Self.key(input.signals.now)] ?? .quiet
   }
 
+  /// Whether a check at this moment has a recorded answer; without one it replays `.quiet`.
+  public func hasAnswer(at: TimeInterval) -> Bool {
+    answers[Self.key(at)] != nil
+  }
+
   static func key(_ at: TimeInterval) -> Int { Int((at * 1000).rounded()) }
 }
