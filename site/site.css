@@ -84,20 +84,6 @@ a:focus-visible {
   margin: calc(var(--side) * -0.25);
 }
 
-.orb.still {
-  animation: breath 8s ease-in-out infinite;
-}
-
-@keyframes breath {
-  0%,
-  100% {
-    opacity: 0.62;
-  }
-  50% {
-    opacity: 0.95;
-  }
-}
-
 .wordmark {
   font-size: clamp(64px, 18vw, 112px);
   letter-spacing: -0.02em;

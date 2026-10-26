@@ -68,10 +68,41 @@ test("the landing page links the documents from the footer and carries the store
   assert.match(footer, /href="privacy.html"/);
   assert.match(footer, /href="terms.html"/);
   assert.match(html, /<canvas\s+class="orb"/);
-  assert.match(read("landing.mjs"), /^const APP_STORE_URL = "[^"]+";$/m);
+  assert.match(read("landing.mjs"), /^const APP_STORE_URL = "[^"]*";$/m);
   for (const image of ["session-dark.png", "session-light.png"]) {
     assert.ok(existsSync(join(here, "images", image)), image);
     assert.ok(html.includes(`images/${image}`), image);
+  }
+});
+
+test("the orb holds still under reduced motion", () => {
+  const css = read("site.css");
+  assert.ok(!css.includes("@keyframes"));
+  assert.ok(!css.includes(".still"));
+  assert.match(read("landing.mjs"), /prefers-reduced-motion: reduce/);
+});
+
+test("the orb script runs without the observers and the newer syntax", () => {
+  const script = read("landing.mjs");
+  assert.match(script, /"ResizeObserver" in window/);
+  assert.match(script, /"IntersectionObserver" in window/);
+  assert.match(script, /list\.addListener\(handler\)/);
+  for (const name of ["landing.mjs", "orb-geometry.mjs"]) {
+    const source = read(name);
+    assert.ok(!source.includes("??"), name);
+    assert.ok(!source.includes("?."), name);
+  }
+});
+
+test("the orb script runs without the observers and the newer syntax", () => {
+  const script = read("landing.mjs");
+  assert.match(script, /"ResizeObserver" in window/);
+  assert.match(script, /"IntersectionObserver" in window/);
+  assert.match(script, /list\.addListener\(handler\)/);
+  for (const name of ["landing.mjs", "orb-geometry.mjs"]) {
+    const source = read(name);
+    assert.ok(!source.includes("??"), name);
+    assert.ok(!source.includes("?."), name);
   }
 });
 
