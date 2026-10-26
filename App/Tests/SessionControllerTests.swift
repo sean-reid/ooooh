@@ -531,6 +531,7 @@ import Transcription
     #expect(controller.lastPrompt == nil)
     #expect(PendingNotesView.line(for: controller) == PendingNotesView.clockLine)
     #expect(PendingNotesView.clockLine.hasSuffix(PendingNotesView.noNotes))
+    #expect(PendingNotesView.offlineLine.hasSuffix(PendingNotesView.noNotes))
 
     let paths = GateProtocol.requests(to: host).map(\.path)
     #expect(paths.filter { $0 == "/v1/session/start" }.count == 2)

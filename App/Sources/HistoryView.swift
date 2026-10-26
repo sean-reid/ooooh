@@ -183,7 +183,7 @@ struct StoredNotesScreen: View {
         } else {
           PendingNotesView(
             state: detail.state ?? .empty, transcript: detail.transcript,
-            line: "The notes were not written for this session."
+            line: PendingNotesView.noNotes
           ) {
             dismiss()
           }

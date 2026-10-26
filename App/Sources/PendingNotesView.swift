@@ -11,7 +11,7 @@ struct PendingNotesView: View {
   let done: () -> Void
 
   static let noNotes = "There are no notes for this session."
-  static let offlineLine = "Your listener is offline. The notes will be written when it is back."
+  static let offlineLine = "Your listener is offline. \(noNotes)"
   static let clockLine = "Your phone's clock is off, so your listener can't verify it. \(noNotes)"
   static let refusedLine =
     "This month's free sessions are used up, so there are no notes for this one."
