@@ -1,7 +1,8 @@
 import type { DeviceHandler } from "./attest/device";
+import { counterFor } from "./attest/record";
 import { deferred } from "./defer";
 import { HttpError } from "./http";
-import { checkSession, readCount, type Window } from "./session";
+import { checkSession, type Window } from "./session";
 import { settings } from "./settings";
 
 export type Provider = "jev" | "anthropic" | "elevenlabs";
@@ -13,10 +14,12 @@ const secondsToMidnight = (now: Date) => {
   return Math.max(1, Math.ceil((next - now.getTime()) / 1000));
 };
 
+export const budgetFor = (env: Env, provider: Provider) => env.PROVIDER_BUDGET.getByName(provider);
+
 /** Refuses when today's spend for the provider has reached its cap. */
 export async function checkBudget(env: Env, provider: Provider, now = new Date()): Promise<void> {
   const limit = settings(env).dailyLimit[provider];
-  const used = await readCount(env.BUDGET, `budget:${provider}:${day(now)}`);
+  const used = await budgetFor(env, provider).spent(day(now));
   if (used >= limit) {
     const retryAfter = secondsToMidnight(now);
     throw new HttpError(
@@ -27,28 +30,12 @@ export async function checkBudget(env: Env, provider: Provider, now = new Date()
   }
 }
 
-/**
- * Adds what a response cost without holding the response on the write. KV is eventually
- * consistent and takes one write a second per key, so the cap is approximate by design.
- */
+/** Adds what a response cost without holding the response on the write. */
 export function charge(env: Env, provider: Provider, amount: number, now = new Date()) {
   if (!(amount > 0)) return Promise.resolve();
-  const key = `budget:${provider}:${day(now)}`;
-  const write = (pendingCharges.get(key) ?? Promise.resolve()).then(async () => {
-    const used = await readCount(env.BUDGET, key);
-    await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
-  });
-  const tail: Promise<void> = write
-    .catch(() => undefined)
-    .then(() => {
-      if (pendingCharges.get(key) === tail) pendingCharges.delete(key);
-    });
-  pendingCharges.set(key, tail);
-  return deferred(`charge ${key}`, () => write);
+  const today = day(now);
+  return deferred(`charge ${provider} ${today}`, () => budgetFor(env, provider).add(today, amount));
 }
-
-/** Charges on one key run in order within the isolate, so two in one request keep both puts. */
-const pendingCharges = new Map<string, Promise<void>>();
 
 /** Each family's list price over Opus's, so the Anthropic cap counts Opus-equivalent tokens. */
 const modelWeights: [family: string, weight: number][] = [
@@ -68,26 +55,16 @@ export const chargeModel = (
   now = new Date(),
 ) => charge(env, "anthropic", modelWeight(model) * (usage.input_tokens + usage.output_tokens), now);
 
-/**
- * One device may make this many provider-backed requests a minute. The count is a KV read then
- * a put, so it is approximate under concurrency, and a put KV refuses is logged and the request
- * goes on.
- */
+/** One device may make this many provider-backed requests a minute, counted in its DeviceCounter. */
 export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {
   const limit = settings(env).deviceMinuteRequests;
   const minute = Math.floor(now.getTime() / 60_000);
-  const key = `rate:${device}:${minute}`;
-  const used = await readCount(env.BUDGET, key);
-  if (used >= limit) {
-    const retryAfter = 60 - Math.floor((now.getTime() % 60_000) / 1000);
-    throw new HttpError(
-      429,
-      { error: "rate", limit, retryAfter },
-      { "retry-after": String(retryAfter) },
-    );
-  }
-  await deferred(`rate ${key}`, () =>
-    env.BUDGET.put(key, String(used + 1), { expirationTtl: 120 }),
+  if (await counterFor(env, device).hit(minute, limit)) return;
+  const retryAfter = 60 - Math.floor((now.getTime() % 60_000) / 1000);
+  throw new HttpError(
+    429,
+    { error: "rate", limit, retryAfter },
+    { "retry-after": String(retryAfter) },
   );
 }
 

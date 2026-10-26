@@ -5,7 +5,7 @@ import { endSession } from "../src/routes/session";
 import { sessionTtlSeconds, type SessionRecord } from "../src/session";
 import { jsonRequest, openSession } from "./request";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
-import { post, wipeKV } from "./workers";
+import { post, wipeStorage } from "./workers";
 
 let chain: StoreChain;
 
@@ -25,7 +25,7 @@ beforeAll(async () => {
   chain = await makeStoreChain();
 });
 
-beforeEach(wipeKV);
+beforeEach(wipeStorage);
 
 describe("free sessions", () => {
   const october = new Date("2026-10-25T10:00:00Z");

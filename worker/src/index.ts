@@ -14,6 +14,7 @@ import { endSession, startSession } from "./routes/session";
 import { speak } from "./routes/speak";
 
 export { DeviceCounter } from "./attest/counter";
+export { ProviderBudget } from "./spend";
 
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
 

@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import worker from "../../src/index";
-import { memoryKV, noCounter } from "../kv";
+import { memoryKV } from "../kv";
+import { memoryObjects } from "../objects";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,7 +24,7 @@ const decisionFixture = resolve(
 const env = {
   REQUIRE_ATTESTATION: "false",
   BUDGET: memoryKV(),
-  DEVICE_COUNTER: noCounter,
+  ...memoryObjects(),
   TYPESAFE_API_KEY: secret("TYPESAFE_API_KEY"),
   ANTHROPIC_API_KEY: secret("ANTHROPIC_API_KEY"),
   ANTHROPIC_AUTH_TOKEN: secret("ANTHROPIC_AUTH_TOKEN"),

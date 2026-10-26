@@ -27,7 +27,7 @@ import { phraseWith } from "../src/routes/phrase";
 import { deadlines, speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
 import { jsonRequest, startRequest } from "./request";
-import { post as postJson } from "./workers";
+import { post as postJson, spent as spentOn } from "./workers";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   postJson(path, body, { "x-device": "routes", ...headers });
@@ -45,8 +45,7 @@ beforeEach(async () => {
   expect((await post("/v1/session/start", {})).status).toBe(200);
 });
 
-const today = new Date().toISOString().slice(0, 10);
-const spent = async () => Number((await env.BUDGET.get(`budget:anthropic:${today}`)) ?? 0);
+const spent = () => spentOn("anthropic");
 
 let upstream: FakeUpstream;
 const expectUpstream = (...replies: Reply[]) => (upstream = stubUpstream(...replies));
@@ -198,11 +197,11 @@ describe("POST /v1/decide", () => {
   for (const [name, reply, named] of shapeCases) {
     it(`refuses ${name} with 502 naming the field, and charges nothing`, async () => {
       expectUpstream({ body: reply });
-      const before = await env.BUDGET.get(`budget:jev:${today}`);
+      const before = await spentOn("jev");
       const res = await post("/v1/decide", decideBody);
       expect(res.status).toBe(502);
       expect(await res.json()).toEqual({ error: "jev answer shape", ...named });
-      expect(await env.BUDGET.get(`budget:jev:${today}`)).toBe(before);
+      expect(await spentOn("jev")).toBe(before);
     });
   }
 
@@ -387,16 +386,10 @@ describe("POST /v1/notes", () => {
 
   it("charges Opus input plus output tokens at full weight", async () => {
     expectUpstream({ body: opusReply() });
-    const env = {
-      BUDGET: memoryKV(),
-      ANTHROPIC_API_KEY: "sk-key",
-      REQUIRE_ATTESTATION: "false",
-    } as Env;
-    await worker.fetch(startRequest(), env);
-    const res = await worker.fetch(jsonRequest("/v1/notes", notesBody), env);
+    const before = await spent();
+    const res = await post("/v1/notes", notesBody);
     expect(res.status).toBe(200);
-    const day = new Date().toISOString().slice(0, 10);
-    expect(await env.BUDGET.get(`budget:anthropic:${day}`)).toBe("3920");
+    await expect.poll(spent).toBe(before + 3920);
   });
 
   it("refuses an id that is not a slug", async () => {
@@ -442,15 +435,20 @@ describe("weighted Anthropic charges", () => {
 });
 
 describe("Anthropic credentials", () => {
-  const env = { BUDGET: memoryKV(), REQUIRE_ATTESTATION: "false" } as Env;
+  const bare = {
+    DEVICE_COUNTER: env.DEVICE_COUNTER,
+    PROVIDER_BUDGET: env.PROVIDER_BUDGET,
+    BUDGET: memoryKV(),
+    REQUIRE_ATTESTATION: "false",
+  } as Env;
   beforeAll(async () => {
-    await worker.fetch(startRequest(), env);
+    await worker.fetch(startRequest(), bare);
   });
   const request = () => jsonRequest("/v1/compact", compactBody);
 
   it("sends a stored key as a bearer with no oauth beta", async () => {
     expectUpstream({ body: haikuReply });
-    const res = await worker.fetch(request(), { ...env, ANTHROPIC_API_KEY: "sk-key" });
+    const res = await worker.fetch(request(), { ...bare, ANTHROPIC_API_KEY: "sk-key" });
     expect(res.status).toBe(200);
     const headers = upstream.requests[0].headers;
     expect(headers.authorization).toBe("Bearer sk-key");
@@ -461,7 +459,7 @@ describe("Anthropic credentials", () => {
   it("sends an oauth token as a bearer with the oauth beta, and the token wins over the key", async () => {
     expectUpstream({ body: haikuReply });
     const res = await worker.fetch(request(), {
-      ...env,
+      ...bare,
       ANTHROPIC_API_KEY: "sk-key",
       ANTHROPIC_AUTH_TOKEN: "oauth-token",
     });
@@ -475,7 +473,7 @@ describe("Anthropic credentials", () => {
   it("keeps the oauth beta next to the fallback beta on the phrase route", async () => {
     expectUpstream({ body: sonnetReply(shortSentence) });
     const res = await worker.fetch(jsonRequest("/v1/phrase", phraseBody), {
-      ...env,
+      ...bare,
       ANTHROPIC_AUTH_TOKEN: "oauth-token",
     });
     expect(res.status).toBe(200);
@@ -700,11 +698,10 @@ describe("POST /v1/speak", () => {
 
   it("streams the audio through, charges the character count, and never caches", async () => {
     expectUpstream(audio({ "x-character-count": "52", "request-id": "req_01" }));
-    const key = `budget:elevenlabs:${new Date().toISOString().slice(0, 10)}`;
-    const before = Number((await env.BUDGET.get(key)) ?? 0);
+    const before = await spentOn("elevenlabs");
 
     const res = await post("/v1/speak", speakBody);
-    await expect.poll(async () => Number(await env.BUDGET.get(key)) - before).toBe(52);
+    await expect.poll(async () => (await spentOn("elevenlabs")) - before).toBe(52);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/mpeg");
     expect(res.headers.get("cache-control")).toBe("no-store");

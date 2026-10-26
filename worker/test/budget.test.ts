@@ -11,9 +11,8 @@ import {
 import { HttpError } from "../src/http";
 import worker from "../src/index";
 import { checkSession } from "../src/session";
-import { MemoryKV } from "./kv";
 import { jsonRequest, openSession } from "./request";
-import { post, wipeKV } from "./workers";
+import { post, spent, wipeStorage } from "./workers";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
 import {
   audioBytes,
@@ -44,12 +43,33 @@ const refused = async (res: Response, reason: string) => {
   expect(await res.json()).toEqual({ error: "no-session", reason });
 };
 
+const minuteOf = (now: Date) => Math.floor(now.getTime() / 60_000);
+
+/** Uses `count` of the device's minute, the way admitted requests do. */
+const useMinute = async (device: string, count: number, now = new Date()) => {
+  for (let i = 0; i < count; i++) await checkDeviceRate(device, env, now);
+};
+
+const statusOf = (e: unknown) => (e instanceof HttpError ? e.status : e);
+
+/** The budget objects behind a hook on `add`, for what a charge's write does to the response. */
+const budgetsWith = (add: (real: () => Promise<number>) => Promise<number>) =>
+  ({
+    getByName: (name: string) => {
+      const real = env.PROVIDER_BUDGET.getByName(name);
+      return {
+        spent: (day: string) => real.spent(day),
+        add: (day: string, amount: number) => add(() => real.add(day, amount)),
+      };
+    },
+  }) as unknown as Env["PROVIDER_BUDGET"];
+
 let chain: StoreChain;
 beforeAll(async () => {
   chain = await makeStoreChain();
 });
 
-beforeEach(wipeKV);
+beforeEach(wipeStorage);
 
 describe("budget", () => {
   it("keeps the default cap when the var is not a positive number", async () => {
@@ -67,7 +87,7 @@ describe("budget", () => {
   it("adds charges and refuses at the daily cap with a retry time", async () => {
     await charge(env, "jev", 1200);
     await charge(env, "jev", 800);
-    expect(await env.BUDGET.get(`budget:jev:${today}`)).toBe("2000");
+    expect(await spent("jev")).toBe(2000);
     await expect(checkBudget(env, "jev")).resolves.toBeUndefined();
 
     await charge(env, "jev", 20_000_000);
@@ -79,6 +99,13 @@ describe("budget", () => {
     expect(err.body.retryAfter).toBeLessThanOrEqual(24 * 3600);
   });
 
+  it("keeps every charge when many land at once", async () => {
+    await Promise.all([charge(env, "anthropic", 100), charge(env, "anthropic", 200)]);
+    expect(await spent("anthropic")).toBe(300);
+    await Promise.all(Array.from({ length: 20 }, () => charge(env, "elevenlabs", 1)));
+    expect(await spent("elevenlabs")).toBe(20);
+  });
+
   it("weighs tokens by model so the cap is Opus-equivalent, and 700,000 is the default", async () => {
     expect(modelWeight("claude-opus-5-5")).toBe(1);
     expect(modelWeight("claude-sonnet-5-5")).toBe(0.5);
@@ -88,11 +115,11 @@ describe("budget", () => {
 
     const usage = { input_tokens: 3000, output_tokens: 1000 };
     await chargeModel(env, "claude-haiku-5-5", usage);
-    expect(await env.BUDGET.get(`budget:anthropic:${today}`)).toBe("100");
+    expect(await spent("anthropic")).toBe(100);
     await chargeModel(env, "claude-sonnet-5-5", usage);
-    expect(await env.BUDGET.get(`budget:anthropic:${today}`)).toBe("2100");
+    expect(await spent("anthropic")).toBe(2100);
     await chargeModel(env, "claude-opus-5-5", usage);
-    expect(await env.BUDGET.get(`budget:anthropic:${today}`)).toBe("6100");
+    expect(await spent("anthropic")).toBe(6100);
 
     await charge(env, "anthropic", 700_000 - 6100 - 1);
     await expect(
@@ -109,18 +136,27 @@ describe("budget", () => {
   it("ignores non-positive charges", async () => {
     await charge(env, "anthropic", 0);
     await charge(env, "anthropic", -5);
-    expect(await env.BUDGET.get(`budget:anthropic:${today}`)).toBeNull();
+    expect(await spent("anthropic")).toBe(0);
   });
 
   it("limits one device per minute and leaves others alone", async () => {
     const now = new Date("2026-10-25T10:00:30Z");
-    const minute = Math.floor(now.getTime() / 60_000);
-    await env.BUDGET.put(`rate:a:${minute}`, "59");
+    await useMinute("a", 59, now);
     await checkDeviceRate("a", env, now);
     const err = await checkDeviceRate("a", env, now).catch((e) => e);
     expect(err.status).toBe(429);
     expect(err.body.retryAfter).toBe(30);
     await expect(checkDeviceRate("b", env, now)).resolves.toBeUndefined();
+  });
+
+  it("admits exactly the limit when ten requests arrive at once", async () => {
+    const now = new Date("2026-10-25T10:00:30Z");
+    const limited = { ...env, DEVICE_MINUTE_REQUESTS: "5" };
+    const outcomes = await Promise.all(
+      Array.from({ length: 10 }, () => checkDeviceRate("burst", limited, now).catch(statusOf)),
+    );
+    expect(outcomes.filter((o) => o === undefined)).toHaveLength(5);
+    expect(outcomes.filter((o) => o === 429)).toHaveLength(5);
   });
 
   it("counts the seconds to midnight: 1 at 23:59:59, 86400 at 00:00:00", async () => {
@@ -181,8 +217,7 @@ describe("budget", () => {
 
   it("tells a rate-limited device to wait 60 seconds at :00 and 1 second at :59", async () => {
     const at = (seconds: string) => new Date(`2026-10-25T10:00:${seconds}Z`);
-    const minute = Math.floor(at("00").getTime() / 60_000);
-    await env.BUDGET.put(`rate:edge:${minute}`, "60");
+    await useMinute("edge", 60, at("00"));
     const cases: [string, number][] = [
       ["00", 60],
       ["00.999", 60],
@@ -199,17 +234,14 @@ describe("budget", () => {
     await expect(checkDeviceRate("edge", env, nextMinute)).resolves.toBeUndefined();
   });
 
-  it("expires a rate key after 120 seconds and a budget key after three days", async () => {
-    const before = Math.floor(Date.now() / 1000);
-    await checkDeviceRate("ttl", env);
-    await charge(env, "jev", 1);
-    const after = Math.ceil(Date.now() / 1000);
-    const { keys } = await env.BUDGET.list();
-    const expiry = (prefix: string) => keys.find((k) => k.name.startsWith(prefix))?.expiration;
-    expect(expiry("rate:ttl:")).toBeGreaterThanOrEqual(before + 120);
-    expect(expiry("rate:ttl:")).toBeLessThanOrEqual(after + 120);
-    expect(expiry("budget:jev:")).toBeGreaterThanOrEqual(before + 3 * 24 * 3600);
-    expect(expiry("budget:jev:")).toBeLessThanOrEqual(after + 3 * 24 * 3600);
+  it("drops the days before the one a charge lands on", async () => {
+    const saturday = new Date("2026-10-24T12:00:00Z");
+    const sunday = new Date("2026-10-25T12:00:00Z");
+    await charge(env, "jev", 5, saturday);
+    expect(await spent("jev", "2026-10-24")).toBe(5);
+    await charge(env, "jev", 7, sunday);
+    expect(await spent("jev", "2026-10-25")).toBe(7);
+    expect(await spent("jev", "2026-10-24")).toBe(0);
   });
 });
 
@@ -226,70 +258,43 @@ describe("guarded routes", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { usage: { jevInputTokens: number } };
     expect(body.usage.jevInputTokens).toBe(1211);
-    await expect.poll(() => env.BUDGET.get(`budget:jev:${today}`)).toBe("1211");
+    await expect.poll(() => spent("jev")).toBe(1211);
     expect(upstream.pending()).toBe(0);
-  });
-
-  it("keeps both charges when two land on one key at once", async () => {
-    const kv = new MemoryKV();
-    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
-    await Promise.all([charge(testEnv, "anthropic", 100), charge(testEnv, "anthropic", 200)]);
-    expect(await kv.get(`budget:anthropic:${today}`)).toBe("300");
   });
 
   it("answers before the charge lands and settles it in waitUntil", async () => {
     upstream = stubUpstream({ body: { ...jevReply, usage: { input_tokens: 1211 } } });
-    const kv = new MemoryKV();
-    let pending = 0;
-    kv.put = async (key, value) => {
-      if (key.startsWith("budget:")) pending += 1;
-      kv.store.set(key, value);
-    };
-    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let adds = 0;
+    const budgets = budgetsWith(async (real) => {
+      adds += 1;
+      await held;
+      return real();
+    });
+    const testEnv = { ...env, PROVIDER_BUDGET: budgets };
     const ctx = createExecutionContext();
     await worker.fetch(request("/v1/session/start", {}), testEnv, ctx);
     const res = await worker.fetch(request("/v1/decide", decideBody), testEnv, ctx);
     expect(res.status).toBe(200);
+    expect(adds).toBe(1);
+    expect(await spent("jev")).toBe(0);
+    release();
     await waitOnExecutionContext(ctx);
-    expect(pending).toBe(1);
-    expect(await kv.get(`budget:jev:${today}`)).toBe("1211");
+    expect(await spent("jev")).toBe(1211);
   });
 
-  it("logs a rate count the store refuses and keeps the 200", async () => {
+  it("logs a charge the object refuses and keeps the 200", async () => {
     upstream = stubUpstream({ body: jevReply });
-    const kv = new MemoryKV();
-    kv.put = async (key, value) => {
-      if (key.startsWith("rate:")) throw new Error("KV PUT failed: 429 Too Many Requests");
-      kv.store.set(key, value);
-    };
+    const budgets = budgetsWith(() => Promise.reject(new Error("storage failed")));
     const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
+    const testEnv = { ...env, PROVIDER_BUDGET: budgets };
     const ctx = createExecutionContext();
     await worker.fetch(request("/v1/session/start", {}), testEnv, ctx);
     const res = await worker.fetch(request("/v1/decide", decideBody), testEnv, ctx);
     expect(res.status).toBe(200);
     await waitOnExecutionContext(ctx);
-    const minute = Math.floor(Date.now() / 60_000);
-    expect(logged).toHaveBeenCalledWith(`rate rate:direct:${minute}`, expect.any(Error));
-    expect(await kv.get(`budget:jev:${today}`)).toBe(String(jevReply.usage.input_tokens));
-    logged.mockRestore();
-  });
-
-  it("logs a charge the store refuses and keeps the 200", async () => {
-    upstream = stubUpstream({ body: jevReply });
-    const kv = new MemoryKV();
-    kv.put = async (key, value) => {
-      if (key.startsWith("budget:")) throw new Error("KV PUT failed: 429 Too Many Requests");
-      kv.store.set(key, value);
-    };
-    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
-    const ctx = createExecutionContext();
-    await worker.fetch(request("/v1/session/start", {}), testEnv, ctx);
-    const res = await worker.fetch(request("/v1/decide", decideBody), testEnv, ctx);
-    expect(res.status).toBe(200);
-    await waitOnExecutionContext(ctx);
-    expect(logged).toHaveBeenCalledWith(`charge budget:jev:${today}`, expect.any(Error));
+    expect(logged).toHaveBeenCalledWith(`charge jev ${today}`, expect.any(Error));
     logged.mockRestore();
   });
 
@@ -304,13 +309,24 @@ describe("guarded routes", () => {
   });
 
   it("returns 429 once a device has used its minute", async () => {
-    const minute = Math.floor(Date.now() / 60_000);
-    await env.BUDGET.put(`rate:busy:${minute}`, "59");
+    await useMinute("busy", 59);
     upstream = stubUpstream({ body: jevReply });
     await start("busy");
     expect((await post("/v1/decide", decideBody, { "x-device": "busy" })).status).toBe(200);
     const res = await post("/v1/decide", decideBody, { "x-device": "busy" });
     expect(res.status).toBe(429);
+    expect(upstream.pending()).toBe(0);
+  });
+
+  it("serves exactly the limit when ten requests arrive at once", async () => {
+    await useMinute("burst", 55);
+    upstream = stubUpstream(...Array.from({ length: 5 }, () => ({ body: jevReply })));
+    await start("burst");
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => post("/v1/decide", decideBody, { "x-device": "burst" })),
+    );
+    const statuses = responses.map((r) => r.status).sort();
+    expect(statuses).toEqual([200, 200, 200, 200, 200, 429, 429, 429, 429, 429]);
     expect(upstream.pending()).toBe(0);
   });
 });
@@ -337,8 +353,7 @@ describe("session gate", () => {
     expectUpstream();
     await refused(await post("/v1/decide", decideBody, device), "not-started");
     await refused(await post("/v1/notes", notesBody, device), "not-started");
-    const minute = Math.floor(Date.now() / 60_000);
-    expect(await env.BUDGET.get(`rate:gated:${minute}`)).toBeNull();
+    expect(await env.DEVICE_COUNTER.getByName("gated").hit(minuteOf(new Date()), 1)).toBe(true);
   });
 
   it("refuses the fourth free start of the month, and the calls after it, with free-used", async () => {
