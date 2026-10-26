@@ -7,7 +7,11 @@ import Transcription
 struct PendingNotesView: View {
   let state: CompactState
   let transcript: [Segment]
-  var line = "Your listener is offline. The notes will be written when it is back."
+  var line = Self.offlineLine
+
+  static let offlineLine = "Your listener is offline. The notes will be written when it is back."
+  static let refusedLine =
+    "This month's free sessions are used up, so there are no notes for this one."
   let done: () -> Void
 
   var body: some View {

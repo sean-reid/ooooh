@@ -1,5 +1,6 @@
 import Billing
 import Persistence
+import Proxy
 import UIKit
 
 extension SessionController.Environment {
@@ -9,6 +10,7 @@ extension SessionController.Environment {
     var environment = Self(workerURL: WorkerURL.fromBundle)
     environment.haptic = { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
     environment.store = AppStore.shared
+    environment.attestor = AppAttestor.shared
     #if DEBUG
       environment.forceVoice = UserDefaults.standard.bool(forKey: "force-voice")
       if UserDefaults.standard.bool(forKey: "free-exhausted") { environment.gate = .exhausted }
@@ -17,10 +19,18 @@ extension SessionController.Environment {
   }
 }
 
+/// The one attestor the app signs Worker requests with; its key id also fixes the token a
+/// purchase carries. Nil without a Worker URL, when a purchase keeps the stored random token.
+enum AppAttestor {
+  static let shared: (any Attestor)? = WorkerURL.fromBundle.map {
+    ProxyClient.attestor(baseURL: $0)
+  }
+}
+
 /// The one billing store the app opens, reading the free count from the sessions it runs.
 @MainActor enum AppBilling {
   static let freeSessions = FreeSessions()
-  static let store = BillingStore(freeSessions: freeSessions)
+  static let store = BillingStore(freeSessions: freeSessions, attestor: AppAttestor.shared)
 }
 
 /// The one store the app opens. Nil when the local database cannot be opened, and that run keeps no history.
