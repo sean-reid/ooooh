@@ -25,7 +25,7 @@ shoot() {
   shoot_url=$3
   shift 3
   "$chrome" --headless=new --disable-gpu --hide-scrollbars \
-    --user-data-dir="$stage/chrome" --force-prefers-reduced-motion \
+    --user-data-dir="$stage/chrome" --force-prefers-reduced-motion --force-dark-mode \
     --virtual-time-budget=3000 --window-size="${shoot_size%x*},${shoot_size#*x}" \
     --screenshot="$shoot_file" "$@" "$shoot_url" 2> /dev/null
 }

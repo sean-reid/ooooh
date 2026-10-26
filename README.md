@@ -69,7 +69,7 @@ There are no accounts; the device is the identity. A phone attests an App Attest
 - `App/` is the thin app target; everything it does lives in a package.
 - `Packages/` is one Swift package: Audio, Transcription, State, Governor, Notes, Design, Proxy, Session, Persistence, Billing, and Settings.
 - `worker/` is the Cloudflare Worker.
-- `tools/labeler/` marks good moments in a recorded session (serve it with `python3 -m http.server -d tools/labeler`); `tools/synth/` turns the scripts in `fixtures/synthetic/scripts/` into fixtures, labels, and audio; `tools/store/` renders the App Store screenshots and preview.
+- `tools/labeler/` marks good moments in a recorded session (serve the repo root with `python3 -m http.server` and open `/tools/labeler/`); `tools/synth/` turns the scripts in `fixtures/synthetic/scripts/` into fixtures, labels, and audio; `tools/store/` renders the App Store screenshots and preview.
 
 ## Eval
 

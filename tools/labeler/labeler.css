@@ -1,10 +1,3 @@
-:root {
-  --sky: #0c0d11;
-  --raised: #16171c;
-  --amber: #fabd58;
-  --ink: #ece9e2;
-  --dim: rgba(236, 233, 226, 0.55);
-}
 body {
   margin: 0;
   background: var(--sky);

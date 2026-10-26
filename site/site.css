@@ -3,7 +3,7 @@
   --sky: #0c0d11;
   --raised: #16171c;
   --ink: #ece9e2;
-  --dim: rgba(236, 233, 226, 0.64);
+  --dim: rgba(236, 233, 226, 0.6);
   --amber: #fabd58;
   --line: rgba(236, 233, 226, 0.14);
   --serif:
@@ -15,7 +15,7 @@
     --sky: #f4efe6;
     --raised: #e9e2d5;
     --ink: #1e1a14;
-    --dim: rgba(30, 26, 20, 0.7);
+    --dim: rgba(30, 26, 20, 0.68);
     --amber: #9c4e07;
     --line: rgba(30, 26, 20, 0.14);
   }

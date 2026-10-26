@@ -7,15 +7,6 @@
   font-weight: 400;
 }
 
-:root {
-  --sky: #0c0d11;
-  --raised: #16171c;
-  --ink: #ece9e2;
-  --dim: rgba(236, 233, 226, 0.64);
-  --amber: #fabd58;
-  --line: rgba(236, 233, 226, 0.14);
-}
-
 html,
 body {
   margin: 0;
