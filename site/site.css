@@ -144,7 +144,7 @@ a:focus-visible {
 .phone {
   margin: 0;
   width: min(62vw, 300px);
-  aspect-ratio: 804 / 1748;
+  aspect-ratio: 280 / 609;
   padding: 10px;
   box-sizing: border-box;
   border: 1px solid var(--line);

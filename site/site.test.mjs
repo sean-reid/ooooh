@@ -69,11 +69,28 @@ test("the landing page links the documents from the footer and carries the store
   assert.match(footer, /href="terms.html"/);
   assert.match(html, /<canvas\s+class="orb"/);
   assert.match(read("landing.mjs"), /^const APP_STORE_URL = "[^"]*";$/m);
-  for (const image of ["session-dark.png", "session-light.png"]) {
-    assert.ok(existsSync(join(here, "images", image)), image);
-    assert.ok(html.includes(`images/${image}`), image);
-  }
 });
+
+test("the session screenshot ships at display size in WebP with a PNG fallback", () => {
+  const html = read("index.html");
+  const picture = html.slice(html.indexOf("<picture>"), html.indexOf("</picture>"));
+  for (const scheme of ["dark", "light"]) {
+    for (const ext of ["webp", "png"]) {
+      const pair = `images/session-${scheme}-280.${ext} 1x, images/session-${scheme}-560.${ext} 2x`;
+      assert.ok(picture.includes(pair), pair);
+      for (const width of [280, 560])
+        assert.ok(existsSync(join(here, "images", `session-${scheme}-${width}.${ext}`)), `${scheme} ${width} ${ext}`);
+    }
+  }
+  assert.match(picture, /<source\s+media="\(prefers-color-scheme: dark\)"\s+type="image\/webp"/);
+  assert.match(picture, /loading="lazy"/);
+  assert.match(picture, /decoding="async"/);
+  assert.match(picture, /width="280"\s+height="609"/);
+  const png = readFileSync(join(here, "images/session-dark-560.png"));
+  assert.equal(png.readUInt32BE(16), 560);
+  assert.ok(!existsSync(join(here, "images/session-dark.png")));
+});
+
 
 test("the orb holds still under reduced motion", () => {
   const css = read("site.css");
