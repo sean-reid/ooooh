@@ -4,6 +4,7 @@ import {
   credential,
   models,
   paced,
+  refused,
   textOf,
   upstreamError,
   within,
@@ -87,9 +88,6 @@ const params = (
   output_config: { effort: "low" },
   messages,
 });
-
-const refused = (message: Anthropic.Beta.BetaMessage) =>
-  new HttpError(502, { error: "anthropic refused", detail: message.stop_details });
 
 async function retryShorter(client: Anthropic, input: Input, first: string): Promise<string> {
   const over = wordCount(first) - wordLimit;

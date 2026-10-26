@@ -1,4 +1,12 @@
-import { anthropicClient, credential, models, textOf, upstreamError, within } from "../anthropic";
+import {
+  anthropicClient,
+  credential,
+  models,
+  refused,
+  textOf,
+  upstreamError,
+  within,
+} from "../anthropic";
 import { chargeModel } from "../budget";
 import { HttpError, json, readBody } from "../http";
 import { compactState, existingIds, listNames, modes, segment, transcriptLines } from "../schema";
@@ -104,9 +112,7 @@ export const compactWith =
     if (response.stop_reason === "max_tokens") {
       throw new HttpError(502, { error: "anthropic truncated", maxTokens: compactMaxTokens });
     }
-    if (response.stop_reason === "refusal") {
-      throw new HttpError(502, { error: "anthropic refused", detail: response.stop_details });
-    }
+    if (response.stop_reason === "refusal") throw refused(response);
     let parsed: unknown;
     try {
       parsed = JSON.parse(textOf(response.content));

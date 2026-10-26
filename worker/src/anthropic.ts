@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { HttpError, retryAfterFrom } from "./http";
+import { HttpError, missingSecret, retryAfterFrom } from "./http";
 
 export const models = {
   compact: "claude-haiku-5-5",
@@ -19,7 +19,7 @@ export const credential = (env: Env): Credential => {
     return { kind: "token", authToken: env.ANTHROPIC_AUTH_TOKEN, betas: [oauthBeta] };
   }
   if (env.ANTHROPIC_API_KEY) return { kind: "key", apiKey: env.ANTHROPIC_API_KEY, betas: [] };
-  throw new HttpError(500, { error: "missing secret", name: "ANTHROPIC_API_KEY" });
+  throw missingSecret("ANTHROPIC_API_KEY");
 };
 
 export const anthropicClient = (cred: Credential, options: { timeout?: number } = {}) =>
@@ -43,9 +43,16 @@ export const upstreamError = (e: unknown): never => {
     throw unavailable(retryAfterFrom(e.headers?.get("retry-after")));
   }
   if (e instanceof Anthropic.APIError) {
-    throw new HttpError(502, { error: "anthropic", status: e.status, detail: e.message });
+    console.error("anthropic", e.status, e.message);
+    throw new HttpError(502, { error: "anthropic", status: e.status, detail: "upstream error" });
   }
   throw e;
+};
+
+/** The refusal's category and explanation go to the log; the phone only learns that no line came. */
+export const refused = (message: { stop_details: unknown }) => {
+  console.error("anthropic refused", JSON.stringify(message.stop_details));
+  return new HttpError(502, { error: "anthropic refused" });
 };
 
 /** Runs one call under `ms`, body read included; the SDK's own timeout stops at the headers. */

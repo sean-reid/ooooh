@@ -51,11 +51,8 @@ const synthesize = async (apiKey: string, voice: string, text: string, fetchMs: 
 const upstreamError = async (res: Response): Promise<never> => {
   const detail = await res.text();
   if (res.status === 429) throw unavailable(retryAfterFrom(res.headers.get("retry-after")));
-  throw new HttpError(502, {
-    error: "elevenlabs",
-    status: res.status,
-    detail: detail.slice(0, 500),
-  });
+  console.error("elevenlabs", res.status, detail.slice(0, 500));
+  throw new HttpError(502, { error: "elevenlabs", status: res.status, detail: "upstream error" });
 };
 
 /** Passes the audio through and errors the client stream when no chunk arrives within `stallMs`. */

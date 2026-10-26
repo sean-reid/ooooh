@@ -98,7 +98,7 @@ export async function askJev(apiKey: string, state: unknown): Promise<JevRespons
         retryAfter: retryAfterFrom(header, Math.ceil(defaultWaitMs / 1000)),
       });
     }
-    const detail = await res.text();
-    throw new HttpError(502, { error: "jev", status: res.status, detail: detail.slice(0, 500) });
+    console.error("jev", res.status, (await res.text()).slice(0, 500));
+    throw new HttpError(502, { error: "jev", status: res.status, detail: "upstream error" });
   }
 }

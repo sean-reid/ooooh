@@ -24,7 +24,7 @@ import {
 import worker from "../src/index";
 import { compactWith } from "../src/routes/compact";
 import { phraseWith } from "../src/routes/phrase";
-import { speakWith } from "../src/routes/speak";
+import { deadlines, speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
@@ -222,6 +222,13 @@ describe("POST /v1/decide", () => {
     });
   }
 
+  it("returns 502 with the upstream status and nothing of its body on other failures", async () => {
+    expectUpstream({ status: 500, body: { error: "model crashed", request_id: "req_7" } });
+    const res = await post("/v1/decide", decideBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "jev", status: 500, detail: "upstream error" });
+  });
+
   it("refuses a 200 that is not JSON with 502", async () => {
     expectUpstream({ body: "<html>upstream timeout</html>" });
     const res = await post("/v1/decide", decideBody);
@@ -272,6 +279,33 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "anthropic truncated", maxTokens: 4096 });
+    expect(await spent()).toBe(before + 27.5);
+  });
+
+  it("returns 502 with the upstream status and nothing of its body on a 400", async () => {
+    expectUpstream({
+      status: 400,
+      body: { type: "error", error: { type: "invalid_request_error", message: "bad schema" } },
+      headers: { "request-id": "req_01" },
+    });
+    const res = await post("/v1/compact", compactBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "anthropic", status: 400, detail: "upstream error" });
+  });
+
+  it("names a refusal without its category and still charges it", async () => {
+    expectUpstream({
+      body: {
+        ...haikuReply,
+        stop_reason: "refusal",
+        stop_details: { type: "refusal", category: "cyber", explanation: "not this" },
+      },
+    });
+
+    const before = await spent();
+    const res = await post("/v1/compact", compactBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "anthropic refused" });
     expect(await spent()).toBe(before + 27.5);
   });
 
@@ -670,7 +704,18 @@ describe("POST /v1/speak", () => {
     expectUpstream({ status: 401, body: { detail: { status: "invalid_api_key" } } });
     const res = await post("/v1/speak", speakBody);
     expect(res.status).toBe(502);
-    expect(await res.json()).toMatchObject({ error: "elevenlabs", status: 401 });
+    expect(await res.json()).toEqual({
+      error: "elevenlabs",
+      status: 401,
+      detail: "upstream error",
+    });
+  });
+
+  it("answers a missing secret with 500 misconfigured and no name", async () => {
+    expectUpstream();
+    await expect(
+      speakWith(deadlines)(direct("/v1/speak", speakBody), { ...env, ELEVENLABS_API_KEY: "" }),
+    ).rejects.toMatchObject({ status: 500, body: { error: "misconfigured" } });
   });
 
   const speakRequest = () =>
