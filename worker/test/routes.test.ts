@@ -303,17 +303,6 @@ describe("POST /v1/compact", () => {
     await expect.poll(spent).toBe(before + 27.5);
   });
 
-  it("returns 502 with the upstream status and nothing of its body on a 400", async () => {
-    expectUpstream({
-      status: 400,
-      body: { type: "error", error: { type: "invalid_request_error", message: "bad schema" } },
-      headers: { "request-id": "req_01" },
-    });
-    const res = await post("/v1/compact", compactBody);
-    expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ error: "anthropic", status: 400, detail: "upstream error" });
-  });
-
   it("names a refusal without its category and still charges it", async () => {
     expectUpstream({
       body: {
@@ -525,6 +514,74 @@ describe("Anthropic credentials", () => {
   });
 });
 
+// The SDK retries a 429 twice before it gives up; retry-after-ms keeps those waits at 1 ms.
+const limited = (headers: Record<string, string> = {}): Reply => ({
+  status: 429,
+  body: { type: "error", error: { type: "rate_limit_error", message: "slow down" } },
+  headers: { "retry-after-ms": "1", ...headers },
+});
+
+const badRequest: Reply = {
+  status: 400,
+  body: { type: "error", error: { type: "invalid_request_error", message: "bad schema" } },
+  headers: { "request-id": "req_01" },
+};
+
+describe("Anthropic failures on every route", () => {
+  const routes: [string, unknown][] = [
+    ["/v1/compact", compactBody],
+    ["/v1/phrase", phraseBody],
+    ["/v1/notes", notesBody],
+  ];
+
+  for (const [path, body] of routes) {
+    it(`${path} answers 503 with the Retry-After the 429 carried`, async () => {
+      const wait = limited({ "retry-after": "7" });
+      expectUpstream(wait, wait, wait);
+      const before = await spent();
+      const res = await post(path, body);
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: "anthropic unavailable", retryAfter: 7 });
+      expect(upstream.requests).toHaveLength(3);
+      expect(await spent()).toBe(before);
+    });
+
+    it(`${path} answers 503 with retryAfter 5 when the 429 names no wait`, async () => {
+      expectUpstream(limited(), limited(), limited());
+      const res = await post(path, body);
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: "anthropic unavailable", retryAfter: 5 });
+      expect(upstream.requests).toHaveLength(3);
+    });
+
+    it(`${path} answers 502 with the upstream status and nothing of its body`, async () => {
+      expectUpstream(badRequest);
+      const before = await spent();
+      const res = await post(path, body);
+      expect(res.status).toBe(502);
+      expect(await res.json()).toEqual({
+        error: "anthropic",
+        status: 400,
+        detail: "upstream error",
+      });
+      expect(await spent()).toBe(before);
+    });
+  }
+
+  it("retries a 529 twice then answers 502 with that status", async () => {
+    const overloaded: Reply = {
+      status: 529,
+      body: { type: "error", error: { type: "overloaded_error", message: "Overloaded" } },
+      headers: { "retry-after-ms": "1" },
+    };
+    expectUpstream(overloaded, overloaded, overloaded);
+    const res = await post("/v1/compact", compactBody);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "anthropic", status: 529, detail: "upstream error" });
+    expect(upstream.requests).toHaveLength(3);
+  });
+});
+
 describe("POST /v1/phrase", () => {
   it("asks again when the first sentence is over 15 words", async () => {
     expectUpstream({ body: sonnetReply(longSentence) }, { body: sonnetReply(shortSentence) });
@@ -576,18 +633,52 @@ describe("POST /v1/phrase", () => {
   });
 
   it("sends the same 503 body as an error event when the stream never starts", async () => {
-    const limited: Reply = {
-      status: 429,
-      body: { error: { type: "rate_limit_error" } },
-      headers: { "retry-after-ms": "1" },
-    };
-    expectUpstream(limited, limited, limited);
+    expectUpstream(limited(), limited(), limited());
 
     const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
     expect(res.status).toBe(200);
-    const [event, data] = (await res.text()).trim().split("\n");
-    expect(event).toBe("event: error");
-    expect(JSON.parse(data.slice(6))).toEqual({ error: "anthropic unavailable", retryAfter: 5 });
+    expect(sseEvents(await res.text())).toEqual([
+      { event: "error", data: { error: "anthropic unavailable", retryAfter: 5 } },
+    ]);
+
+    const wait = limited({ "retry-after": "7" });
+    expectUpstream(wait, wait, wait);
+    const waited = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
+    expect(sseEvents(await waited.text())).toEqual([
+      { event: "error", data: { error: "anthropic unavailable", retryAfter: 7 } },
+    ]);
+  });
+
+  it("sends the 502 body as an error event when the stream is refused", async () => {
+    expectUpstream(badRequest);
+    const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
+    expect(res.status).toBe(200);
+    expect(sseEvents(await res.text())).toEqual([
+      { event: "error", data: { error: "anthropic", status: 400, detail: "upstream error" } },
+    ]);
+  });
+
+  it("stops forwarding deltas after 15 words and sends the shorter retry as done", async () => {
+    expectUpstream(
+      { body: sonnetStream(longSentence), headers: { "content-type": "text/event-stream" } },
+      { body: sonnetReply(shortSentence) },
+    );
+
+    const before = await spent();
+    const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
+    expect(res.status).toBe(200);
+    const events = sseEvents(await res.text());
+    const deltas = events.filter((e) => e.event === "delta").map((e) => e.data.text);
+    expect(deltas).toHaveLength(15);
+    expect(deltas.join("").trim()).toBe(longSentence.split(" ").slice(0, 15).join(" "));
+    expect(events.at(-1)).toEqual({ event: "done", data: { text: shortSentence } });
+
+    expect(upstream.requests).toHaveLength(2);
+    const retry = bodyOf<{ messages: { role: string; content: string }[] }>(upstream.requests[1]);
+    expect(retry.messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    expect(retry.messages[1].content).toBe(longSentence);
+    expect(retry.messages[2].content).toContain("3 words over");
+    await expect.poll(spent).toBe(before + 2 * 0.5 * (640 + 18));
   });
 
   it("ends the SSE stream with the 503 body when the deltas stop", async () => {

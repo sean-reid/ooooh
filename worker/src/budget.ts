@@ -39,11 +39,21 @@ export async function checkBudget(env: Env, provider: Provider, now = new Date()
 export function charge(env: Env, provider: Provider, amount: number, now = new Date()) {
   if (!(amount > 0)) return Promise.resolve();
   const key = `budget:${provider}:${day(now)}`;
-  return deferred(`charge ${key}`, async () => {
+  const write = (pendingCharges.get(key) ?? Promise.resolve()).then(async () => {
     const used = await readCount(env.BUDGET, key);
     await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
   });
+  const tail: Promise<void> = write
+    .catch(() => undefined)
+    .then(() => {
+      if (pendingCharges.get(key) === tail) pendingCharges.delete(key);
+    });
+  pendingCharges.set(key, tail);
+  return deferred(`charge ${key}`, () => write);
 }
+
+/** Charges on one key run in order within the isolate, so two in one request keep both puts. */
+const pendingCharges = new Map<string, Promise<void>>();
 
 /** Each family's list price over Opus's, so the Anthropic cap counts Opus-equivalent tokens. */
 const modelWeights: [family: string, weight: number][] = [
