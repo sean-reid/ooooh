@@ -1,7 +1,7 @@
-/* One product-page artwork: the orb at rest beside the wordmark and tagline, inside the area
-   App Store Connect leaves clear of its own title, icon, and buttons. Each template sets the
-   safe area in vw, so the header template also renders the universal asset; the layout scales
-   from the smaller of its height and a 2.5 to 1 fit of its width. */
+/* One product-page artwork: the orb at rest beside the wordmark, inside the area App Store
+   Connect leaves clear of its own title, icon, and buttons. Each template sets the safe area
+   in vw, so the header template also renders the universal asset; the layout scales from the
+   smaller of the area's height and a 2.5 to 1 fit of its width. */
 
 body.art {
   display: grid;
@@ -12,39 +12,32 @@ body.art {
   --u: min(var(--safe-h), calc(var(--safe-w) / 2.5));
   display: flex;
   align-items: center;
-  gap: calc(var(--u) * 0.06);
+  justify-content: center;
+  gap: calc(var(--u) * 0.1);
   width: var(--safe-w);
   height: var(--safe-h);
-  justify-content: center;
+  /* The orb outweighs the type, so the pair sits a little toward it. */
+  transform: translateX(calc(var(--safe-w) * -0.03));
 }
 
+/* The canvas is 1.5 sides wide but the body is 0.52 of a side; the margin makes the layout box
+   the body, so the pair centres on what shows, not on the halo. */
 .art .orb {
-  --side: calc(var(--u) * 1.15);
+  --side: calc(var(--u) * 1.5);
   position: static;
   flex: none;
-  margin: calc(var(--side) * -0.25);
+  margin: calc(var(--side) * -0.49);
   opacity: 1;
   animation: none;
 }
 
-.art .wordmark,
-.art .tagline {
-  margin: 0;
-  font-family: "Instrument Serif", ui-serif, Georgia, serif;
-  font-weight: 400;
-}
-
 .art .wordmark {
-  font-size: calc(var(--u) * 0.42);
-  line-height: 1;
+  margin: 0;
+  font:
+    400 calc(var(--u) * 0.55) / 1 "Instrument Serif",
+    ui-serif,
+    Georgia,
+    serif;
   letter-spacing: -0.02em;
   color: var(--ink);
-}
-
-.art .tagline {
-  font-size: calc(var(--u) * 0.11);
-  line-height: 1.2;
-  max-width: none;
-  margin-top: calc(var(--u) * 0.04);
-  color: var(--dim);
 }
