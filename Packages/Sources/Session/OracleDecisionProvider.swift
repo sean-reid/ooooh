@@ -30,14 +30,17 @@ public struct OracleDecisionProvider: DecisionProvider {
   }
 }
 
-/// Replays answers a real provider gave, keyed by check index.
+/// Replays answers a real provider gave, keyed by the time of the check to the
+/// millisecond, so a changed check schedule still gets the answer Jev gave at that moment.
 public struct RecordedDecisionProvider: DecisionProvider {
   public struct Entry: Codable, Sendable {
     public var checkIndex: Int
+    public var at: TimeInterval
     public var answers: JevAnswers
 
-    public init(checkIndex: Int, answers: JevAnswers) {
+    public init(checkIndex: Int, at: TimeInterval, answers: JevAnswers) {
       self.checkIndex = checkIndex
+      self.at = at
       self.answers = answers
     }
   }
@@ -46,7 +49,7 @@ public struct RecordedDecisionProvider: DecisionProvider {
 
   public init(entries: [Entry]) {
     answers = Dictionary(
-      entries.map { ($0.checkIndex, $0.answers) }, uniquingKeysWith: { a, _ in a })
+      entries.map { (Self.key($0.at), $0.answers) }, uniquingKeysWith: { a, _ in a })
   }
 
   /// One JSON object per line.
@@ -60,6 +63,8 @@ public struct RecordedDecisionProvider: DecisionProvider {
   }
 
   public func check(_ input: CheckInput) async throws -> JevAnswers {
-    answers[input.checkIndex] ?? .quiet
+    answers[Self.key(input.signals.now)] ?? .quiet
   }
+
+  static func key(_ at: TimeInterval) -> Int { Int((at * 1000).rounded()) }
 }

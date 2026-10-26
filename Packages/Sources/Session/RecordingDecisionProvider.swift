@@ -17,7 +17,8 @@ public actor RecordingDecisionProvider: DecisionProvider {
 
   public func check(_ input: CheckInput) async throws -> JevAnswers {
     let answers = try await inner.check(input)
-    let entry = RecordedDecisionProvider.Entry(checkIndex: input.checkIndex, answers: answers)
+    let entry = RecordedDecisionProvider.Entry(
+      checkIndex: input.checkIndex, at: input.signals.now, answers: answers)
     var line = try encoder.encode(entry)
     line.append(0x0A)
     try handle.write(contentsOf: line)
