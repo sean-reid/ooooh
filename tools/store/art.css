@@ -16,8 +16,6 @@ body.art {
   gap: calc(var(--u) * 0.1);
   width: var(--safe-w);
   height: var(--safe-h);
-  /* The orb outweighs the type, so the pair sits a little toward it. */
-  transform: translateX(calc(var(--safe-w) * -0.03));
 }
 
 /* The canvas is 1.5 sides wide but the body is 0.52 of a side; the margin makes the layout box
