@@ -60,11 +60,11 @@ public struct PaywallView<Header: View>: View {
       if let failure {
         Text(failure)
           .font(Typography.caption)
-          .foregroundStyle(Palette.amber)
+          .foregroundStyle(Palette.accent)
       }
       Button("Restore purchases") { restore() }
         .font(Typography.body)
-        .foregroundStyle(Palette.amber)
+        .foregroundStyle(Palette.accent)
         .frame(minHeight: 44)
         .disabled(store.isPurchasing)
       HStack(spacing: 24) {
@@ -89,7 +89,7 @@ public struct PaywallView<Header: View>: View {
         .foregroundStyle(Palette.ink)
       Button("Try again") { reload() }
         .font(Typography.body)
-        .foregroundStyle(Palette.amber)
+        .foregroundStyle(Palette.accent)
         .frame(minHeight: 44)
     }
   }
@@ -115,7 +115,7 @@ public struct PaywallView<Header: View>: View {
       }
       .accessibilityLabel("Close")
     }
-    .foregroundStyle(Palette.amber)
+    .foregroundStyle(Palette.accent)
     .padding(.horizontal, 12)
     .padding(.top, 4)
   }
