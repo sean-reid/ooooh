@@ -7,8 +7,14 @@ import UIKit
 
 extension SessionController.Environment {
   /// The device's Worker, voice, haptic, and store. Debug builds take `-force-voice 1` to speak on
-  /// the phone speaker and `-free-exhausted 1` to run every session as one the Worker refused.
+  /// the phone speaker, `-free-exhausted 1` to run every session as one the Worker refused, and
+  /// `-forget-attest-key 1` to enrol as a new device.
   @MainActor static var app: Self {
+    #if DEBUG
+      if UserDefaults.standard.bool(forKey: "forget-attest-key") {
+        DeviceAttestation.forgetStoredKey()
+      }
+    #endif
     var environment = Self(workerURL: WorkerURL.fromBundle)
     environment.haptic = { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
     environment.announce = { AccessibilityNotification.Announcement($0).post() }
