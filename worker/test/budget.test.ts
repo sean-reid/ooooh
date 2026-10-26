@@ -1,9 +1,11 @@
-import { env, SELF } from "cloudflare:test";
+import { createExecutionContext, env, SELF, waitOnExecutionContext } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { charge, chargeModel, checkBudget, checkDeviceRate, modelWeight } from "../src/budget";
 import { HttpError } from "../src/http";
+import worker from "../src/index";
 import { startSession } from "../src/routes/session";
 import { checkSession } from "../src/session";
+import { MemoryKV } from "./kv";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
 import {
   audioBytes,
@@ -27,6 +29,13 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
   SELF.fetch(`https://ooooh.test${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+
+const request = (path: string, body: unknown) =>
+  new Request(`https://ooooh.test${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-device": "direct" },
     body: JSON.stringify(body),
   });
 
@@ -136,8 +145,46 @@ describe("guarded routes", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { usage: { jevInputTokens: number } };
     expect(body.usage.jevInputTokens).toBe(1211);
-    expect(await env.BUDGET.get(`budget:jev:${today}`)).toBe("1211");
+    await expect.poll(() => env.BUDGET.get(`budget:jev:${today}`)).toBe("1211");
     expect(upstream.pending()).toBe(0);
+  });
+
+  it("answers before the charge lands and settles it in waitUntil", async () => {
+    upstream = fakeUpstream([{ body: { ...jevReply, usage: { input_tokens: 1211 } } }]);
+    vi.stubGlobal("fetch", upstream.fetch);
+    const kv = new MemoryKV();
+    let pending = 0;
+    kv.put = async (key, value) => {
+      if (key.startsWith("budget:")) pending += 1;
+      kv.store.set(key, value);
+    };
+    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
+    const ctx = createExecutionContext();
+    await worker.fetch(request("/v1/session/start", {}), testEnv, ctx);
+    const res = await worker.fetch(request("/v1/decide", decideBody), testEnv, ctx);
+    expect(res.status).toBe(200);
+    await waitOnExecutionContext(ctx);
+    expect(pending).toBe(1);
+    expect(await kv.get(`budget:jev:${today}`)).toBe("1211");
+  });
+
+  it("logs a charge the store refuses and keeps the 200", async () => {
+    upstream = fakeUpstream([{ body: jevReply }]);
+    vi.stubGlobal("fetch", upstream.fetch);
+    const kv = new MemoryKV();
+    kv.put = async (key, value) => {
+      if (key.startsWith("budget:")) throw new Error("KV PUT failed: 429 Too Many Requests");
+      kv.store.set(key, value);
+    };
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
+    const ctx = createExecutionContext();
+    await worker.fetch(request("/v1/session/start", {}), testEnv, ctx);
+    const res = await worker.fetch(request("/v1/decide", decideBody), testEnv, ctx);
+    expect(res.status).toBe(200);
+    await waitOnExecutionContext(ctx);
+    expect(logged).toHaveBeenCalledWith(`charge budget:jev:${today}`, expect.any(Error));
+    logged.mockRestore();
   });
 
   it("refuses before calling upstream once the cap is reached", async () => {

@@ -1,4 +1,5 @@
 import type { DeviceHandler } from "./attest/device";
+import { deferred } from "./defer";
 import { envNumber, HttpError } from "./http";
 import { checkSession, readCount, type Window } from "./session";
 
@@ -31,17 +32,17 @@ export async function checkBudget(env: Env, provider: Provider, now = new Date()
   }
 }
 
-/** Adds what a response cost. KV is eventually consistent, so the cap is approximate by design. */
-export async function charge(
-  env: Env,
-  provider: Provider,
-  amount: number,
-  now = new Date(),
-): Promise<void> {
-  if (!(amount > 0)) return;
+/**
+ * Adds what a response cost without holding the response on the write. KV is eventually
+ * consistent and takes one write a second per key, so the cap is approximate by design.
+ */
+export function charge(env: Env, provider: Provider, amount: number, now = new Date()) {
+  if (!(amount > 0)) return Promise.resolve();
   const key = `budget:${provider}:${day(now)}`;
-  const used = await readCount(env.BUDGET, key);
-  await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
+  return deferred(`charge ${key}`, async () => {
+    const used = await readCount(env.BUDGET, key);
+    await env.BUDGET.put(key, String(used + amount), { expirationTtl: 3 * 24 * 3600 });
+  });
 }
 
 /** Each family's list price over Opus's, so the Anthropic cap counts Opus-equivalent tokens. */

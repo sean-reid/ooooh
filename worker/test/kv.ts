@@ -1,6 +1,6 @@
 // Enough of KVNamespace for the budget guard when a test builds its own Env.
 export class MemoryKV {
-  private store = new Map<string, string>();
+  store = new Map<string, string>();
 
   async get(key: string, type?: "text" | "json"): Promise<unknown> {
     const value = this.store.get(key) ?? null;

@@ -269,7 +269,7 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
-    expect(await spent()).toBe(before + 27.5);
+    await expect.poll(spent).toBe(before + 27.5);
   });
 
   it("names a reply cut off at max_tokens and still charges it", async () => {
@@ -279,7 +279,7 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "anthropic truncated", maxTokens: 4096 });
-    expect(await spent()).toBe(before + 27.5);
+    await expect.poll(spent).toBe(before + 27.5);
   });
 
   it("returns 502 with the upstream status and nothing of its body on a 400", async () => {
@@ -432,11 +432,11 @@ describe("weighted Anthropic charges", () => {
     );
     const before = await spent();
     expect((await post("/v1/compact", compactBody)).status).toBe(200);
-    expect(await spent()).toBe(before + 0.025 * (980 + 120));
+    await expect.poll(spent).toBe(before + 0.025 * (980 + 120));
     expect((await post("/v1/phrase", phraseBody)).status).toBe(200);
-    expect(await spent()).toBe(before + 27.5 + 0.5 * (640 + 18));
+    await expect.poll(spent).toBe(before + 27.5 + 0.5 * (640 + 18));
     expect((await post("/v1/notes", notesBody)).status).toBe(200);
-    expect(await spent()).toBe(before + 27.5 + 329 + 3920);
+    await expect.poll(spent).toBe(before + 27.5 + 329 + 3920);
   });
 
   it("charges the streamed phrase by the model in the final message", async () => {
@@ -448,7 +448,7 @@ describe("weighted Anthropic charges", () => {
     const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
     expect(res.status).toBe(200);
     await res.text();
-    expect(await spent()).toBe(before + 0.5 * (640 + 18));
+    await expect.poll(spent).toBe(before + 0.5 * (640 + 18));
   });
 });
 
@@ -622,7 +622,7 @@ describe("POST /v1/speak", () => {
     const before = Number((await env.BUDGET.get(key)) ?? 0);
 
     const res = await post("/v1/speak", speakBody);
-    expect(Number(await env.BUDGET.get(key)) - before).toBe(52);
+    await expect.poll(async () => Number(await env.BUDGET.get(key)) - before).toBe(52);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/mpeg");
     expect(res.headers.get("cache-control")).toBe("no-store");
