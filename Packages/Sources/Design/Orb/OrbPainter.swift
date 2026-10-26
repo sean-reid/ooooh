@@ -2,40 +2,39 @@ import SwiftUI
 
 /// Orb colors are fixed per appearance rather than adaptive, so the painter can mix them.
 struct OrbTint {
-  var core: Color
-  var warm: Color
-  var amber: Color
-  var rim: Color
-  var glow: Color
+  var core: Palette.Shade
+  var warm: Palette.Shade
+  var rim: Palette.Shade
+  var glow: Palette.Shade
+  var ash: Palette.Shade
   var glowAlpha: Double
   var glowBlend: GraphicsContext.BlendMode
   var sheen: Double
   var rimStart: CGFloat
-  var ash: Color
+  var amber: Palette.Shade { Palette.amberShade }
 
   init(_ scheme: ColorScheme) {
-    amber = Palette.amberShade.color
     switch scheme {
     case .dark:
-      core = Color(red: 1.0, green: 0.960, blue: 0.860)
-      warm = Color(red: 1.0, green: 0.860, blue: 0.560)
-      rim = Color(red: 0.930, green: 0.570, blue: 0.170)
-      glow = amber
+      core = Palette.Shade(1.0, 0.960, 0.860)
+      warm = Palette.Shade(1.0, 0.860, 0.560)
+      rim = Palette.Shade(0.930, 0.570, 0.170)
+      glow = Palette.amberShade
       glowAlpha = 0.5
       glowBlend = .normal
       sheen = 1
       rimStart = 0.78
-      ash = Color(red: 0.300, green: 0.290, blue: 0.280)
+      ash = Palette.Shade(0.300, 0.290, 0.280)
     default:
-      core = Color(red: 1.0, green: 0.950, blue: 0.800)
-      warm = Color(red: 1.0, green: 0.820, blue: 0.450)
-      rim = Color(red: 0.860, green: 0.470, blue: 0.100)
-      glow = Color(red: 0.930, green: 0.660, blue: 0.340)
+      core = Palette.Shade(1.0, 0.950, 0.800)
+      warm = Palette.Shade(1.0, 0.820, 0.450)
+      rim = Palette.Shade(0.860, 0.470, 0.100)
+      glow = Palette.Shade(0.930, 0.660, 0.340)
       glowAlpha = 0.7
       glowBlend = .multiply
       sheen = 0
       rimStart = 0.84
-      ash = Color(red: 0.780, green: 0.760, blue: 0.730)
+      ash = Palette.Shade(0.780, 0.760, 0.730)
     }
   }
 }
@@ -79,6 +78,8 @@ struct OrbPainter {
     let lit = 1 - pose.dim
     let dim = pose.dim * 0.85
     let bodyAlpha = 1 - 0.3 * pose.dim
+    let glow = tint.glow.color
+    let ash = tint.ash.color
 
     var glowContext = context
     glowContext.blendMode = tint.glowBlend
@@ -87,9 +88,7 @@ struct OrbPainter {
       layer.fill(
         halo,
         with: .radialGradient(
-          gradient(OrbLayers.haloStops) {
-            tint.glow.opacity($0 * tint.glowAlpha * pose.glow)
-          },
+          gradient(OrbLayers.haloStops) { glow.opacity($0 * tint.glowAlpha * pose.glow) },
           center: center, startRadius: base * OrbLayers.halo.start,
           endRadius: base * OrbLayers.halo.radius))
     }
@@ -99,7 +98,7 @@ struct OrbPainter {
       layer.fill(
         under,
         with: .radialGradient(
-          gradient(OrbLayers.underStops) { tint.glow.opacity($0 * lit) },
+          gradient(OrbLayers.underStops) { glow.opacity($0 * lit) },
           center: center, startRadius: 0, endRadius: base * OrbLayers.under.radius))
     }
 
@@ -109,14 +108,14 @@ struct OrbPainter {
       body,
       with: .radialGradient(
         Gradient(stops: [
-          .init(color: tint.core.mix(with: tint.ash, by: dim).opacity(bodyAlpha), location: 0),
+          .init(color: tint.core.color.mix(with: ash, by: dim).opacity(bodyAlpha), location: 0),
           .init(
-            color: tint.warm.mix(with: tint.ash, by: dim).opacity(bodyAlpha),
+            color: tint.warm.color.mix(with: ash, by: dim).opacity(bodyAlpha),
             location: OrbLayers.core.warm),
           .init(
-            color: tint.amber.mix(with: tint.ash, by: dim).opacity(bodyAlpha),
+            color: tint.amber.color.mix(with: ash, by: dim).opacity(bodyAlpha),
             location: tint.rimStart),
-          .init(color: tint.rim.mix(with: tint.ash, by: dim).opacity(bodyAlpha), location: 1),
+          .init(color: tint.rim.color.mix(with: ash, by: dim).opacity(bodyAlpha), location: 1),
         ]),
         center: coreCenter, startRadius: 0, endRadius: base * OrbLayers.core.end))
 
