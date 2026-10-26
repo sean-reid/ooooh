@@ -245,6 +245,13 @@ describe("guarded routes", () => {
     expect(upstream.pending()).toBe(0);
   });
 
+  it("keeps both charges when two land on one key at once", async () => {
+    const kv = new MemoryKV();
+    const testEnv = { ...env, BUDGET: kv as unknown as KVNamespace };
+    await Promise.all([charge(testEnv, "anthropic", 100), charge(testEnv, "anthropic", 200)]);
+    expect(await kv.get(`budget:anthropic:${today}`)).toBe("300");
+  });
+
   it("answers before the charge lands and settles it in waitUntil", async () => {
     upstream = fakeUpstream([{ body: { ...jevReply, usage: { input_tokens: 1211 } } }]);
     vi.stubGlobal("fetch", upstream.fetch);
