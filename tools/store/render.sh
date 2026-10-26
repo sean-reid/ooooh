@@ -11,7 +11,7 @@ out=$2
 # Apple's names for the display classes, then the pixel size rendered for each.
 sizes="6.9:1320x2868 6.5:1284x2778 6.3:1206x2622"
 # Each artwork file, then the template drawn at the size in its name; universal fills both slots.
-art="header-3840x1646:header search-3840x2560:search search-sunrise-3840x2560:search-sunrise universal-5244x2950:header"
+art="header-3840x1646:header search-3840x2560:search-sunrise search-centred-3840x2560:search universal-5244x2950:header"
 
 mkdir -p "$out"
 for template in "$here"/shots/*.html; do
