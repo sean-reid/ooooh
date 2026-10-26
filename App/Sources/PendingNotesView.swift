@@ -40,17 +40,11 @@ struct PendingNotesView: View {
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(24)
         }
-        Button(action: done) {
-          Text("Done")
-            .font(Typography.body)
-            .frame(maxWidth: .infinity, minHeight: 56)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(Palette.inkOnAmber)
-        .background(Palette.amber, in: Capsule())
-        .padding(.horizontal, 24)
-        .padding(.bottom, 12)
-        .accessibilityIdentifier("notes.done")
+        Button("Done", action: done)
+          .buttonStyle(.amber)
+          .padding(.horizontal, 24)
+          .padding(.bottom, 12)
+          .accessibilityIdentifier("notes.done")
       }
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("notes.pending")

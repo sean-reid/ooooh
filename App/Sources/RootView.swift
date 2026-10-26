@@ -181,16 +181,10 @@ struct RootView: View {
   }
 
   private var startButton: some View {
-    Button {
+    Button("Start") {
       Task { await controller.start(.microphone) }
-    } label: {
-      Text("Start")
-        .font(.headline)
-        .frame(maxWidth: .infinity, minHeight: 56)
     }
-    .buttonStyle(.plain)
-    .foregroundStyle(Palette.inkOnAmber)
-    .background(Palette.amber, in: Capsule())
+    .buttonStyle(.amber)
     .padding(.horizontal, 32)
     .accessibilityLabel("Start a session")
     .accessibilityIdentifier("home.start")
