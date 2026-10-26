@@ -7,9 +7,24 @@ import Transcription
 @testable import Persistence
 @testable import Settings
 
-@Suite struct ExportArchiveTests {
+/// Serialized because the write tests share the one export directory.
+@Suite(.serialized) struct ExportArchiveTests {
   static let exportedAt = Date(timeIntervalSince1970: 1_792_900_000)
   static let utc = TimeZone(identifier: "UTC")!
+
+  @Test func aNewExportReplacesTheLastOneAndRemoveExportsClearsIt() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    let first = try await ExportFile(store: store).write(exportedAt: Self.exportedAt)
+    let second = try await ExportFile(store: store).write(exportedAt: Self.exportedAt + 86_400)
+    #expect(first.deletingLastPathComponent() == ExportFile.directory)
+    let day = ExportArchive.dayFormatter(.current).string(from: Self.exportedAt + 86_400)
+    #expect(second.lastPathComponent == "ooooh export \(day).zip")
+    #expect(!FileManager.default.fileExists(atPath: first.path))
+    #expect(FileManager.default.fileExists(atPath: second.path))
+
+    ExportFile.removeExports()
+    #expect(!FileManager.default.fileExists(atPath: ExportFile.directory.path))
+  }
 
   @Test func crc32MatchesTheCheckValue() {
     #expect(ZipWriter.crc32(Data("123456789".utf8)) == 0xCBF4_3926)

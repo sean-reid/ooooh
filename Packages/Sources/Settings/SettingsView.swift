@@ -81,6 +81,7 @@ public struct SettingsView: View {
       }
     }
     .task { await refreshCount() }
+    .onDisappear(perform: ExportFile.removeExports)
     .confirmationDialog(
       deleteTitle, isPresented: $confirmingDelete, titleVisibility: .visible
     ) {
@@ -244,6 +245,7 @@ public struct SettingsView: View {
     Task {
       do {
         try await store.deleteEverything()
+        ExportFile.removeExports()
         sessionCount = 0
         deleteFailure = nil
       } catch {

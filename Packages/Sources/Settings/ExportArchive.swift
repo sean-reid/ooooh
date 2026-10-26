@@ -95,14 +95,22 @@ public struct ExportFile: Transferable, Sendable {
     }
   }
 
-  /// Writes the zip into a fresh temporary directory and returns its URL.
+  /// The one place an export zip sits while the share sheet copies it.
+  static let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "ooooh-export", isDirectory: true)
+
+  /// Writes the zip over the last export and returns its URL.
   public func write(exportedAt: Date = .now) async throws -> URL {
     let archive = ExportArchive(documents: try await store.exportMarkdown(), exportedAt: exportedAt)
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
-      UUID().uuidString, isDirectory: true)
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    let url = directory.appendingPathComponent(archive.filename)
+    Self.removeExports()
+    try FileManager.default.createDirectory(at: Self.directory, withIntermediateDirectories: true)
+    let url = Self.directory.appendingPathComponent(archive.filename)
     try archive.zipData().write(to: url)
     return url
+  }
+
+  /// Deletes the last export zip. Runs at launch, when Settings closes, and after a delete.
+  public static func removeExports() {
+    try? FileManager.default.removeItem(at: directory)
   }
 }
