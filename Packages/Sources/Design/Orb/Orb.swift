@@ -8,13 +8,19 @@ public struct Orb: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Environment(\.colorScheme) private var colorScheme
-  @State private var motion = OrbMotion()
+  @State private var motion: OrbMotion
+  @State private var rests = false
 
   /// A fixed `time` renders one still frame; nil animates.
   public init(level: Double, phase: OrbPhase, time: TimeInterval? = nil) {
+    self.init(level: level, phase: phase, time: time, motion: OrbMotion())
+  }
+
+  init(level: Double, phase: OrbPhase, time: TimeInterval? = nil, motion: OrbMotion) {
     self.level = level
     self.phase = phase
     self.time = time
+    _motion = State(initialValue: motion)
   }
 
   public var body: some View {
@@ -26,8 +32,9 @@ public struct Orb: View {
       } else if let time {
         canvas(OrbMotion.still(at: time, level: level, phase: phase))
       } else {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: rests)) { context in
           canvas(motion.advance(to: context.date, level: level, phase: phase))
+            .onChange(of: motion.rests, initial: true) { _, value in rests = value }
         }
       }
     }
