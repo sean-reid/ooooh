@@ -41,7 +41,7 @@ let package = Package(
       name: "DesignTests",
       dependencies: [
         "Design", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-      ], exclude: ["__Snapshots__"]),
+      ], exclude: ["__Snapshots__"], resources: [.copy("Fixtures")]),
     .testTarget(name: "StateTests", dependencies: ["State"]),
     .testTarget(name: "GovernorTests", dependencies: ["Governor"]),
     .testTarget(name: "NotesTests", dependencies: ["Notes"]),
