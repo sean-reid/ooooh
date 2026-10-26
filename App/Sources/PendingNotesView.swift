@@ -46,7 +46,7 @@ struct PendingNotesView: View {
             .frame(maxWidth: .infinity, minHeight: 56)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(Palette.sky)
+        .foregroundStyle(Palette.inkOnAmber)
         .background(Palette.amber, in: Capsule())
         .padding(.horizontal, 24)
         .padding(.bottom, 12)

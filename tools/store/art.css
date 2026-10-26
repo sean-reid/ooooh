@@ -1,0 +1,42 @@
+/* One product-page artwork: the orb at rest beside the wordmark, inside the area App Store
+   Connect leaves clear of its own title, icon, and buttons. Each template sets the safe area
+   in vw, so the header template also renders the universal asset; the layout scales from the
+   smaller of the area's height and a 2.5 to 1 fit of its width. */
+
+body.art {
+  display: grid;
+  place-items: center;
+}
+
+.art .safe {
+  --u: min(var(--safe-h), calc(var(--safe-w) / 2.5));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--u) * 0.1);
+  width: var(--safe-w);
+  height: var(--safe-h);
+}
+
+/* The canvas is 1.5 sides wide but the body is 0.52 of a side; the margin makes the layout box
+   the body, so the pair centres on what shows, not on the halo. */
+.art .orb {
+  --side: calc(var(--u) * 1.5);
+  position: static;
+  flex: none;
+  margin: calc(var(--side) * -0.49);
+  opacity: 1;
+  animation: none;
+}
+
+.art .wordmark {
+  margin: 0;
+  font-family: "Instrument Serif", ui-serif, Georgia, serif;
+  font-weight: 400;
+  font-size: calc(var(--u) * 0.55);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  /* Puts the o's x-height centre, not the line box, on the orb's centre line. */
+  transform: translateY(-0.092em);
+}

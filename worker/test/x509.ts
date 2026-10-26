@@ -97,11 +97,17 @@ interface CertificateOptions {
   notAfter?: Date;
 }
 
+/** Tests pin `now` to fixed dates, so a default certificate is valid at any of them; UTCTime ends in 2049. */
+const alwaysValid = {
+  notBefore: new Date("2020-01-01T00:00:00Z"),
+  notAfter: new Date("2049-12-31T00:00:00Z"),
+};
+
 export async function certificate(options: CertificateOptions): Promise<Bytes> {
   const spki = new Uint8Array(await crypto.subtle.exportKey("spki", options.publicKey));
   const algorithm = seq(signatureOid(options.issuer.curve));
-  const notBefore = options.notBefore ?? new Date(Date.now() - 86_400_000);
-  const notAfter = options.notAfter ?? new Date(Date.now() + 86_400_000);
+  const notBefore = options.notBefore ?? alwaysValid.notBefore;
+  const notAfter = options.notAfter ?? alwaysValid.notAfter;
   const tbs = seq(
     explicit(0, integer(Uint8Array.of(2))),
     integer(crypto.getRandomValues(new Uint8Array(8))),

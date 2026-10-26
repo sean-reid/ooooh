@@ -11,6 +11,8 @@ import Transcription
 //
 // --live asks the real Jev through the Worker at every check, writes one JSON
 // line per answer under --record-dir, and scores the run with the real floor.
+// Each fixture opens its own session under an x-device label, so the Worker has
+// to run with REQUIRE_ATTESTATION=false.
 // Without answers the oracle runs with the floor off, so the loop and the scorer
 // are checked against each other and a session must score 1.00 everywhere.
 
@@ -39,13 +41,19 @@ struct Run {
   var answers: String?
 }
 
+/// `decision` for `decision.fixture.json` and `decision.json` alike.
+func runName(_ file: String) -> String {
+  var name = URL(filePath: file).deletingPathExtension().lastPathComponent
+  if name.hasSuffix(".fixture") { name = String(name.dropLast(".fixture".count)) }
+  return name
+}
+
 /// Pairs every fixture in a directory with its labels file.
 func corpus(in directory: String, answersDir: String?) throws -> [Run] {
   let files = try FileManager.default.contentsOfDirectory(atPath: directory)
   return try files.sorted().compactMap { file -> Run? in
     guard file.hasSuffix(".json"), !file.hasSuffix(".labels.json") else { return nil }
-    var name = String(file.dropLast(".json".count))
-    if name.hasSuffix(".fixture") { name = String(name.dropLast(".fixture".count)) }
+    let name = runName(file)
     let labelsPath = "\(directory)/\(name).labels.json"
     guard FileManager.default.fileExists(atPath: labelsPath) else { return nil }
     let answers = answersDir.map { "\($0)/\(name).jsonl" }
@@ -60,19 +68,79 @@ func corpus(in directory: String, answersDir: String?) throws -> [Run] {
 let liveURL = option("--live").map { URL(string: $0)! }
 let recordDir = option("--record-dir")
 
-func evaluate(_ run: Run, config base: GovernorConfig) async throws -> EvalReport {
+/// Sends the label as `x-device` with an empty assertion; only an unattested Worker accepts it.
+struct LabelAttestor: Attestor {
+  var label: String
+
+  func assertion(clientDataHash: Data) async throws -> Assertion? {
+    Assertion(keyId: label, assertion: Data())
+  }
+
+  func keyId() async throws -> String? { label }
+}
+
+/// Jev through the Worker, with the input tokens each answer cost added up.
+actor LiveJev: DecisionProvider {
+  let jev: JevDecisionProvider
+  private(set) var tokens = 0
+  private(set) var failures = 0
+
+  init(client: ProxyClient) {
+    jev = JevDecisionProvider(client: client)
+  }
+
+  /// A fixture replays faster than the Worker's per-device rate, so a 429 waits out its retryAfter.
+  func check(_ input: CheckInput) async throws -> JevAnswers {
+    var attempt = 0
+    while true {
+      do {
+        let response = try await jev.decide(input)
+        tokens += response.usage.jevInputTokens ?? 0
+        return response.answers
+      } catch ProxyError.status(429, let body) where attempt < 3 {
+        attempt += 1
+        let wait = retryAfter(in: body) ?? 10
+        FileHandle.standardError.write(
+          Data("  check \(input.checkIndex): rate limited, waiting \(wait) s\n".utf8))
+        try await Task.sleep(for: .seconds(wait))
+      } catch {
+        failures += 1
+        FileHandle.standardError.write(Data("  check \(input.checkIndex): \(error)\n".utf8))
+        throw error
+      }
+    }
+  }
+
+  func retryAfter(in body: String) -> Double? {
+    struct Refusal: Decodable {
+      var retryAfter: Double
+    }
+    return (try? JSONDecoder().decode(Refusal.self, from: Data(body.utf8)))?.retryAfter
+  }
+}
+
+var jevTokens = 0
+
+@MainActor func evaluate(_ run: Run, config base: GovernorConfig) async throws -> EvalReport {
   var config = base
   let decisions: any DecisionProvider
   var recorder: RecordingDecisionProvider?
+  var live: (client: ProxyClient, jev: LiveJev)?
   if let liveURL {
     guard let recordDir else { fail("--live needs --record-dir") }
     try FileManager.default.createDirectory(
       atPath: recordDir, withIntermediateDirectories: true)
-    let live = JevDecisionProvider(client: ProxyClient(baseURL: liveURL))
+    let label = "eval-\(run.name)-\(Int(Date().timeIntervalSince1970))"
+    let client = ProxyClient(baseURL: liveURL, attestor: LabelAttestor(label: label))
+    if case .refused(let reason) = try await client.startSession() {
+      fail("\(run.name): the Worker refused a session, \(reason)")
+    }
+    let jev = LiveJev(client: client)
     let recording = try RecordingDecisionProvider(
-      live, writingTo: URL(filePath: "\(recordDir)/\(run.name).jsonl"))
+      jev, writingTo: URL(filePath: "\(recordDir)/\(run.name).jsonl"))
     recorder = recording
     decisions = recording
+    live = (client, jev)
   } else if let answers = run.answers {
     decisions = try RecordedDecisionProvider(contentsOf: URL(filePath: answers))
   } else {
@@ -86,10 +154,17 @@ func evaluate(_ run: Run, config base: GovernorConfig) async throws -> EvalRepor
   if args.contains("--dump") {
     dump(run, result)
   }
-  if let recorder {
+  if let recorder, let live {
     try await recorder.close()
+    try await live.client.endSession(minutes: (run.fixture.segments.last?.end ?? 0) / 60)
     let checks = await recorder.count
-    FileHandle.standardError.write(Data("  \(run.name): \(checks) checks recorded\n".utf8))
+    let tokens = await live.jev.tokens
+    let failures = await live.jev.failures
+    jevTokens += tokens
+    FileHandle.standardError.write(
+      Data(
+        "  \(run.name): \(checks) checks recorded, \(failures) failed, \(tokens) Jev input tokens\n"
+          .utf8))
   }
   return EvalReport.score(result, against: run.labels)
 }
@@ -137,7 +212,7 @@ if let directory = option("--corpus") {
   }
   runs = [
     Run(
-      name: URL(filePath: args[0]).deletingPathExtension().lastPathComponent,
+      name: runName(args[0]),
       fixture: try load(FixtureTranscriber.Fixture.self, args[0]),
       labels: try load(Labels.self, args[1]),
       answers: option("--answers"))
@@ -165,6 +240,7 @@ for run in runs {
 let combined = EvalReport.merged(reports)
 if runs.count > 1 { print("") }
 print(combined.summary)
+if liveURL != nil { print("jev input tokens \(jevTokens)") }
 
 if args.contains("--require-perfect"), !reports.allSatisfy(\.isPerfect) {
   fail("oracle did not score 1.00 on every session")

@@ -1,3 +1,4 @@
+import Proxy
 import XCTest
 
 @testable import Billing
@@ -49,6 +50,14 @@ final class BillingLogicTests: XCTestCase {
   struct CountedSessions: FreeSessionCount {
     var remaining: Int?
     var remainingFreeSessions: Int? { remaining }
+  }
+
+  func testOnlyARefusalLeavesTheStoreUnconfirmed() {
+    XCTAssertFalse(BillingStore(plans: []).isUnconfirmed)
+    let confirmed = BillingStore(
+      plans: [], confirmation: .confirmed(EntitlementResponse(entitlement: .paid)))
+    XCTAssertFalse(confirmed.isUnconfirmed)
+    XCTAssertTrue(BillingStore(plans: [], confirmation: .refused(reason: "stale")).isUnconfirmed)
   }
 
   func testOnlySubscribedAndGraceArePaid() {
