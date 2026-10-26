@@ -14,6 +14,7 @@ struct RootView: View {
   @State private var threads: [OpenThread] = []
   @State private var hidesThreads = false
   @State private var showsHistory = false
+  @State private var showsSettings = false
   @State private var showsPaywall = false
   @Environment(\.dynamicTypeSize) private var typeSize
   #if DEBUG
@@ -63,13 +64,15 @@ struct RootView: View {
       #endif
     }
     .sheet(isPresented: $showsHistory) {
-      if let store {
-        HistoryView(store: store)
-          .presentationBackground(Palette.sky)
-          .presentationDragIndicator(.visible)
-      }
+      if let store { HistoryView(store: store).skySheet() }
+    }
+    .sheet(isPresented: $showsSettings) {
+      if let store { SettingsSheet(store: store, billing: billing) }
     }
     .onChange(of: showsHistory) { _, shown in
+      if !shown { Task { await loadThreads() } }
+    }
+    .onChange(of: showsSettings) { _, shown in
       if !shown { Task { await loadThreads() } }
     }
     .onChange(of: controller.admission) { _, admission in
@@ -79,16 +82,10 @@ struct RootView: View {
       if stage == .ended { Task { await offerPaywall() } }
     }
     .sheet(isPresented: $showsPaywall) {
-      PaywallView(store: billing) { showsPaywall = false }
-        .presentationBackground(Palette.sky)
-        .presentationDragIndicator(.visible)
+      PaywallView(store: billing) { showsPaywall = false }.skySheet()
     }
     #if DEBUG
-      .sheet(isPresented: $isRecordingFixture) {
-        RecordView()
-        .presentationBackground(Palette.sky)
-        .presentationDragIndicator(.visible)
-      }
+      .sheet(isPresented: $isRecordingFixture) { RecordView().skySheet() }
     #endif
   }
 
@@ -115,10 +112,15 @@ struct RootView: View {
   /// The orb gives way to the controls as type grows, instead of sitting under them.
   private var home: some View {
     VStack(spacing: 16) {
-      HStack {
+      HStack(spacing: 0) {
         Spacer()
-        if store != nil { historyButton }
+        if store != nil {
+          settingsButton
+          historyButton
+        }
       }
+      .padding(.trailing, 20)
+      .padding(.top, 8)
       Spacer(minLength: 0)
       VStack(spacing: 8) {
         Orb(level: 0, phase: .resting)
@@ -181,18 +183,26 @@ struct RootView: View {
   }
 
   private var historyButton: some View {
-    Button {
+    iconButton("clock.arrow.circlepath", label: "History", id: "home.history") {
       showsHistory = true
-    } label: {
-      Image(systemName: "clock.arrow.circlepath")
+    }
+  }
+
+  private var settingsButton: some View {
+    iconButton("gearshape", label: "Settings", id: "home.settings") { showsSettings = true }
+  }
+
+  private func iconButton(
+    _ symbol: String, label: String, id: String, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Image(systemName: symbol)
         .font(.body.weight(.medium))
         .foregroundStyle(Palette.inkDim)
         .frame(minWidth: 44, minHeight: 44)
     }
-    .padding(.trailing, 20)
-    .padding(.top, 8)
-    .accessibilityLabel("History")
-    .accessibilityIdentifier("home.history")
+    .accessibilityLabel(label)
+    .accessibilityIdentifier(id)
   }
 
   /// A new controller for the next session, and the threads the one that just ended left open.
