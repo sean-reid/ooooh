@@ -73,6 +73,11 @@ jobs:
           restore-keys: spm-xcode-${{ runner.os }}-
       - run: brew install xcodegen
       - run: xcodegen generate
+      - name: simulator
+        # A freshly selected Xcode has no simulator service running yet; first launch starts it.
+        run: |
+          sudo xcodebuild -runFirstLaunch
+          xcrun simctl list devices available | grep 'iPhone 17 Pro'
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
@@ -98,6 +103,11 @@ jobs:
           restore-keys: spm-xcode-${{ runner.os }}-
       - run: brew install xcodegen
       - run: xcodegen generate
+      - name: simulator
+        # A freshly selected Xcode has no simulator service running yet; first launch starts it.
+        run: |
+          sudo xcodebuild -runFirstLaunch
+          xcrun simctl list devices available | grep 'iPhone 17 Pro'
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
