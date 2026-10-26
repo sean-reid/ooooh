@@ -60,7 +60,8 @@
       return SettingsView(
         settings: settings,
         store: try SessionStore(configuration: .inMemory), version: "0.1.0 (1)",
-        sessionCount: 12, subscribeAction: {}, openHistory: {}, onDone: {})
+        transcription: "On-device transcription", sessionCount: 12, subscribeAction: {},
+        openHistory: {}, onDone: {})
     }
 
     private func privacyView() -> PrivacyView {
