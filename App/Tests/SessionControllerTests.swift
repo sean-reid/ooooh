@@ -324,7 +324,7 @@ import Transcription
     environment.session = UnreachableProtocol.session()
     let controller = SessionController(environment: environment)
 
-    await controller.start(.fixture(shortFixture, speed: 20))
+    await controller.start(.fixture(shortFixture, speed: .infinity))
     await wait { controller.isOffline }
     let refused = UnreachableProtocol.seen.withLock { $0 }
     #expect(controller.isOffline, "stage \(controller.stage), refused \(refused)")
