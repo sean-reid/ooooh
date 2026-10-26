@@ -1,0 +1,34 @@
+{
+  "recorded": "2026-10-26",
+  "question": "A thousand less: is that per month or per year?",
+  "kind": "clarify",
+  "moment": "Carver is about a thousand less. Which is a lot. That is, I mean, that is real money.",
+  "notes": {
+    "title": "Choosing between the Carver Street and park apartments",
+    "summary": "The speaker has to answer by Monday and is choosing between the cheap apartment on Carver Street and the pricier one by the park. Carver is about a thousand less a month, roughly $12,000 a year, but is fifty-five minutes door to door each way, versus about twelve minutes on foot from the park one. They framed it as literally a trade of money versus time. They worked out that Carver adds forty-three minutes each way: eighty-six minutes a day, seven and a half hours a week, and about three hundred and sixty hours a year. That comes to roughly thirty-three dollars an hour 'to not be on a bus.' Put that way, it sounded reasonable to them ('I think I would pay that'), but they did not make a decision.",
+    "ideas": [],
+    "decisions": [],
+    "questions": [],
+    "insights": [],
+    "actions": [],
+    "openThreads": [
+      {
+        "id": "apartment-choice-by-monday",
+        "text": "They still have to choose between the cheap Carver Street apartment and the one by the park, and the answer is due Monday.",
+        "span": {
+          "start": 0,
+          "end": 22
+        }
+      },
+      {
+        "id": "worth-33-an-hour",
+        "text": "Whether paying about thirty-three dollars an hour to not be on a bus is worth it: 'I think I would pay that,' but it is not settled.",
+        "span": {
+          "start": 87,
+          "end": 112.984
+        }
+      }
+    ],
+    "quotes": []
+  }
+}
