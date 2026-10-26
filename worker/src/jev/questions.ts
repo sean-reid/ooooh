@@ -1,6 +1,4 @@
-import { interventionKinds } from "../schema";
-
-export const questionsVersion = 2;
+export const questionsVersion = 3;
 
 export const jevModel = "jev-latest";
 
@@ -8,20 +6,9 @@ type Noul = { type: "noul"; instructions?: string; criteria?: { true: string; fa
 type Choice = { type: "choice"; criteria: Record<string, string> };
 type Score = { type: "score"; criteria: string[] };
 
-export const interventionDescriptions: Record<(typeof interventionKinds)[number], string> = {
-  clarify:
-    "The speaker is vague or tangled on one point and a question would help them pin it down.",
-  deepen:
-    "The speaker has stated something worth going further into and a question would open it up.",
-  reflect:
-    "The speaker has said something notable and hearing it back in their own words would help.",
-  decide: "The speaker is weighing options and is close to a decision a question could land.",
-  summarize: "The speaker has covered a lot and a short recap of their own threads would help.",
-  challenge: "The speaker has made a claim or assumption that deserves a gentle test.",
-};
-
-/// Atomic cues about the last few utterances. Each is one yes/no judgment; the
-/// governor combines them with weights from the remote config.
+/// Atomic cues about the last few utterances, one per intervention kind. Each is one
+/// yes/no judgment; the governor weights them from the remote config and asks the kind
+/// of the strongest.
 export const cueQuestions = {
   hangingQuestion: {
     type: "noul",
@@ -30,15 +17,6 @@ export const cueQuestions = {
     criteria: {
       true: "A question to themselves is left open at or near the end of the recent lines.",
       false: "No self-question, or they answered it and kept going.",
-    },
-  } satisfies Noul,
-  repeatsPoint: {
-    type: "noul",
-    instructions:
-      "In the recent lines, is the speaker saying again, in different words, a point they already made earlier in these lines or in the state?",
-    criteria: {
-      true: "The same point appears at least twice without a new angle on it.",
-      false: "Each point is new, or a repeat adds a new angle.",
     },
   } satisfies Noul,
   trailsOff: {
@@ -50,13 +28,14 @@ export const cueQuestions = {
       false: "The last line is a complete thought.",
     },
   } satisfies Noul,
-  contradictsEarlier: {
+  realisation: {
     type: "noul",
     instructions:
-      "Does something in the recent lines contradict a claim the speaker made earlier in these lines or in the state's ideas or decisions?",
+      "In the last line or two, did the speaker mark a landing themselves: turning against what they had just said ('I keep saying that', 'okay, maybe a little'), or naming the thing under the circling ('that is the actual thing', 'so it feels like confessing')?",
     criteria: {
-      true: "A recent claim and an earlier one cannot both hold.",
-      false: "No contradiction, or the speaker noticed and resolved it.",
+      true: "The speaker has just contradicted or corrected their own earlier line, or named in plain words the feeling or reason the earlier lines circled, and has not moved on from it.",
+      false:
+        "A diagnosis, fix, plan, or conclusion about the work; a feeling mentioned in passing while reasoning; or the speaker already carrying on past it.",
     },
   } satisfies Noul,
   unnamedDecision: {
@@ -68,25 +47,31 @@ export const cueQuestions = {
       false: "They are still weighing, or they explicitly marked the decision.",
     },
   } satisfies Noul,
+  threadShift: {
+    type: "noul",
+    instructions:
+      "In the last line or two, did the speaker either switch to a different open thread ('hang on', 'back to', 'where was I', 'the other thing') or land a result they had just reworked over several lines (a new total, a new order)?",
+    criteria: {
+      true: "The last line or two jumps to another thread, or states a reworked total or order whose parts sit across the earlier lines.",
+      false:
+        "The speaker is still inside the rework, or is laying one thing out in order for the first time.",
+    },
+  } satisfies Noul,
+  untestedClaim: {
+    type: "noul",
+    instructions:
+      "In the recent lines, did the speaker state a conclusion, or what someone else thinks or wants, as settled, without a reason beyond their own say-so?",
+    criteria: {
+      true: "A recent line asserts how something works or what another person thinks as a fact, with no evidence given in these lines or the state.",
+      false:
+        "Claims are hedged, backed by something said earlier, or the speaker is still weighing them.",
+    },
+  } satisfies Noul,
 } as const;
 
 export type CueName = keyof typeof cueQuestions;
 
 export const questions = {
-  goodMoment: {
-    type: "noul",
-    instructions:
-      "Is this a good moment for the app to say one short sentence to the speaker? Judge from the pause, the shape of the recent transcript, and the time since the last intervention.",
-    criteria: {
-      true: "The speaker has reached a natural break and a short question would be welcome now.",
-      false:
-        "The speaker is mid-thought, flowing, or just heard an intervention and should be left alone.",
-    },
-  } satisfies Noul,
-  intervention: {
-    type: "choice",
-    criteria: interventionDescriptions,
-  } satisfies Choice,
   articulationDifficulty: {
     type: "score",
     criteria: [

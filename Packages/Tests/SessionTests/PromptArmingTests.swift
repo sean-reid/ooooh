@@ -55,14 +55,12 @@ import Transcription
   /// Fires a good moment at every utterance end listed.
   func firing(_ kind: InterventionKind, at ends: Set<TimeInterval>) -> ScriptedDecisionProvider {
     ScriptedDecisionProvider { input in
-      var answers = JevAnswers.quiet
       if let last = input.recentTranscript.last, input.signals.pauseLength == 0,
         ends.contains(last.end)
       {
-        answers.goodMoment = .init(0.95)
-        answers.intervention = .init(kind, confidence: 0.9)
+        return .moment(kind)
       }
-      return answers
+      return .quiet
     }
   }
 
@@ -207,12 +205,7 @@ import Transcription
       config.floor = .init(min: 0, max: 0)
       config.armingDelay = delay
       let every = ScriptedDecisionProvider { input in
-        var answers = JevAnswers.quiet
-        if input.signals.pauseLength == 0 {
-          answers.goodMoment = .init(0.95)
-          answers.intervention = .init(.deepen, confidence: 0.9)
-        }
-        return answers
+        input.signals.pauseLength == 0 ? .moment(.deepen) : .quiet
       }
       let result = await FixtureDriver.run(
         fixture: fixture, config: config, dependencies: base.deps(every))

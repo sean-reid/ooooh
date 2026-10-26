@@ -19,13 +19,12 @@ func fixture(_ name: String, _ ext: String) throws -> Data {
   @Test func decideDecodesIntoJevAnswers() throws {
     let response = try JSONDecoder().decode(
       JevDecisionProvider.Response.self, from: fixture("decide", "json"))
-    #expect(response.questionsVersion == 2)
+    #expect(response.questionsVersion == 3)
     #expect(response.answers.cues["hangingQuestion"] == 0.61)
-    #expect(response.answers.cues.count == 5)
+    #expect(response.answers.cues.count == 6)
+    #expect(Set(response.answers.cues.keys) == Set(GovernorConfig.initial.cueKinds.keys))
     #expect(response.usage.jevInputTokens == 412)
     let answers = response.answers
-    #expect(answers.goodMoment.probability == 0.82)
-    #expect(answers.intervention == .init(.clarify, confidence: 0.71))
     #expect(answers.articulationDifficulty.score == 3.35)
     #expect(answers.articulationDifficulty.unit == 0.5875)
     #expect(answers.momentum.score == 2.8)

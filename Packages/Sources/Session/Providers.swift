@@ -84,12 +84,17 @@ public struct TemplatePhraser: Phraser {
 extension JevAnswers {
   /// Flowing speech, no signal to act on.
   public static let quiet = JevAnswers(
-    goodMoment: .init(0.05),
-    intervention: .init(.clarify, confidence: 0.1),
     articulationDifficulty: .init(1, confidence: 0.8),
     momentum: .init(5, confidence: 0.8),
     seemsFinished: .init(0.02),
     addressesApp: .init(.none, confidence: 0.05))
+
+  /// Quiet answers with the shipped cue for `kind` sure enough to clear the speak bar.
+  public static func moment(_ kind: InterventionKind) -> JevAnswers {
+    var answers = quiet
+    if let cue = GovernorConfig.initial.cue(for: kind) { answers.cues[cue] = 0.99 }
+    return answers
+  }
 }
 
 /// Asks one compactor and, when it throws, the other.

@@ -14,9 +14,9 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public var silenceChecks: [TimeInterval]
   /// How long the pause after an utterance has to hold before an armed decision speaks.
   public var armingDelay: TimeInterval
-  /// Weight per cue name. The moment score is the largest of goodMoment and each weighted cue.
+  /// Weight per cue name. The moment score is the largest weighted cue; an unweighted cue is ignored.
   public var cueWeights: [String: Double]
-  /// The kind to ask when a cue opens the gate. Falls back to the intervention choice.
+  /// The kind each cue asks for. A cue with no kind cannot open the gate.
   public var cueKinds: [String: InterventionKind]
 
   public init(
@@ -81,10 +81,15 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     }
   }
 
+  /// The cue, first by name, that asks for `kind`; nil when the set has none for it.
+  public func cue(for kind: InterventionKind) -> String? {
+    cueKinds.filter { $0.value == kind }.keys.sorted().first
+  }
+
   /// Starting point before any calibration. The eval replaces these numbers.
   public static var initial: GovernorConfig {
     GovernorConfig(
-      version: 5,
+      version: 6,
       floor: FloorRange(min: 30, max: 120),
       speak: Thresholds(probability: 0.9, confidence: 0),
       finished: Thresholds(probability: 0.6, confidence: 0.7),
@@ -93,8 +98,14 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
       endSilence: 30,
       silenceChecks: [5, 11, 20],
       armingDelay: 1.5,
-      cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
-      cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]
+      cueWeights: [
+        "hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125,
+        "realisation": 1.0, "threadShift": 1.0, "untestedClaim": 1.125,
+      ],
+      cueKinds: [
+        "hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide,
+        "realisation": .reflect, "threadShift": .summarize, "untestedClaim": .challenge,
+      ]
     )
   }
 }

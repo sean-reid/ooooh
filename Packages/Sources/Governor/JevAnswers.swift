@@ -1,28 +1,22 @@
 import Foundation
 import State
 
-/// One check's answers from Jev. Six questions, evaluated in parallel on the same input.
+/// One check's answers from Jev, evaluated in parallel on the same input.
 public struct JevAnswers: Codable, Equatable, Sendable {
-  public var goodMoment: Noul
-  public var intervention: Choice<InterventionKind>
   public var articulationDifficulty: Score
   public var momentum: Score
   public var seemsFinished: Noul
   public var addressesApp: Choice<Command>
-  /// Atomic yes/no cues about the last few utterances, by name. Empty from older Workers.
+  /// Atomic yes/no cues about the last few utterances, by name, one per intervention kind.
   public var cues: [String: Double]
 
   public init(
-    goodMoment: Noul,
-    intervention: Choice<InterventionKind>,
     articulationDifficulty: Score,
     momentum: Score,
     seemsFinished: Noul,
     addressesApp: Choice<Command>,
     cues: [String: Double] = [:]
   ) {
-    self.goodMoment = goodMoment
-    self.intervention = intervention
     self.articulationDifficulty = articulationDifficulty
     self.momentum = momentum
     self.seemsFinished = seemsFinished
@@ -32,8 +26,6 @@ public struct JevAnswers: Codable, Equatable, Sendable {
 
   public init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
-    goodMoment = try c.decode(Noul.self, forKey: .goodMoment)
-    intervention = try c.decode(Choice<InterventionKind>.self, forKey: .intervention)
     articulationDifficulty = try c.decode(Score.self, forKey: .articulationDifficulty)
     momentum = try c.decode(Score.self, forKey: .momentum)
     seemsFinished = try c.decode(Noul.self, forKey: .seemsFinished)

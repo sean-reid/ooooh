@@ -55,8 +55,6 @@ export async function decide(request: Request, env: Env): Promise<Response> {
   await charge(env, "jev", res.usage.input_tokens);
   const a = res.answers;
   const answers = {
-    goodMoment: noul(a.goodMoment),
-    intervention: choice(a.intervention),
     articulationDifficulty: score(a.articulationDifficulty),
     momentum: score(a.momentum),
     seemsFinished: noul(a.seemsFinished),

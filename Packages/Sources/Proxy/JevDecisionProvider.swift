@@ -3,7 +3,7 @@ import Governor
 import Session
 import State
 
-/// `POST /v1/decide`: Jev's six answers for one check.
+/// `POST /v1/decide`: Jev's answers for one check.
 public struct JevDecisionProvider: DecisionProvider {
   public var client: ProxyClient
 

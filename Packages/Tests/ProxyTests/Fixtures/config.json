@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "floor": {
     "min": 30,
     "max": 120
@@ -27,11 +27,17 @@
   "cueWeights": {
     "hangingQuestion": 1,
     "trailsOff": 1.38,
-    "unnamedDecision": 1.125
+    "unnamedDecision": 1.125,
+    "realisation": 1,
+    "threadShift": 1,
+    "untestedClaim": 1.125
   },
   "cueKinds": {
     "hangingQuestion": "clarify",
     "trailsOff": "deepen",
-    "unnamedDecision": "decide"
+    "unnamedDecision": "decide",
+    "realisation": "reflect",
+    "threadShift": "summarize",
+    "untestedClaim": "challenge"
   }
 }

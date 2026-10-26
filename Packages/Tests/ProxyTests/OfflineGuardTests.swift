@@ -98,7 +98,7 @@ final class RefusingProtocol: URLProtocol {
       baseURL: URL(string: "http://127.0.0.1:\(server.port)")!, offline: guardian)
 
     let answers = try await JevDecisionProvider(client: client).check(input)
-    #expect(answers.goodMoment.probability == 0.82)
+    #expect(answers.cues["hangingQuestion"] == 0.61)
     #expect(!guardian.isOffline)
   }
 }

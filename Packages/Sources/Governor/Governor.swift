@@ -48,27 +48,17 @@ public struct Governor: Sendable {
     return config.floor.min + (config.floor.max - config.floor.min) * ease
   }
 
-  /// Every utterance end is a check. Pause ticks are throttled to the minimum interval.
-  /// The largest of goodMoment and each cue scaled by its configured weight.
-  public func momentScore(_ answers: JevAnswers) -> Double {
-    moment(answers).score
-  }
-
-  /// The score and the cue that produced it, nil when goodMoment itself is the largest.
-  func moment(_ answers: JevAnswers) -> (score: Double, cue: String?) {
-    var best: (score: Double, cue: String?) = (answers.goodMoment.probability, nil)
-    for (name, weight) in config.cueWeights {
-      guard let probability = answers.cues[name] else { continue }
+  /// The strongest weighted cue that names a kind: what to ask and how sure Jev is.
+  /// Nil when no configured cue was answered. Ties go to the first cue by name.
+  public func moment(_ answers: JevAnswers) -> (kind: InterventionKind, score: Double)? {
+    var best: (kind: InterventionKind, score: Double)?
+    for (name, kind) in config.cueKinds.sorted(by: { $0.key < $1.key }) {
+      guard let probability = answers.cues[name], let weight = config.cueWeights[name]
+      else { continue }
       let score = min(1, probability * weight)
-      if score > best.score { best = (score, name) }
+      if score > (best?.score ?? -1) { best = (kind, score) }
     }
     return best
-  }
-
-  /// The kind to ask: the opening cue's kind when configured, else Jev's intervention choice.
-  public func kind(for answers: JevAnswers) -> InterventionKind {
-    if let cue = moment(answers).cue, let kind = config.cueKinds[cue] { return kind }
-    return answers.intervention.choice
   }
 
   /// Whether to ask Jev at `now`. Every utterance end is a check. In silence the schedule
@@ -118,8 +108,7 @@ public struct Governor: Sendable {
       return .askIfFinished
     }
 
-    guard momentScore(answers) >= config.speak.probability,
-      answers.intervention.confidence >= config.speak.confidence
+    guard let moment = moment(answers), moment.score >= config.speak.probability
     else { return .wait }
 
     if let last = lastPromptAt, signals.now - last < floor(for: answers, signals: signals) {
@@ -127,6 +116,6 @@ public struct Governor: Sendable {
     }
 
     lastPromptAt = signals.now
-    return .prompt(kind(for: answers))
+    return .prompt(moment.kind)
   }
 }

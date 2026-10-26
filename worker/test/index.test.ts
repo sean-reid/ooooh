@@ -1,5 +1,6 @@
 import { SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
+import { interventionKinds } from "../src/schema";
 
 describe("worker", () => {
   it("reports health", async () => {
@@ -18,11 +19,15 @@ describe("worker", () => {
       floor: { min: number; max: number };
       armingDelay: number;
       silenceChecks: number[];
+      cueWeights: Record<string, number>;
+      cueKinds: Record<string, string>;
     };
-    expect(body.version).toBe(5);
+    expect(body.version).toBe(6);
     expect(body.floor).toEqual({ min: 30, max: 120 });
     expect(body.armingDelay).toBe(1.5);
     expect(body.silenceChecks).toEqual([5, 11, 20]);
+    expect(Object.keys(body.cueWeights).sort()).toEqual(Object.keys(body.cueKinds).sort());
+    expect(new Set(Object.values(body.cueKinds))).toEqual(new Set(interventionKinds));
     expect(body).not.toHaveProperty("minCheckInterval");
   });
 

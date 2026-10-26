@@ -5,39 +5,52 @@ import Testing
 @testable import Governor
 
 @Suite struct GovernorTests {
+  /// Answers with the shipped cue for `kind` at `cue`, quiet on every other cue.
   func answers(
-    good: Double = 0.2, kind: InterventionKind = .clarify, confidence: Double = 0.8,
+    cue: Double = 0.2, kind: InterventionKind = .clarify,
     struggle: Double = 1, momentum: Double = 5, finished: Double = 0.05,
     command: JevAnswers.Command = .none, commandConfidence: Double = 0.1
   ) -> JevAnswers {
     JevAnswers(
-      goodMoment: .init(good),
-      intervention: .init(kind, confidence: confidence),
       articulationDifficulty: .init(struggle, confidence: 0.8),
       momentum: .init(momentum, confidence: 0.8),
       seemsFinished: .init(finished),
-      addressesApp: .init(command, confidence: commandConfidence))
+      addressesApp: .init(command, confidence: commandConfidence),
+      cues: [GovernorConfig.initial.cue(for: kind)!: cue])
   }
 
   func signals(at now: Double, pause: Double = 2.5, density: Double = 0.8) -> Signals {
     Signals(now: now, pauseLength: pause, speechDensity: density)
   }
 
-  @Test func weightedCueCanOpenTheGateAndUnknownCuesDoNot() {
+  @Test func theStrongestWeightedCueNamesTheKind() {
     var g = Governor(config: .initial)
-    var a = answers(good: 0.2, kind: .summarize)
-    a.cues = ["trailsOff": 0.7]
-    #expect(abs(g.momentScore(a) - 0.966) < 0.001)
-    #expect(g.kind(for: a) == .deepen)
+    var a = answers(cue: 0.7, kind: .deepen)
+    a.cues["threadShift"] = 0.95
+    let moment = g.moment(a)
+    #expect(moment?.kind == .deepen)
+    #expect(abs((moment?.score ?? 0) - 0.966) < 0.001)
     #expect(g.decide(a, signals: signals(at: 10)) == .prompt(.deepen))
-    var unknown = answers(good: 0.2)
-    unknown.cues = ["somethingNew": 0.99]
-    #expect(g.momentScore(unknown) == 0.2)
-    var g2 = Governor(config: .initial)
-    #expect(g2.decide(unknown, signals: signals(at: 10)) == .wait)
   }
 
-  @Test func decodesAnswersWithoutCues() throws {
+  @Test func everyKindHasACueAndTheOracleCueClearsTheBar() {
+    for kind in InterventionKind.allCases {
+      var g = Governor(config: .initial)
+      #expect(g.decide(answers(cue: 0.99, kind: kind), signals: signals(at: 10)) == .prompt(kind))
+    }
+  }
+
+  @Test func unknownAndUnweightedCuesNeverOpenTheGate() {
+    var config = GovernorConfig.initial
+    config.cueWeights["untestedClaim"] = nil
+    var g = Governor(config: config)
+    var a = answers()
+    a.cues = ["somethingNew": 0.99, "untestedClaim": 0.99]
+    #expect(g.moment(a) == nil)
+    #expect(g.decide(a, signals: signals(at: 10)) == .wait)
+  }
+
+  @Test func decodesAnswersWithoutCuesAndIgnoresRetiredQuestions() throws {
     let json = """
       {"goodMoment":{"probability":0.1},"intervention":{"choice":"deepen","confidence":0.5},
        "articulationDifficulty":{"score":2.5,"confidence":0.4},"momentum":{"score":3,"confidence":0.4},
@@ -45,6 +58,7 @@ import Testing
       """
     let a = try JSONDecoder().decode(JevAnswers.self, from: Data(json.utf8))
     #expect(a.cues.isEmpty)
+    #expect(a.momentum.score == 3)
   }
 
   @Test func waitsWhenFlowing() {
@@ -52,9 +66,9 @@ import Testing
     #expect(g.decide(answers(), signals: signals(at: 10)) == .wait)
   }
 
-  @Test func promptsOnGoodMomentThenHonoursFloor() {
+  @Test func promptsOnACueThenHonoursFloor() {
     var g = Governor(config: .initial)
-    let a = answers(good: 0.9, kind: .deepen)
+    let a = answers(cue: 0.9, kind: .deepen)
     #expect(g.decide(a, signals: signals(at: 10)) == .prompt(.deepen))
     #expect(g.decide(a, signals: signals(at: 40)) == .wait)
     #expect(g.decide(a, signals: signals(at: 10 + 121)) == .prompt(.deepen))
@@ -81,14 +95,14 @@ import Testing
 
   @Test func struggleShortensTheGap() {
     var g = Governor(config: .initial)
-    let stuck = answers(good: 0.9, struggle: 5, momentum: 1)
+    let stuck = answers(cue: 0.9, struggle: 5, momentum: 1)
     #expect(g.decide(stuck, signals: signals(at: 0, density: 0)) == .prompt(.clarify))
     #expect(g.decide(stuck, signals: signals(at: 31, density: 0)) == .prompt(.clarify))
   }
 
   @Test func silenceAloneNeverPrompts() {
     var g = Governor(config: .initial)
-    #expect(g.decide(answers(good: 0.3), signals: signals(at: 10, pause: 90)) == .wait)
+    #expect(g.decide(answers(cue: 0.3), signals: signals(at: 10, pause: 90)) == .wait)
   }
 
   @Test func asksIfFinishedThenEndsAfterSilence() {
@@ -109,7 +123,7 @@ import Testing
 
   @Test func commandsWinWhenConfident() {
     var g = Governor(config: .initial)
-    let a = answers(good: 0.95, command: .wrapUp, commandConfidence: 0.95)
+    let a = answers(cue: 0.95, command: .wrapUp, commandConfidence: 0.95)
     #expect(g.decide(a, signals: signals(at: 10)) == .command(.wrapUp))
     let unsure = answers(command: .recall, commandConfidence: 0.4)
     #expect(g.decide(unsure, signals: signals(at: 20)) == .wait)

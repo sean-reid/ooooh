@@ -20,7 +20,7 @@ import Transcription
     defer { try? FileManager.default.removeItem(at: url) }
     let live = ScriptedDecisionProvider { input in
       var answers = JevAnswers.quiet
-      answers.goodMoment = .init(input.signals.pauseLength == 0 ? 0.9 : 0.1)
+      answers.cues["trailsOff"] = input.signals.pauseLength == 0 ? 0.9 : 0.1
       return answers
     }
     let recorder = try RecordingDecisionProvider(live, writingTo: url)
@@ -32,8 +32,8 @@ import Transcription
     let sameTimeNewIndex = try await recorded.check(input(at: 10.5, pause: 0, index: 7))
     let silence = try await recorded.check(input(at: 12.5, pause: 2, index: 0))
     let unseen = try await recorded.check(input(at: 15.5, pause: 5, index: 1))
-    #expect(sameTimeNewIndex.goodMoment.probability == 0.9)
-    #expect(silence.goodMoment.probability == 0.1)
+    #expect(sameTimeNewIndex.cues["trailsOff"] == 0.9)
+    #expect(silence.cues["trailsOff"] == 0.1)
     #expect(unseen == .quiet)
   }
 }

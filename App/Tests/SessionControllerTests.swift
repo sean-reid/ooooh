@@ -52,12 +52,7 @@ import Transcription
     .init(
       decisions: ScriptedDecisionProvider { input in
         seen?.nows.append(input.signals.now)
-        var answers = JevAnswers.quiet
-        if input.recentTranscript.last?.end == end {
-          answers.goodMoment = .init(0.95)
-          answers.intervention = .init(kind, confidence: 0.9)
-        }
-        return answers
+        input.recentTranscript.last?.end == end ? .moment(kind) : .quiet
       }, compactor: PassthroughCompactor(), phraser: TemplatePhraser())
   }
 

@@ -152,7 +152,7 @@ struct Outcome {
     decisions = try RecordedDecisionProvider(contentsOf: URL(filePath: answers))
   } else {
     config.floor = .init(min: 0, max: 0)
-    decisions = OracleDecisionProvider(labels: run.labels)
+    decisions = OracleDecisionProvider(labels: run.labels, config: config)
   }
   let result = await FixtureDriver.run(
     fixture: run.fixture, config: config,
@@ -195,9 +195,8 @@ func dump(_ run: Run, _ result: SessionResult) {
   for record in result.records {
     guard case .check(let at, _, let a, let decision) = record else { continue }
     let line = String(
-      format: "%@ %7.1f good %.2f %@ %.2f diff %.2f mom %.2f fin %.2f cmd %@ %.2f label %@ -> %@",
-      run.name, at, a.goodMoment.probability, a.intervention.choice.rawValue,
-      a.intervention.confidence, a.articulationDifficulty.score, a.momentum.score,
+      format: "%@ %7.1f diff %.2f mom %.2f fin %.2f cmd %@ %.2f label %@ -> %@",
+      run.name, at, a.articulationDifficulty.score, a.momentum.score,
       a.seemsFinished.probability, a.addressesApp.choice.rawValue, a.addressesApp.confidence,
       labeled(at: at), String(describing: decision))
     let cues = a.cues.sorted { $0.key < $1.key }

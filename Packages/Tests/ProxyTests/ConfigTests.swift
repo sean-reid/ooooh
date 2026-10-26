@@ -24,7 +24,7 @@ extension StubbedTransportTests {
       let request = try #require(StubProtocol.seen.withLock { $0.first })
       #expect(request.url?.path() == "/v1/config")
       #expect(request.httpMethod == "GET")
-      #expect(config.version == 5)
+      #expect(config.version == 6)
       #expect(config.floor == .init(min: 30, max: 120))
       #expect(config.speak == .init(probability: 0.9, confidence: 0))
       #expect(config.finished == .init(probability: 0.6, confidence: 0.7))
@@ -35,12 +35,15 @@ extension StubbedTransportTests {
       #expect(config.armingDelay == 1.5)
       let weights: [String: Double] = [
         "hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125,
+        "realisation": 1.0, "threadShift": 1.0, "untestedClaim": 1.125,
       ]
       #expect(config.cueWeights == weights)
       let kinds: [String: InterventionKind] = [
         "hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide,
+        "realisation": .reflect, "threadShift": .summarize, "untestedClaim": .challenge,
       ]
       #expect(config.cueKinds == kinds)
+      #expect(Set(config.cueKinds.values) == Set(InterventionKind.allCases))
       #expect(config == .initial)
     }
 

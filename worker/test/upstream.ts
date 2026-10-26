@@ -47,20 +47,6 @@ export const audioBytes = Uint8Array.from({ length: 2048 }, (_, i) => (i * 37 + 
 
 export const jevReply = {
   answers: {
-    goodMoment: { type: "noul", noul: 0.82 },
-    intervention: {
-      type: "choice",
-      choice: "clarify",
-      confidence: 0.71,
-      probabilities: {
-        clarify: 0.71,
-        deepen: 0.12,
-        reflect: 0.08,
-        decide: 0.05,
-        summarize: 0.02,
-        challenge: 0.02,
-      },
-    },
     articulationDifficulty: {
       type: "score",
       score: 2.35,
@@ -83,10 +69,11 @@ export const jevReply = {
       probabilities: { none: 0.97, recall: 0.02, wrapUp: 0.01 },
     },
     hangingQuestion: { type: "noul", noul: 0.61 },
-    repeatsPoint: { type: "noul", noul: 0.44 },
     trailsOff: { type: "noul", noul: 0.12 },
-    contradictsEarlier: { type: "noul", noul: 0.07 },
+    realisation: { type: "noul", noul: 0.18 },
     unnamedDecision: { type: "noul", noul: 0.09 },
+    threadShift: { type: "noul", noul: 0.33 },
+    untestedClaim: { type: "noul", noul: 0.27 },
   },
   usage: { input_tokens: 412 },
 };

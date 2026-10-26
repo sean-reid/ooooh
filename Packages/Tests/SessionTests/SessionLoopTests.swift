@@ -29,8 +29,7 @@ import Transcription
     ScriptedDecisionProvider { input in
       var answers = JevAnswers.quiet
       if let last = input.recentTranscript.last, last.end == end {
-        answers.goodMoment = .init(0.95)
-        answers.intervention = .init(kind, confidence: 0.9)
+        answers = .moment(kind)
       }
       if let finishedAt, input.signals.now >= finishedAt {
         answers.seemsFinished = .init(0.97)

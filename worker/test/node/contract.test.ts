@@ -56,10 +56,8 @@ describe("provider contracts", () => {
     );
     expect(body.questionsVersion).toBe(questionsVersion);
 
-    for (const name of ["goodMoment", "seemsFinished"]) {
-      expect(answers[name].probability, name).toBeGreaterThanOrEqual(0);
-      expect(answers[name].probability, name).toBeLessThanOrEqual(1);
-    }
+    expect(answers.seemsFinished.probability).toBeGreaterThanOrEqual(0);
+    expect(answers.seemsFinished.probability).toBeLessThanOrEqual(1);
     for (const name of Object.keys(cueQuestions)) {
       expect(cues[name], name).toBeGreaterThanOrEqual(0);
       expect(cues[name], name).toBeLessThanOrEqual(1);
@@ -70,7 +68,6 @@ describe("provider contracts", () => {
       expect(answers[name].confidence, name).toBeGreaterThanOrEqual(0);
       expect(answers[name].confidence, name).toBeLessThanOrEqual(1);
     }
-    expect(Object.keys(questions.intervention.criteria)).toContain(answers.intervention.choice);
     // The speaker is weighing the queue against the sync layer and talking to nobody.
     expect(answers.addressesApp.choice).toBe("none");
     expect(answers.seemsFinished.probability).toBeLessThan(0.5);

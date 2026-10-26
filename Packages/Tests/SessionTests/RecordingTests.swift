@@ -13,9 +13,7 @@ import Testing
 
     let stub = ScriptedDecisionProvider { input in
       var answers = JevAnswers.quiet
-      answers.goodMoment = .init(0.1 * Double(input.checkIndex + 1))
-      answers.intervention = .init(.deepen, confidence: 0.4)
-      answers.cues = ["trailsOff": 0.7]
+      answers.cues = ["trailsOff": 0.1 * Double(input.checkIndex + 1)]
       return answers
     }
     let recorder = try RecordingDecisionProvider(stub, writingTo: url)

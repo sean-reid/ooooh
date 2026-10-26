@@ -64,21 +64,20 @@ describe("POST /v1/decide", () => {
     const body = await res.json();
     expect(body).toEqual({
       answers: {
-        goodMoment: { probability: 0.82 },
-        intervention: { choice: "clarify", confidence: 0.71 },
         articulationDifficulty: { score: 3.35, confidence: 0.64 },
         momentum: { score: 2.8, confidence: 0.58 },
         seemsFinished: { probability: 0.04 },
         addressesApp: { choice: "none", confidence: 0.97 },
         cues: {
           hangingQuestion: 0.61,
-          repeatsPoint: 0.44,
           trailsOff: 0.12,
-          contradictsEarlier: 0.07,
+          realisation: 0.18,
           unnamedDecision: 0.09,
+          threadShift: 0.33,
+          untestedClaim: 0.27,
         },
       },
-      questionsVersion: 2,
+      questionsVersion: 3,
       usage: { jevInputTokens: 412 },
     });
 
@@ -89,15 +88,14 @@ describe("POST /v1/decide", () => {
     expect(Object.keys(sent.questions as object).sort()).toEqual([
       "addressesApp",
       "articulationDifficulty",
-      "contradictsEarlier",
-      "goodMoment",
       "hangingQuestion",
-      "intervention",
       "momentum",
-      "repeatsPoint",
+      "realisation",
       "seemsFinished",
+      "threadShift",
       "trailsOff",
       "unnamedDecision",
+      "untestedClaim",
     ]);
     const state = sent.state as { recentTranscript: string; signals: { pauseLength: number } };
     expect(state.recentTranscript.split("\n")).toHaveLength(2);
@@ -161,22 +159,18 @@ describe("POST /v1/decide", () => {
     ],
     [
       "a null noul",
-      answer("goodMoment", { type: "noul", noul: null }),
-      { question: "goodMoment", field: "answers.goodMoment.noul", expected: "number" },
+      answer("seemsFinished", { type: "noul", noul: null }),
+      { question: "seemsFinished", field: "answers.seemsFinished.noul", expected: "number" },
+    ],
+    [
+      "a missing cue",
+      { ...jevReply, answers: { ...jevReply.answers, untestedClaim: undefined } },
+      { question: "untestedClaim", field: "answers.untestedClaim", expected: "object" },
     ],
     [
       "a string score",
       answer("momentum", { ...jevReply.answers.momentum, score: "1.8" }),
       { question: "momentum", field: "answers.momentum.score", expected: "number" },
-    ],
-    [
-      "an intervention outside the kinds",
-      answer("intervention", { ...jevReply.answers.intervention, choice: "sing" }),
-      {
-        question: "intervention",
-        field: "answers.intervention.choice",
-        expected: "one of clarify, deepen, reflect, decide, summarize, challenge",
-      },
     ],
     [
       "a command outside the enum",
