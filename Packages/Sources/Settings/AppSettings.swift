@@ -18,7 +18,6 @@ public final class AppSettings {
 
   enum Key {
     static let challengeEnabled = "settings.challengeEnabled"
-    static let keepAudioByDefault = "settings.keepAudioByDefault"
     static let quietModeOverride = "settings.quietModeOverride"
   }
 
@@ -37,19 +36,6 @@ public final class AppSettings {
     set {
       withMutation(keyPath: \.challengeEnabled) {
         defaults.set(newValue, forKey: Key.challengeEnabled)
-      }
-    }
-  }
-
-  /// The default for a new session's keep-audio switch. Off by default.
-  public var keepAudioByDefault: Bool {
-    get {
-      access(keyPath: \.keepAudioByDefault)
-      return defaults.bool(forKey: Key.keepAudioByDefault)
-    }
-    set {
-      withMutation(keyPath: \.keepAudioByDefault) {
-        defaults.set(newValue, forKey: Key.keepAudioByDefault)
       }
     }
   }

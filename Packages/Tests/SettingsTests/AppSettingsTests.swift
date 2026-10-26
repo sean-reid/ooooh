@@ -13,10 +13,9 @@ import Testing
     return defaults
   }
 
-  @Test func defaultsAreChallengeOnKeepAudioOffAndAutomatic() throws {
+  @Test func defaultsAreChallengeOnAndAutomatic() throws {
     let settings = AppSettings(defaults: try freshDefaults())
     #expect(settings.challengeEnabled)
-    #expect(!settings.keepAudioByDefault)
     #expect(settings.quietModeOverride == .auto)
   }
 
@@ -24,12 +23,10 @@ import Testing
     let defaults = try freshDefaults()
     let settings = AppSettings(defaults: defaults)
     settings.challengeEnabled = false
-    settings.keepAudioByDefault = true
     settings.quietModeOverride = .quiet
 
     let reread = AppSettings(defaults: defaults)
     #expect(!reread.challengeEnabled)
-    #expect(reread.keepAudioByDefault)
     #expect(reread.quietModeOverride == .quiet)
     #expect(defaults.string(forKey: "settings.quietModeOverride") == "quiet")
     #expect(defaults.object(forKey: "settings.challengeEnabled") as? Bool == false)
@@ -45,11 +42,11 @@ import Testing
     let settings = AppSettings(defaults: try freshDefaults())
     await confirmation { changed in
       withObservationTracking {
-        _ = settings.keepAudioByDefault
+        _ = settings.challengeEnabled
       } onChange: {
         changed()
       }
-      settings.keepAudioByDefault = true
+      settings.challengeEnabled = false
     }
   }
 }
