@@ -22,38 +22,26 @@ import {
   type FakeUpstream,
 } from "./upstream";
 import { jsonRequest, openSession, origin } from "./request";
-import { wipeKV } from "./workers";
+import { attestEnv, counterOf, reason, seedDevice, wipeKV } from "./workers";
 
 let authority: TestRoot;
 let device: Device;
-const attestEnv = (): Env => ({
-  ...env,
-  REQUIRE_ATTESTATION: "true",
-  APP_ATTEST_ENVIRONMENT: "development",
-  APP_ATTEST_ROOT_PEM: authority.rootPem,
-});
 
-const get = (path: string) => worker.fetch(new Request(`${origin}${path}`), attestEnv());
+const get = (path: string) => worker.fetch(new Request(`${origin}${path}`), attestEnv(authority));
 
 const post = (
   path: string,
   body: string,
   headers: Record<string, string>,
   ctx?: ExecutionContext,
-) => worker.fetch(jsonRequest(path, body, headers), attestEnv(), ctx);
+) => worker.fetch(jsonRequest(path, body, headers), attestEnv(authority), ctx);
 
 const sign = (path: string, body: string, counter: number, rest: Partial<SignedRequest> = {}) =>
   assertionHeaders(device, { path, body, counter, ...rest });
 
 const stored = (keyId: string) => env.BUDGET.get<DeviceRecord>(`device:${keyId}`, "json");
-const counterOf = (keyId: string) => env.DEVICE_COUNTER.getByName(keyId).current();
 
 const now = () => Math.floor(Date.now() / 1000);
-
-const reason = async (res: Response) => {
-  expect(res.status).toBe(401);
-  return ((await res.json()) as { reason: string }).reason;
-};
 
 beforeAll(async () => {
   authority = await makeRoot();
@@ -61,9 +49,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await wipeKV();
-  device = await makeDevice();
-  const record: DeviceRecord = { publicKey: device.jwk, createdAt: new Date().toISOString() };
-  await env.BUDGET.put(`device:${device.keyId}`, JSON.stringify(record));
+  device = await seedDevice();
   await openSession(env, device.keyId);
 });
 

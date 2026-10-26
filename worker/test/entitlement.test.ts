@@ -1,7 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import worker from "../src/index";
-import type { DeviceRecord } from "../src/attest/record";
 import {
   appAccountTokenFor,
   entitlement,
@@ -10,9 +9,9 @@ import {
   type TransactionClaim,
 } from "../src/entitlement";
 import { endSession } from "../src/routes/session";
-import { assertionHeaders, makeDevice, makeRoot, type Device, type TestRoot } from "./appattest";
+import { assertionHeaders, makeRoot, type Device, type TestRoot } from "./appattest";
 import { jsonRequest, openSession } from "./request";
-import { wipeKV } from "./workers";
+import { attestEnv as attested, seedDevice, wipeKV } from "./workers";
 import {
   day,
   makeStoreChain,
@@ -27,14 +26,8 @@ let chain: StoreChain;
 let device: Device;
 let counter = 0;
 
-const attestEnv = (overrides: Partial<Env> = {}): Env => ({
-  ...env,
-  REQUIRE_ATTESTATION: "true",
-  APP_ATTEST_ENVIRONMENT: "development",
-  APP_ATTEST_ROOT_PEM: authority.rootPem,
-  APPLE_ROOT_PEM: chain.rootPem,
-  ...overrides,
-});
+const attestEnv = (overrides: Partial<Env> = {}) =>
+  attested(authority, { APPLE_ROOT_PEM: chain.rootPem, ...overrides });
 
 const submit = async (body: string, overrides: Partial<Env> = {}, from = device) =>
   worker.fetch(
@@ -68,13 +61,6 @@ const stored = (keyId = device.keyId) =>
 const claim = (originalTransactionId = "2000000123456000") =>
   env.BUDGET.get<TransactionClaim>(`transaction:${originalTransactionId}`, "json");
 
-const enrol = async () => {
-  const fresh = await makeDevice();
-  const record: DeviceRecord = { publicKey: fresh.jwk, createdAt: new Date().toISOString() };
-  await env.BUDGET.put(`device:${fresh.keyId}`, JSON.stringify(record));
-  return fresh;
-};
-
 const start = (now: Date) =>
   openSession(env, device.keyId, now).then((res) => res.json() as Promise<Record<string, unknown>>);
 
@@ -86,7 +72,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await wipeKV();
   counter = 0;
-  device = await enrol();
+  device = await seedDevice();
 });
 
 const unauthorized = async (res: Response, reason = "bad-transaction") => {
@@ -185,7 +171,7 @@ describe("binding a transaction to the device", () => {
   });
 
   it("refuses a token derived from another device's key id", async () => {
-    const other = await enrol();
+    const other = await seedDevice();
     await unauthorized(
       await submitTransaction({ appAccountToken: await appAccountTokenFor(other.keyId) }),
       "wrong-device",
@@ -204,7 +190,7 @@ describe("binding a transaction to the device", () => {
 
   it("refuses a second device for a transaction another device claimed", async () => {
     expect((await submitTransaction()).status).toBe(200);
-    const second = await enrol();
+    const second = await seedDevice();
     const res = await submitTransaction({}, { from: second });
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "unauthorized", reason: "wrong-device" });

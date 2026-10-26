@@ -13,27 +13,22 @@ import {
   type Device,
   type TestRoot,
 } from "./appattest";
+import { origin } from "./request";
+import { attestEnv, counterOf, reason, wipeKV } from "./workers";
 
 let authority: TestRoot;
-const attestEnv = (overrides: Partial<Env> = {}): Env => ({
-  ...env,
-  REQUIRE_ATTESTATION: "true",
-  APP_ATTEST_ENVIRONMENT: "development",
-  APP_ATTEST_ROOT_PEM: authority.rootPem,
-  ...overrides,
-});
 
 const fetchWorker = (path: string, init: RequestInit = {}, overrides: Partial<Env> = {}) =>
-  worker.fetch(new Request(`https://ooooh.test${path}`, init), attestEnv(overrides));
+  worker.fetch(new Request(`${origin}${path}`, init), attestEnv(authority, overrides));
 
-export const getChallenge = async (overrides: Partial<Env> = {}) => {
+const getChallenge = async (overrides: Partial<Env> = {}) => {
   const res = await fetchWorker("/v1/challenge", {}, overrides);
   expect(res.status).toBe(200);
   const { challenge } = (await res.json()) as { challenge: string };
   return challenge;
 };
 
-export const postAttestation = (
+const postAttestation = (
   device: Device,
   challenge: string,
   attestation: Uint8Array<ArrayBuffer>,
@@ -50,7 +45,7 @@ export const postAttestation = (
   );
 
 /** Runs the whole enrolment for a fresh device against the test root. */
-export async function enrol(overrides: Partial<Env> = {}) {
+async function enrol(overrides: Partial<Env> = {}) {
   const device = await makeDevice();
   const challenge = await getChallenge(overrides);
   const attestation = await buildAttestation({
@@ -63,25 +58,11 @@ export async function enrol(overrides: Partial<Env> = {}) {
   return device;
 }
 
-export const setAuthority = (root: TestRoot) => {
-  authority = root;
-};
-
 beforeAll(async () => {
   authority = await makeRoot();
 });
 
-beforeEach(async () => {
-  const keys = await env.BUDGET.list();
-  await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
-});
-
-const counterOf = (keyId: string) => env.DEVICE_COUNTER.getByName(keyId).current();
-
-const reason = async (res: Response) => {
-  expect(res.status).toBe(401);
-  return ((await res.json()) as { reason: string }).reason;
-};
+beforeEach(wipeKV);
 
 describe("Apple's root", () => {
   it("parses as a self-signed P-384 certificate valid to 2045", async () => {
