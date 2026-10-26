@@ -13,7 +13,7 @@ struct RowCounts: Equatable {
 extension SessionStore {
   func counts() throws -> RowCounts {
     RowCounts(
-      sessions: try modelContext.fetchCount(FetchDescriptor<StoredSession>()),
+      sessions: try sessionCount(),
       segments: try modelContext.fetchCount(FetchDescriptor<StoredSegment>()),
       items: try modelContext.fetchCount(FetchDescriptor<StoredNoteItem>()),
       threads: try modelContext.fetchCount(FetchDescriptor<StoredThread>()))

@@ -2,6 +2,7 @@ import Billing
 import Design
 import Notes
 import Persistence
+import Settings
 import SwiftUI
 
 struct RootView: View {
@@ -51,6 +52,7 @@ struct RootView: View {
     .animation(.easeInOut(duration: 0.4), value: controller.notes)
     .animation(.easeInOut(duration: 0.4), value: showsOnboarding)
     .task {
+      ExportFile.removeExports()
       #if DEBUG
         if let store { await DebugHistory.apply(to: store) }
       #endif
