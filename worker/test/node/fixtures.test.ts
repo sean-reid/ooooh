@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { jsonRequest, startRequest } from "../request";
+import { jsonRequest, openSession, origin, startRequest } from "../request";
 import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
@@ -68,6 +68,8 @@ const compare = (file: string, actual: string) => {
   }
   expect(actual).toBe(readFileSync(file, "utf8"));
 };
+
+const pretty = (value: unknown) => JSON.stringify(value, null, 2) + "\n";
 
 const cases = [
   { name: "decide", path: "/v1/decide", body: decideBody, replies: [{ body: jevReply }] },
@@ -175,6 +177,37 @@ describe("ProxyTests fixtures", () => {
     ];
     const actual = await call("/v1/phrase", phraseBody, replies, "text/event-stream");
     compare(resolve(fixturesDir, "phrase.sse"), actual);
+  });
+
+  it("config.json is what /v1/config serves", async () => {
+    const response = await worker.fetch(new Request(`${origin}/v1/config`), testEnv);
+    expect(response.status).toBe(200);
+    compare(resolve(fixturesDir, "config.json"), pretty(await response.json()));
+  });
+
+  const refused = async (device: string) => {
+    const request = jsonRequest("/v1/decide", decideBody, { "x-device": device });
+    const response = await worker.fetch(request, testEnv);
+    expect(response.status).toBe(402);
+    return pretty(await response.json());
+  };
+
+  it("no-session-not-started.json is a prompt from a device with no session", async () => {
+    compare(resolve(fixturesDir, "no-session-not-started.json"), await refused("fixture-idle"));
+  });
+
+  it("no-session-free-used.json is a prompt after the month's free sessions", async () => {
+    for (let i = 0; i < 3; i++) {
+      await startSession("fixture-spent");
+      await endSession("fixture-spent");
+    }
+    compare(resolve(fixturesDir, "no-session-free-used.json"), await refused("fixture-spent"));
+  });
+
+  it("no-session-minutes-used.json is a prompt past a free session's minutes", async () => {
+    const started = new Date(Date.now() - 21 * 60_000);
+    expect((await openSession(testEnv, "fixture-late", started)).status).toBe(200);
+    compare(resolve(fixturesDir, "no-session-minutes-used.json"), await refused("fixture-late"));
   });
 });
 
