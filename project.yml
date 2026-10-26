@@ -63,6 +63,12 @@ targets:
         NSSpeechRecognitionUsageDescription: Speech is turned into text on this phone so your listener can follow along.
         ITSAppUsesNonExemptEncryption: false
         OoooohWorkerURL: $(OOOOH_WORKER_URL)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    entitlements:
+      path: App/Resources/ooooh.entitlements
+      properties:
+        com.apple.developer.devicecheck.appattest-environment: production
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh
