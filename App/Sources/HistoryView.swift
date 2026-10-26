@@ -21,6 +21,14 @@ struct HistoryView: View {
         VStack(spacing: 16) {
           header
           searchField
+          if let failure = model.failure {
+            Text(failure)
+              .font(Typography.caption)
+              .foregroundStyle(Palette.accent)
+              .multilineTextAlignment(.center)
+              .padding(.horizontal, 32)
+              .accessibilityIdentifier("history.failure")
+          }
           if model.loaded, model.rows.isEmpty {
             emptyLine
           } else {
@@ -189,11 +197,13 @@ struct StoredNotesScreen: View {
 final class HistoryModel {
   static let page = 50
   static let debounce: Duration = .milliseconds(250)
+  static let deleteFailedLine = "That session couldn't be deleted. It's still on this phone."
 
   let store: SessionStore
   var query = ""
   private(set) var rows: [SessionSummary] = []
   private(set) var loaded = false
+  private(set) var failure: String?
   private var exhausted = false
 
   init(store: SessionStore) {
@@ -227,11 +237,19 @@ final class HistoryModel {
     loaded = true
   }
 
+  /// Rows the store refuses to delete stay, under a line that says so.
   func delete(at offsets: IndexSet) async {
+    failure = nil
+    var deleted = IndexSet()
     for index in offsets {
-      try? await store.delete(session: rows[index].id)
+      do {
+        try await store.delete(session: rows[index].id)
+        deleted.insert(index)
+      } catch {
+        failure = Self.deleteFailedLine
+      }
     }
-    rows.remove(atOffsets: offsets)
+    rows.remove(atOffsets: deleted)
   }
 
   private var searching: String? {
