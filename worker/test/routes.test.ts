@@ -1,5 +1,5 @@
 import { env, SELF } from "cloudflare:test";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   audioBytes,
   bodyOf,
@@ -28,9 +28,15 @@ import { memoryKV } from "./kv";
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   SELF.fetch(`https://ooooh.test${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
+    headers: { "content-type": "application/json", "x-device": "routes", ...headers },
     body: JSON.stringify(body),
   });
+
+const startRequest = () => new Request("https://ooooh.test/v1/session/start", { method: "POST" });
+
+beforeEach(async () => {
+  expect((await post("/v1/session/start", {})).status).toBe(200);
+});
 
 const today = new Date().toISOString().slice(0, 10);
 const spent = async () => Number((await env.BUDGET.get(`budget:anthropic:${today}`)) ?? 0);
@@ -237,7 +243,7 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toMatchObject({ error: "bad patch", field: "add.sync-rebuild" });
-    expect(await spent()).toBe(before + 1100);
+    expect(await spent()).toBe(before + 27.5);
   });
 
   it("names a reply cut off at max_tokens and still charges it", async () => {
@@ -247,7 +253,7 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "anthropic truncated", maxTokens: 4096 });
-    expect(await spent()).toBe(before + 1100);
+    expect(await spent()).toBe(before + 27.5);
   });
 });
 
@@ -320,13 +326,14 @@ describe("POST /v1/notes", () => {
     });
   });
 
-  it("charges input plus output tokens to the anthropic budget", async () => {
+  it("charges Opus input plus output tokens at full weight", async () => {
     expectUpstream({ body: opusReply() });
     const env = {
       BUDGET: memoryKV(),
       ANTHROPIC_API_KEY: "sk-key",
       REQUIRE_ATTESTATION: "false",
     } as Env;
+    await worker.fetch(startRequest(), env);
     const res = await worker.fetch(
       new Request("https://ooooh.test/v1/notes", {
         method: "POST",
@@ -353,8 +360,40 @@ describe("POST /v1/notes", () => {
   });
 });
 
+describe("weighted Anthropic charges", () => {
+  it("charges each route by the model that answered: Haiku 0.025, Sonnet 0.5, Opus 1", async () => {
+    expectUpstream(
+      { body: haikuReply },
+      { body: sonnetReply(shortSentence) },
+      { body: opusReply() },
+    );
+    const before = await spent();
+    expect((await post("/v1/compact", compactBody)).status).toBe(200);
+    expect(await spent()).toBe(before + 0.025 * (980 + 120));
+    expect((await post("/v1/phrase", phraseBody)).status).toBe(200);
+    expect(await spent()).toBe(before + 27.5 + 0.5 * (640 + 18));
+    expect((await post("/v1/notes", notesBody)).status).toBe(200);
+    expect(await spent()).toBe(before + 27.5 + 329 + 3920);
+  });
+
+  it("charges the streamed phrase by the model in the final message", async () => {
+    expectUpstream({
+      body: sonnetStream(shortSentence),
+      headers: { "content-type": "text/event-stream" },
+    });
+    const before = await spent();
+    const res = await post("/v1/phrase", phraseBody, { accept: "text/event-stream" });
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(await spent()).toBe(before + 0.5 * (640 + 18));
+  });
+});
+
 describe("Anthropic credentials", () => {
   const env = { BUDGET: memoryKV(), REQUIRE_ATTESTATION: "false" } as Env;
+  beforeAll(async () => {
+    await worker.fetch(startRequest(), env);
+  });
   const request = () =>
     new Request("https://ooooh.test/v1/compact", {
       method: "POST",

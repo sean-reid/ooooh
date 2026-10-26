@@ -9,8 +9,9 @@
   "workers_dev": true,
   "vars": {
     // Daily caps per provider, counted from the usage each response reports. Pick for the deployment.
+    // Anthropic tokens are weighted by model (Opus 1, Sonnet 0.5, Haiku 0.025), so 700,000 is about $5 of Opus a day.
     "JEV_DAILY_TOKENS": "20000000",
-    "ANTHROPIC_DAILY_TOKENS": "2000000",
+    "ANTHROPIC_DAILY_TOKENS": "700000",
     "ELEVENLABS_DAILY_CHARACTERS": "20000",
     "DEVICE_MINUTE_REQUESTS": "60",
     // River, a pre-made ElevenLabs voice: neutral, calm, conversational. Override per deployment.
@@ -45,7 +46,7 @@
       // Wrangler does not pass vars or kv_namespaces down to an environment, so production carries its own.
       "vars": {
         "JEV_DAILY_TOKENS": "20000000",
-        "ANTHROPIC_DAILY_TOKENS": "2000000",
+        "ANTHROPIC_DAILY_TOKENS": "700000",
         "ELEVENLABS_DAILY_CHARACTERS": "20000",
         "DEVICE_MINUTE_REQUESTS": "60",
         "ELEVENLABS_VOICE_ID": "SAz9YHcvj6GT2YYXdXww",

@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
@@ -90,6 +90,11 @@ const signedRequest = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ProxyTests fixtures", () => {
+  beforeAll(async () => {
+    const request = new Request("https://ooooh.test/v1/session/start", { method: "POST" });
+    expect((await worker.fetch(request, testEnv)).status).toBe(200);
+  });
+
   for (const { name, path, body, replies } of cases) {
     it(`${name}.json matches what the route emits`, async () => {
       const actual = JSON.parse(await call(path, body, replies));
@@ -125,6 +130,15 @@ describe("ProxyTests fixtures", () => {
   const startSession = (device: string) =>
     call("/v1/session/start", {}, [], "application/json", device).then(JSON.parse);
 
+  const endSession = async (device: string) => {
+    const request = new Request("https://ooooh.test/v1/session/end", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-device": device },
+      body: JSON.stringify({ minutes: 1 }),
+    });
+    expect((await worker.fetch(request, testEnv)).status).toBe(204);
+  };
+
   it("session-start-free.json is the first session of the month", async () => {
     const actual = await startSession("fixture-free");
     compare(
@@ -147,7 +161,10 @@ describe("ProxyTests fixtures", () => {
   });
 
   it("session-start-refused.json is the fourth session of the month", async () => {
-    for (let i = 0; i < 3; i++) await startSession("fixture-refused");
+    for (let i = 0; i < 3; i++) {
+      await startSession("fixture-refused");
+      await endSession("fixture-refused");
+    }
     const actual = await startSession("fixture-refused");
     compare(
       resolve(fixturesDir, "session-start-refused.json"),

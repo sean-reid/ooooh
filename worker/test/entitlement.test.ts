@@ -9,7 +9,7 @@ import {
   type EntitlementRecord,
   type TransactionClaim,
 } from "../src/entitlement";
-import { startSession } from "../src/routes/session";
+import { endSession, startSession } from "../src/routes/session";
 import { assertionHeaders, makeDevice, makeRoot, type Device, type TestRoot } from "./appattest";
 import {
   day,
@@ -314,6 +314,16 @@ describe("entitlement and the session count", () => {
     expect(await entitlement(device.keyId, env, beforeExpiry)).toBe("paid");
     expect(await entitlement(device.keyId, env, afterExpiry)).toBe("free");
     expect(await start(beforeExpiry)).toEqual({ allowed: true, free: false });
+    await endSession(
+      new Request("https://ooooh.test/v1/session/end", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ minutes: 1 }),
+      }),
+      env,
+      device.keyId,
+      beforeExpiry,
+    );
     expect(await start(afterExpiry)).toMatchObject({ allowed: true, free: true, remainingFree: 2 });
   });
 

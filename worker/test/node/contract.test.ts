@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import worker from "../../src/index";
 import { memoryKV } from "../kv";
 import { readFileSync } from "node:fs";
@@ -35,6 +35,10 @@ const post = (path: string, body: unknown) =>
   );
 
 describe("provider contracts", () => {
+  beforeAll(async () => {
+    expect((await post("/v1/session/start", {})).status).toBe(200);
+  });
+
   it.skipIf(!env.TYPESAFE_API_KEY)("Jev answers the six questions", async () => {
     const res = await post("/v1/decide", decideBody);
     expect(res.status, await res.clone().text()).toBe(200);

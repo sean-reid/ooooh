@@ -1,5 +1,7 @@
 // Signed transactions in Apple's JWS layout from a chain made here: a P-384 root and intermediate
 // carrying Apple's marker extensions and a P-256 receipt signing leaf.
+import worker from "../src/index";
+import { appAccountTokenFor } from "../src/entitlement";
 import { toBase64, type Bytes } from "../src/bytes";
 import { certificate, generate, octets, oid, pem, seq, tlv, type Authority } from "./x509";
 
@@ -116,4 +118,18 @@ export async function signTransaction(
     ),
   );
   return `${input}.${base64Url(signature)}`;
+}
+
+/** Buys a month for `device` through the route, with attestation off and this chain as Apple's root. */
+export async function buyMonth(device: string, chain: StoreChain, env: Env, now = Date.now()) {
+  const payload = transactionPayload(now, { appAccountToken: await appAccountTokenFor(device) });
+  const transaction = await signTransaction(chain, payload);
+  return worker.fetch(
+    new Request("https://ooooh.test/v1/entitlement", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-device": device },
+      body: JSON.stringify({ transaction }),
+    }),
+    { ...env, REQUIRE_ATTESTATION: "false", APPLE_ROOT_PEM: chain.rootPem },
+  );
 }
