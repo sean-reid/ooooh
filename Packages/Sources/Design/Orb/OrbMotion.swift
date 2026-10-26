@@ -45,6 +45,11 @@ struct OrbPose: Equatable {
 /// Low-pass filters the voice level and the phase look between frames.
 @MainActor
 final class OrbMotion {
+  /// Seconds for the breath to follow a louder level, a quieter one, and for the pose to follow its phase.
+  nonisolated static let riseTau = 0.12
+  nonisolated static let fallTau = 0.45
+  nonisolated static let poseTau = 0.3
+
   private var frame = OrbFrame(clock: 0, breath: 0, pose: .target(for: .resting))
   private var lastDate: Date?
   /// Frames advanced so far, which is what the timeline drew.
@@ -66,9 +71,9 @@ final class OrbMotion {
       return frame
     }
     let dt = min(max(date.timeIntervalSince(last), 0), 0.1)
-    let tau = level > frame.breath ? 0.12 : 0.45
+    let tau = level > frame.breath ? Self.riseTau : Self.fallTau
     frame.breath = OrbPose.ease(frame.breath, to: level, by: 1 - exp(-dt / tau))
-    frame.pose.approach(target, by: 1 - exp(-dt / 0.3))
+    frame.pose.approach(target, by: 1 - exp(-dt / Self.poseTau))
     frame.clock += dt * frame.pose.speed
     rests = frame.pose == target && frame.breath == level && target.speed == 0
     return frame

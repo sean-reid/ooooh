@@ -1,13 +1,20 @@
 export const POINT_COUNT = 48;
+// Each wobble term: amplitude, harmonic, clock rate, phase. The voice term scales with breath.
+export const WOBBLE = [
+  [0.055, 2, 0.7, 0],
+  [0.04, 3, -0.47, 1.3],
+  [0.025, 5, 1.1, 2.1],
+];
+export const VOICE = [0.035, 4, -2.3, 0.7];
 
 export function radiusAt(theta, { radius, clock, drift, breath }) {
-  const wobble =
-    drift *
-    (0.055 * Math.sin(2 * theta + clock * 0.7) +
-      0.04 * Math.sin(3 * theta - clock * 0.47 + 1.3) +
-      0.025 * Math.sin(5 * theta + clock * 1.1 + 2.1));
-  const voice = breath * 0.035 * Math.sin(4 * theta - clock * 2.3 + 0.7);
-  return radius * (1 + wobble + voice);
+  let wobble = 0;
+  for (const [amplitude, harmonic, rate, phase] of WOBBLE)
+    wobble += amplitude * Math.sin(harmonic * theta + clock * rate + phase);
+  const [amplitude, harmonic, rate, phase] = VOICE;
+  const voice =
+    breath * amplitude * Math.sin(harmonic * theta + clock * rate + phase);
+  return radius * (1 + wobble * drift + voice);
 }
 
 export function blobPoints(params) {

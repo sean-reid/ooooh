@@ -114,7 +114,7 @@ test("the orb script runs without the observers and the newer syntax", () => {
   assert.match(script, /"ResizeObserver" in window/);
   assert.match(script, /"IntersectionObserver" in window/);
   assert.match(script, /list\.addListener\(handler\)/);
-  for (const name of ["landing.mjs", "orb-geometry.mjs"]) {
+  for (const name of ["landing.mjs", "orb-geometry.mjs", "orb-tokens.mjs"]) {
     const source = read(name);
     assert.ok(!source.includes("??"), name);
     assert.ok(!source.includes("?."), name);

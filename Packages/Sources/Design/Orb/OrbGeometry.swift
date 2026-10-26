@@ -1,21 +1,29 @@
 import SwiftUI
 
 enum OrbGeometry {
+  static let count = 48
+  /// Each wobble term: amplitude, harmonic, clock rate, phase. The voice term scales with breath.
+  static let wobble: [(amplitude: Double, harmonic: Double, rate: Double, phase: Double)] = [
+    (0.055, 2, 0.70, 0), (0.040, 3, -0.47, 1.3), (0.025, 5, 1.10, 2.1),
+  ]
+  static let voice = (amplitude: 0.035, harmonic: 4.0, rate: -2.3, phase: 0.7)
+
   static func blob(
     center: CGPoint, radius: CGFloat, clock: Double, drift: Double, breath: Double,
     stretch: Double
   ) -> Path {
-    let count = 48
     var points: [CGPoint] = []
     points.reserveCapacity(count)
     for i in 0..<count {
       let theta = Double(i) / Double(count) * 2 * .pi
-      let wobble =
-        drift
-        * (0.055 * sin(2 * theta + clock * 0.70) + 0.040 * sin(3 * theta - clock * 0.47 + 1.3)
-          + 0.025 * sin(5 * theta + clock * 1.10 + 2.1))
-      let voice = breath * 0.035 * sin(4 * theta - clock * 2.3 + 0.7)
-      let r = radius * (1 + wobble + voice)
+      var wobble = 0.0
+      for term in Self.wobble {
+        wobble += term.amplitude * sin(term.harmonic * theta + clock * term.rate + term.phase)
+      }
+      let voice =
+        breath * Self.voice.amplitude
+        * sin(Self.voice.harmonic * theta + clock * Self.voice.rate + Self.voice.phase)
+      let r = radius * (1 + wobble * drift + voice)
       let x = cos(theta) * r / sqrt(stretch)
       let y = sin(theta) * r * sqrt(stretch)
       points.append(CGPoint(x: center.x + x, y: center.y + y))
