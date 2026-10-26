@@ -1,3 +1,4 @@
+import Billing
 import Design
 import Notes
 import Persistence
@@ -13,12 +14,14 @@ struct RootView: View {
   @State private var threads: [OpenThread] = []
   @State private var hidesThreads = false
   @State private var showsHistory = false
+  @State private var showsPaywall = false
   @Environment(\.dynamicTypeSize) private var typeSize
   #if DEBUG
     @State private var isRecordingFixture = false
   #endif
 
   private let store = AppStore.shared
+  private let billing = AppBilling.store
 
   var body: some View {
     ZStack {
@@ -51,6 +54,7 @@ struct RootView: View {
         if let store { await DebugHistory.apply(to: store) }
       #endif
       await loadThreads()
+      try? await billing.load()
       #if DEBUG
         if UserDefaults.standard.bool(forKey: "demo") {
           showsOnboarding = false
@@ -67,6 +71,17 @@ struct RootView: View {
     }
     .onChange(of: showsHistory) { _, shown in
       if !shown { Task { await loadThreads() } }
+    }
+    .onChange(of: controller.admission) { _, admission in
+      if let admission { AppBilling.freeSessions.record(admission) }
+    }
+    .onChange(of: controller.stage) { _, stage in
+      if stage == .ended { Task { await offerPaywall() } }
+    }
+    .sheet(isPresented: $showsPaywall) {
+      PaywallView(store: billing) { showsPaywall = false }
+        .presentationBackground(Palette.sky)
+        .presentationDragIndicator(.visible)
     }
     #if DEBUG
       .sheet(isPresented: $isRecordingFixture) {
@@ -199,6 +214,12 @@ struct RootView: View {
     onboardingComplete = true
     showsOnboarding = false
     Task { await controller.start(.microphone) }
+  }
+
+  /// After a session ends with no free sessions left on a device that has not paid.
+  private func offerPaywall() async {
+    await billing.refresh()
+    if billing.entitlement == .free(remainingSessions: 0) { showsPaywall = true }
   }
 
   private func loadThreads() async {

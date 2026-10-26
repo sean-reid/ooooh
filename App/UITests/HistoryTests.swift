@@ -98,11 +98,4 @@ final class HistoryTests: XCTestCase {
     }
     XCTFail("the search field never took keyboard focus")
   }
-
-  private func attach(_ screenshot: XCUIScreenshot, named name: String) {
-    let attachment = XCTAttachment(screenshot: screenshot)
-    attachment.name = name
-    attachment.lifetime = .keepAlways
-    add(attachment)
-  }
 }

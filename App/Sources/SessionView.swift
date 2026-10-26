@@ -17,7 +17,7 @@ struct SessionView: View {
           .padding(.horizontal, 28)
         Spacer(minLength: 12)
         prompt
-        offlineLine
+        statusLine
         endButton
       }
     }
@@ -48,16 +48,28 @@ struct SessionView: View {
       .accessibilityHidden(controller.lastPrompt == nil)
   }
 
-  @ViewBuilder private var offlineLine: some View {
-    if controller.isOffline {
-      Text("listening only, your listener is offline")
+  @ViewBuilder private var statusLine: some View {
+    if let status = Self.status(for: controller) {
+      Text(status.text)
         .font(Typography.caption)
         .foregroundStyle(Palette.inkDim)
         .multilineTextAlignment(.center)
         .padding(.top, 12)
         .padding(.horizontal, 32)
-        .accessibilityIdentifier("session.offline")
+        .accessibilityIdentifier(status.id)
     }
+  }
+
+  /// One line under the prompt saying why nothing is asked. A refusal explains the silence on
+  /// its own, so it wins over offline.
+  static func status(for controller: SessionController) -> (text: String, id: String)? {
+    if controller.promptsRefused {
+      return ("listening only, this month's free sessions are used up", "session.quota")
+    }
+    if controller.isOffline {
+      return ("listening only, your listener is offline", "session.offline")
+    }
+    return nil
   }
 
   private var endButton: some View {

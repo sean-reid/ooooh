@@ -8,11 +8,11 @@ final class OnboardingTests: XCTestCase {
     app.launch()
 
     XCTAssertTrue(app.staticTexts["Think out loud."].waitForExistence(timeout: 5))
-    attach(app, named: "onboarding-1")
+    attach(app.screenshot(), named: "onboarding-1")
 
     app.swipeLeft()
     XCTAssertTrue(app.staticTexts["It waits."].waitForExistence(timeout: 5))
-    attach(app, named: "onboarding-2")
+    attach(app.screenshot(), named: "onboarding-2")
 
     let next = app.buttons["onboarding.next"]
     XCTAssertGreaterThanOrEqual(next.frame.height, 44)
@@ -23,14 +23,6 @@ final class OnboardingTests: XCTestCase {
     XCTAssertEqual(start.label, "Start a session")
     XCTAssertGreaterThanOrEqual(start.frame.height, 44)
     XCTAssertFalse(app.buttons["onboarding.next"].exists)
-    attach(app, named: "onboarding-3")
-  }
-
-  @MainActor
-  private func attach(_ app: XCUIApplication, named name: String) {
-    let attachment = XCTAttachment(screenshot: app.screenshot())
-    attachment.name = name
-    attachment.lifetime = .keepAlways
-    add(attachment)
+    attach(app.screenshot(), named: "onboarding-3")
   }
 }

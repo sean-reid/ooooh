@@ -19,6 +19,26 @@ final class BillingLogicTests: XCTestCase {
     XCTAssertEqual(store.entitlement, .free(remainingSessions: 1))
   }
 
+  func testRefreshReadsTheFreeCountFromItsSource() async {
+    let source = CountedSessions(remaining: 0)
+    let store = BillingStore(freeSessions: source)
+    XCTAssertEqual(store.entitlement, .free(remainingSessions: 3))
+    await store.refresh()
+    XCTAssertEqual(store.entitlement, .free(remainingSessions: 0))
+    XCTAssertEqual(store.freeSessionsRemaining, 0)
+  }
+
+  func testRefreshKeepsTheCountWhenTheSourceHasNoAnswerYet() async {
+    let store = BillingStore(freeSessions: CountedSessions(remaining: nil))
+    await store.refresh()
+    XCTAssertEqual(store.entitlement, .free(remainingSessions: 3))
+  }
+
+  struct CountedSessions: FreeSessionCount {
+    var remaining: Int?
+    var remainingFreeSessions: Int? { remaining }
+  }
+
   func testOnlySubscribedAndGraceArePaid() {
     XCTAssertTrue(Entitlement.subscribed(expires: .distantFuture, product: .monthly).isPaid)
     XCTAssertTrue(Entitlement.inGrace.isPaid)
