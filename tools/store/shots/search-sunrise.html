@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ooooh store search result, sunrise</title>
+    <link rel="stylesheet" href="../../site/site.css" />
+    <link rel="stylesheet" href="../store.css" />
+    <link rel="stylesheet" href="../art.css" />
+    <style>
+      /* The orb's body is 0.52 of a side, so a 154vh side puts an 80vh body with its centre on
+         the bottom edge and its crown at 60 percent of the height; the halo lights the word. */
+      .sunrise .orb {
+        --side: 153.85vh;
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin: 0;
+        transform: translate(-50%, -50%);
+      }
+
+      .sunrise .wordmark {
+        position: absolute;
+        top: 32%;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 22vh;
+        transform: translateY(calc(-50% - 0.092em));
+      }
+    </style>
+  </head>
+  <body class="art sunrise">
+    <canvas class="orb" aria-hidden="true"></canvas>
+    <h1 class="wordmark">ooooh</h1>
+    <a class="store" href="#"></a>
+    <script type="module" src="../../site/landing.mjs"></script>
+  </body>
+</html>
