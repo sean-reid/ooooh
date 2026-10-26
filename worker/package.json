@@ -13,8 +13,8 @@
     "lint": "eslint .",
     "format": "prettier --write . ../tools",
     "format:check": "prettier --check . ../tools",
-    "typecheck": "wrangler types && tsc --noEmit",
-    "test": "wrangler types && vitest run && node --test test/rotate.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run && node --test test/rotate.test.mjs",
     "types": "wrangler types"
   },
   "devDependencies": {

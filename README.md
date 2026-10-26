@@ -15,6 +15,7 @@ swift test --package-path Packages     # unit tests, no simulator needed
 xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 
 cd worker && npm ci                    # again after any pull that touches the lockfile
+npm run types                          # worker-configuration.d.ts, for tsc and the editor
 cp .dev.vars.example .dev.vars         # then fill in the three keys
 npm test                               # worker tests in the Workers runtime
 npm run dev                            # wrangler dev on http://localhost:8787
