@@ -103,8 +103,7 @@ struct RootView: View {
     case .unavailable:
       PendingNotesView(
         state: controller.result?.state ?? .empty, transcript: transcript,
-        line: controller.startRefused
-          ? PendingNotesView.refusedLine : PendingNotesView.offlineLine
+        line: PendingNotesView.line(for: controller)
       ) {
         reset()
       }

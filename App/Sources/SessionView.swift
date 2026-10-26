@@ -61,10 +61,16 @@ struct SessionView: View {
   }
 
   /// One line under the prompt saying why nothing is asked. A refusal explains the silence on
-  /// its own, so it wins over offline.
+  /// its own, so it wins over the clock, and the clock over offline.
   static func status(for controller: SessionController) -> (text: String, id: String)? {
     if controller.promptsRefused {
       return ("listening only, this month's free sessions are used up", "session.quota")
+    }
+    if controller.clockRefused {
+      return (
+        "listening only, your phone's clock is off, so your listener can't verify it",
+        "session.clock"
+      )
     }
     if controller.isOffline {
       return ("listening only, your listener is offline", "session.offline")

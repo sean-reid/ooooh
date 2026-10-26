@@ -30,12 +30,91 @@ final class FakeAttestor: Attestor {
 
 extension StubbedTransportTests {
   @Suite struct AttestationTests {
-    func client(_ attestor: any Attestor) -> ProxyClient {
+    func client(
+      _ attestor: any Attestor, offline: OfflineGuard? = nil, clock: WorkerClock = WorkerClock()
+    ) -> ProxyClient {
       let config = URLSessionConfiguration.ephemeral
       config.protocolClasses = [StubProtocol.self]
       return ProxyClient(
         baseURL: URL(string: "https://ooooh.test")!, session: URLSession(configuration: config),
-        attestor: attestor)
+        attestor: attestor, offline: offline, clock: clock)
+    }
+
+    let signing = FakeAttestor(reply: Assertion(keyId: "key-1", assertion: Data([0xa2, 0x01])))
+    let stale = StubProtocol.Reply(
+      status: 401, chunks: [Data(#"{"error":"unauthorized","reason":"stale"}"#.utf8)])
+    let phrased = StubProtocol.Reply(status: 200, chunks: [Data(#"{"text":"Which part?"}"#.utf8)])
+
+    /// What a Worker whose clock runs `ahead` seconds of this machine's puts in its Date header.
+    func serverDate(ahead: TimeInterval) -> (header: String, seconds: Int) {
+      let seconds = Int(Date.now.timeIntervalSince1970.rounded(.down)) + Int(ahead)
+      let formatter = DateFormatter()
+      formatter.locale = Locale(identifier: "en_US_POSIX")
+      formatter.timeZone = TimeZone(secondsFromGMT: 0)
+      formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+      return (formatter.string(from: Date(timeIntervalSince1970: Double(seconds))), seconds)
+    }
+
+    func signedTimes() throws -> [Int] {
+      try StubProtocol.seen.withLock { $0 }.map {
+        try #require($0.value(forHTTPHeaderField: ClientData.timeHeader).flatMap { Int($0) })
+      }
+    }
+
+    @Test func aStaleAnswerTeachesTheWorkersClockAndTheRetrySignsWithIt() async throws {
+      let clock = WorkerClock()
+      let server = serverDate(ahead: 1_000)
+      var stale = stale
+      stale.headers = ["Date": server.header]
+      StubProtocol.queue.withLock { $0 = [stale, phrased] }
+      StubProtocol.seen.withLock { $0 = [] }
+
+      let response: SonnetPhraser.Response = try await client(signing, clock: clock).post(
+        "v1/phrase", body: ["kind": "clarify"])
+      #expect(response.text == "Which part?")
+
+      let times = try signedTimes()
+      #expect(times.count == 2)
+      #expect(abs(times[0] - (server.seconds - 1_000)) <= 1)
+      #expect(abs(times[1] - server.seconds) <= 1)
+      #expect((999...1_001).contains(clock.offset))
+      #expect(!clock.isRefused)
+      #expect(StubProtocol.queue.withLock { $0.isEmpty })
+    }
+
+    @Test func twoStaleAnswersAreAClockSkewWithNoThirdRequest() async throws {
+      let clock = WorkerClock()
+      let changes = clock.changes()
+      StubProtocol.queue.withLock { $0 = [stale, stale] }
+      StubProtocol.reply = phrased
+      StubProtocol.seen.withLock { $0 = [] }
+
+      await #expect(throws: ProxyError.clockSkew) {
+        let _: SonnetPhraser.Response = try await client(signing, clock: clock).post(
+          "v1/phrase", body: ["kind": "clarify"])
+      }
+
+      #expect(StubProtocol.seen.withLock { $0.count } == 2)
+      #expect(clock.isRefused)
+      for await refused in changes {
+        #expect(refused)
+        break
+      }
+    }
+
+    @Test func aStaleAnswerLeavesTheOfflineGuardOnline() async throws {
+      let guardian = OfflineGuard()
+      StubProtocol.queue.withLock { $0 = [stale, stale] }
+      StubProtocol.seen.withLock { $0 = [] }
+
+      await #expect(throws: ProxyError.clockSkew) {
+        let _: SonnetPhraser.Response = try await client(signing, offline: guardian).post(
+          "v1/phrase", body: ["kind": "clarify"])
+      }
+
+      #expect(!guardian.isOffline)
+      guardian.recordFailure(URLError(.cannotConnectToHost))
+      #expect(!guardian.isOffline)
     }
 
     @Test func signsTheMethodPathTimeAndBodyAndSendsAllThreeHeaders() async throws {

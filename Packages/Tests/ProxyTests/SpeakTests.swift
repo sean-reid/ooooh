@@ -4,13 +4,16 @@ import Testing
 
 @testable import Proxy
 
-/// Answers every request through the real URLSession stack. One stub per test, set before the call.
+/// Answers every request through the real URLSession stack. One stub per test, set before the
+/// call; `queue` answers in order first, then `reply` answers everything after.
 final class StubProtocol: URLProtocol {
   struct Reply: Sendable {
     var status: Int
     var chunks: [Data]
+    var headers: [String: String] = [:]
   }
   nonisolated(unsafe) static var reply = Reply(status: 200, chunks: [])
+  static let queue = Mutex<[Reply]>([])
   static let seen = Mutex<[URLRequest]>([])
 
   override class func canInit(with request: URLRequest) -> Bool { true }
@@ -18,10 +21,11 @@ final class StubProtocol: URLProtocol {
 
   override func startLoading() {
     Self.seen.withLock { $0.append(request) }
+    let reply = Self.queue.withLock { $0.isEmpty ? Self.reply : $0.removeFirst() }
     let response = HTTPURLResponse(
-      url: request.url!, statusCode: Self.reply.status, httpVersion: nil, headerFields: nil)!
+      url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: reply.headers)!
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-    for chunk in Self.reply.chunks { client?.urlProtocol(self, didLoad: chunk) }
+    for chunk in reply.chunks { client?.urlProtocol(self, didLoad: chunk) }
     client?.urlProtocolDidFinishLoading(self)
   }
 

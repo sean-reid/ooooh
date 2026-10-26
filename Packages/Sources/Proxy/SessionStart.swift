@@ -41,8 +41,6 @@ extension ProxyClient {
 
   /// The Worker answers 204, so there is nothing to decode.
   public func endSession(minutes: Double) async throws {
-    let request = try await request("v1/session/end", body: EndBody(minutes: minutes))
-    let (data, response) = try await transport { try await session.data(for: request) }
-    try ProxyError.check(response, data: data)
+    _ = try await send("v1/session/end", body: EndBody(minutes: minutes))
   }
 }

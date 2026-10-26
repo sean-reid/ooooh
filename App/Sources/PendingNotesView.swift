@@ -8,11 +8,20 @@ struct PendingNotesView: View {
   let state: CompactState
   let transcript: [Segment]
   var line = Self.offlineLine
+  let done: () -> Void
 
-  static let offlineLine = "Your listener is offline. The notes will be written when it is back."
+  static let noNotes = "There are no notes for this session."
+  static let offlineLine = "Your listener is offline. \(noNotes)"
+  static let clockLine = "Your phone's clock is off, so your listener can't verify it. \(noNotes)"
   static let refusedLine =
     "This month's free sessions are used up, so there are no notes for this one."
-  let done: () -> Void
+
+  /// Why the session that just ended has no notes.
+  static func line(for controller: SessionController) -> String {
+    if controller.startRefused { return refusedLine }
+    if controller.clockRefused { return clockLine }
+    return offlineLine
+  }
 
   var body: some View {
     ZStack {
