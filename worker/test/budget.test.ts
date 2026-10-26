@@ -1,6 +1,13 @@
 import { env, SELF } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { charge, chargeModel, checkBudget, checkDeviceRate, modelWeight } from "../src/budget";
+import {
+  charge,
+  chargeModel,
+  checkBudget,
+  checkDeviceRate,
+  modelWeight,
+  type Provider,
+} from "../src/budget";
 import { HttpError } from "../src/http";
 import { startSession } from "../src/routes/session";
 import { checkSession } from "../src/session";
@@ -119,6 +126,95 @@ describe("budget", () => {
     expect(err.status).toBe(429);
     expect(err.body.retryAfter).toBe(30);
     await expect(checkDeviceRate("b", env, now)).resolves.toBeUndefined();
+  });
+
+  it("counts the seconds to midnight: 1 at 23:59:59, 86400 at 00:00:00", async () => {
+    const lastSecond = new Date("2026-10-25T23:59:59Z");
+    const midnight = new Date("2026-10-26T00:00:00Z");
+    await charge(env, "jev", 20_000_000, lastSecond);
+    const late = await checkBudget(env, "jev", lastSecond).catch((e) => e);
+    expect(late.status).toBe(503);
+    expect(late.body.retryAfter).toBe(1);
+    expect(late.headers).toEqual({ "retry-after": "1" });
+
+    await expect(checkBudget(env, "jev", midnight)).resolves.toBeUndefined();
+    await charge(env, "jev", 20_000_000, midnight);
+    const early = await checkBudget(env, "jev", midnight).catch((e) => e);
+    expect(early.body.retryAfter).toBe(86_400);
+    expect(early.headers).toEqual({ "retry-after": "86400" });
+  });
+
+  it("passes one under the cap and refuses at exactly the cap", async () => {
+    await charge(env, "elevenlabs", 19_999);
+    await expect(checkBudget(env, "elevenlabs")).resolves.toBeUndefined();
+    await charge(env, "elevenlabs", 1);
+    const err = await checkBudget(env, "elevenlabs").catch((e) => e);
+    expect(err.status).toBe(503);
+    expect(err.body).toEqual({
+      error: "budget",
+      provider: "elevenlabs",
+      used: 20_000,
+      limit: 20_000,
+      retryAfter: expect.any(Number),
+    });
+  });
+
+  it("reads each cap from its var", async () => {
+    const caps: [Provider, keyof Env][] = [
+      ["jev", "JEV_DAILY_TOKENS"],
+      ["anthropic", "ANTHROPIC_DAILY_TOKENS"],
+      ["elevenlabs", "ELEVENLABS_DAILY_CHARACTERS"],
+    ];
+    for (const [provider, name] of caps) {
+      const capped = { ...env, [name]: "10" };
+      await charge(env, provider, 9);
+      await expect(checkBudget(capped, provider), name).resolves.toBeUndefined();
+      await charge(env, provider, 1);
+      const err = await checkBudget(capped, provider).catch((e) => e);
+      expect(err.status, name).toBe(503);
+      expect(err.body, name).toMatchObject({ provider, used: 10, limit: 10 });
+    }
+
+    const now = new Date("2026-10-25T10:00:30Z");
+    const limited = { ...env, DEVICE_MINUTE_REQUESTS: "2" };
+    await checkDeviceRate("two", limited, now);
+    await checkDeviceRate("two", limited, now);
+    const err = await checkDeviceRate("two", limited, now).catch((e) => e);
+    expect(err.status).toBe(429);
+    expect(err.body).toEqual({ error: "rate", limit: 2, retryAfter: 30 });
+  });
+
+  it("tells a rate-limited device to wait 60 seconds at :00 and 1 second at :59", async () => {
+    const at = (seconds: string) => new Date(`2026-10-25T10:00:${seconds}Z`);
+    const minute = Math.floor(at("00").getTime() / 60_000);
+    await env.BUDGET.put(`rate:edge:${minute}`, "60");
+    const cases: [string, number][] = [
+      ["00", 60],
+      ["00.999", 60],
+      ["59", 1],
+      ["59.999", 1],
+    ];
+    for (const [seconds, wait] of cases) {
+      const err = await checkDeviceRate("edge", env, at(seconds)).catch((e) => e);
+      expect(err.status, seconds).toBe(429);
+      expect(err.body.retryAfter, seconds).toBe(wait);
+      expect(err.headers, seconds).toEqual({ "retry-after": String(wait) });
+    }
+    const nextMinute = new Date(at("00").getTime() + 60_000);
+    await expect(checkDeviceRate("edge", env, nextMinute)).resolves.toBeUndefined();
+  });
+
+  it("expires a rate key after 120 seconds and a budget key after three days", async () => {
+    const before = Math.floor(Date.now() / 1000);
+    await checkDeviceRate("ttl", env);
+    await charge(env, "jev", 1);
+    const after = Math.ceil(Date.now() / 1000);
+    const { keys } = await env.BUDGET.list();
+    const expiry = (prefix: string) => keys.find((k) => k.name.startsWith(prefix))?.expiration;
+    expect(expiry("rate:ttl:")).toBeGreaterThanOrEqual(before + 120);
+    expect(expiry("rate:ttl:")).toBeLessThanOrEqual(after + 120);
+    expect(expiry("budget:jev:")).toBeGreaterThanOrEqual(before + 3 * 24 * 3600);
+    expect(expiry("budget:jev:")).toBeLessThanOrEqual(after + 3 * 24 * 3600);
   });
 });
 
