@@ -568,6 +568,21 @@ import Transcription
     #expect(paths.last == "/v1/session/end")
   }
 
+  @Test func theEndIsPostedAfterTheNotes() async throws {
+    let host = "ordered"
+    var environment = gated(host, answering: try workerFixture("session-start-free"), deps: nil)
+    environment.notesGenerator = nil
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    await wait { GateProtocol.requests(to: host).contains { $0.path == "/v1/session/end" } }
+    #expect(controller.notes == .unavailable)
+    let paths = GateProtocol.requests(to: host).map(\.path)
+    #expect(paths.contains("/v1/notes"))
+    #expect(paths.last == "/v1/session/end")
+  }
+
   @Test func aPaidSessionPromptsWithoutACap() async throws {
     let seen = Seen()
     let controller = SessionController(
@@ -617,19 +632,40 @@ import Transcription
     #expect(GateProtocol.requests(to: "down").map(\.path) == ["/v1/session/start"])
   }
 
-  @Test func aFixtureWithoutAGateAsksTheWorkerNothing() async throws {
+  @Test func aStartThatCannotReachTheWorkerLeavesTheGuardAlone() async throws {
     var environment = environment(
       deps(firing: .deepen, at: 14.0), speaker: Recorder(), haptics: Counter())
-    environment.workerURL = URL(string: "http://ungated")
-    environment.session = GateProtocol.session()
+    environment.workerURL = URL(string: "http://worker.invalid")
+    environment.session = UnreachableProtocol.session()
     environment.notesGenerator = CannedNotes()
     let controller = SessionController(environment: environment)
 
     await controller.start(.fixture(shortFixture, speed: .infinity))
     await wait { controller.stage == .ended }
     #expect(controller.admission == nil)
+    #expect(!controller.isOffline)
     #expect(controller.result?.prompts.map(\.at) == [15.5])
-    #expect(GateProtocol.requests(to: "ungated").isEmpty)
+    let refused = UnreachableProtocol.seen.withLock { $0 }
+    #expect(refused.contains { $0.hasPrefix("/v1/session/start@") }, "\(refused)")
+  }
+
+  @Test func aFixtureWithAWorkerOpensASessionAndPostsItsEnd() async throws {
+    let host = "demo"
+    GateProtocol.answer(host, "/v1/session/start", 200, try workerFixture("session-start-free"))
+    var environment = environment(
+      deps(firing: .deepen, at: 14.0), speaker: Recorder(), haptics: Counter())
+    environment.workerURL = URL(string: "http://\(host)")
+    environment.session = GateProtocol.session()
+    environment.notesGenerator = CannedNotes()
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(controller.admission == .free(remaining: 2, promptMinutes: 20))
+    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    await wait { GateProtocol.requests(to: host).count == 2 }
+    #expect(
+      GateProtocol.requests(to: host).map(\.path) == ["/v1/session/start", "/v1/session/end"])
   }
 
   final class Seen: @unchecked Sendable {
