@@ -1,4 +1,12 @@
-import { anthropicClient, credential, models, textOf, upstreamError } from "../anthropic";
+import {
+  anthropicClient,
+  credential,
+  models,
+  refused,
+  textOf,
+  upstreamError,
+  within,
+} from "../anthropic";
 import { chargeModel } from "../budget";
 import { HttpError, json, readBody } from "../http";
 import { compactState, segment, type Segment } from "../schema";
@@ -116,37 +124,40 @@ export const checkNotes = (n: Notes, transcript: Segment[]): Notes => {
 
 /** Thinking counts against this too, so a long session can run out before the JSON closes. */
 const notesMaxTokens = 16_000;
+/** Opus thinks through the whole session before the JSON starts, and the notes screen waits for it. */
+const notesDeadlineMs = 180_000;
 
 export async function notesRoute(request: Request, env: Env): Promise<Response> {
   const input = await readBody(request, body);
   const cred = credential(env);
-  const client = anthropicClient(cred, { timeout: 180_000 });
+  const client = anthropicClient(cred, { timeout: notesDeadlineMs });
 
   const user = [
     `Compact state at the end of the session:\n${JSON.stringify(input.state, null, 1)}`,
     `Transcript, one line per utterance with its times:\n${transcriptLines(input.transcript).join("\n")}`,
   ].join("\n\n");
 
-  const response = await client.beta.messages
-    .create({
-      model: models.notes,
-      max_tokens: notesMaxTokens,
-      betas: ["server-side-fallback-2026-07-01", ...cred.betas],
-      fallbacks: "default",
-      thinking: { type: "adaptive" },
-      system,
-      messages: [{ role: "user", content: user }],
-      output_config: { effort: "high", format: { type: "json_schema", schema: notesSchema } },
-    })
-    .catch(upstreamError);
+  const response = await within(notesDeadlineMs, (signal) =>
+    client.beta.messages.create(
+      {
+        model: models.notes,
+        max_tokens: notesMaxTokens,
+        betas: ["server-side-fallback-2026-07-01", ...cred.betas],
+        fallbacks: "default",
+        thinking: { type: "adaptive" },
+        system,
+        messages: [{ role: "user", content: user }],
+        output_config: { effort: "high", format: { type: "json_schema", schema: notesSchema } },
+      },
+      { signal },
+    ),
+  ).catch(upstreamError);
   await chargeModel(env, response.model, response.usage);
 
   if (response.stop_reason === "max_tokens") {
     throw new HttpError(502, { error: "anthropic truncated", maxTokens: notesMaxTokens });
   }
-  if (response.stop_reason === "refusal") {
-    throw new HttpError(502, { error: "anthropic refused", detail: response.stop_details });
-  }
+  if (response.stop_reason === "refusal") throw refused(response);
   let parsed: unknown;
   try {
     parsed = JSON.parse(textOf(response.content));

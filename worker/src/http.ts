@@ -57,8 +57,14 @@ export async function readBody<T>(request: Request, validator: Validator<T>): Pr
   }
 }
 
+/** The var's name goes to the log; the client learns only that the Worker is misconfigured. */
+export const missingSecret = (name: string) => {
+  console.error("missing secret", name);
+  return new HttpError(500, { error: "misconfigured" });
+};
+
 export const requireSecret = (value: string | undefined, name: string) => {
-  if (!value) throw new HttpError(500, { error: "missing secret", name });
+  if (!value) throw missingSecret(name);
   return value;
 };
 

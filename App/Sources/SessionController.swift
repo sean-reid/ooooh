@@ -54,8 +54,8 @@ final class SessionController {
     /// Set to skip the Worker, as the tests do.
     var dependencies: SessionLoop.Dependencies?
     var config: GovernorConfig?
-    /// Set to ask it before every source, as the tests and `-free-exhausted 1` do. Microphone
-    /// sessions otherwise ask the Worker, and fixtures ask nothing.
+    /// Set to ask it before every source, as the tests and `-free-exhausted 1` do. Every source
+    /// otherwise asks the Worker when there is one.
     var gate: SessionGate?
   }
 
@@ -156,11 +156,14 @@ final class SessionController {
           baseURL: $0, session: environment.session, attestor: environment.attestor,
           offline: guardian)
       }
-      if case .microphone = source {
-        gate = environment.gate ?? client.map(SessionGate.worker)
-      } else {
-        gate = environment.gate
-      }
+      // The start and end are bookkeeping; the guard watches the provider calls, as it did before
+      // the session routes, so a Worker nobody reaches shows offline at the first prompt check.
+      gate =
+        environment.gate
+        ?? environment.workerURL.map {
+          SessionGate.worker(
+            ProxyClient(baseURL: $0, session: environment.session, attestor: environment.attestor))
+        }
       let admission = gate.map { gate in
         Admission(start: Task { await Self.admit(gate) }) { [weak self] reason in
           Task { @MainActor in self?.cutoff = reason }
@@ -231,7 +234,8 @@ final class SessionController {
     }
   }
 
-  /// Posts the wall-clock minutes once the Worker has counted the session.
+  /// Posts the wall-clock minutes after the notes, since the Worker answers nothing for a session
+  /// it has closed.
   private func postEnd() {
     guard let gate, admission != nil, !startRefused else { return }
     let minutes = (elapsed(at: .now) / 60 * 100).rounded() / 100
@@ -344,7 +348,6 @@ final class SessionController {
     isHearingSpeech = false
     stage = .ended
     try? environment.audio.deactivate()
-    postEnd()
     writeNotes(for: result)
   }
 
@@ -353,6 +356,7 @@ final class SessionController {
   private func writeNotes(for result: SessionResult) {
     guard result.transcript.contains(where: \.isFinal) else {
       notes = .empty
+      postEnd()
       return
     }
     let store = environment.store
@@ -363,15 +367,17 @@ final class SessionController {
       let saved = try? await store?.save(
         result: result, notes: nil, title: "", startedAt: startedAt)
       savedSessionID = saved
-      guard let generator else { return }
-      do {
-        let written = try await generator.generate(
-          state: result.state, transcript: result.transcript)
-        if let saved { try? await store?.attachNotes(written, to: saved) }
-        notes = .written(written)
-      } catch {
-        notes = .unavailable
+      if let generator {
+        do {
+          let written = try await generator.generate(
+            state: result.state, transcript: result.transcript)
+          if let saved { try? await store?.attachNotes(written, to: saved) }
+          notes = .written(written)
+        } catch {
+          notes = .unavailable
+        }
       }
+      postEnd()
     }
   }
 }
