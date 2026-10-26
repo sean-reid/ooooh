@@ -53,6 +53,7 @@ public actor SessionLoop {
   var lastCompactionAt: TimeInterval = 0
   var lastSpeechEnd: TimeInterval = 0
   var arm: Arm?
+  var ending = false
   var ended = false
 
   public init(
@@ -137,7 +138,7 @@ public actor SessionLoop {
   }
 
   func check(at now: TimeInterval, pause: TimeInterval, utteranceEnded: Bool) async {
-    guard arm == nil else { return }
+    guard arm == nil, !ending else { return }
     let signals = Signals(
       now: now, pauseLength: pause, speechDensity: density(at: now),
       awaitingFinishedReply: governor.finishedAskedAt != nil)
@@ -199,6 +200,11 @@ public actor SessionLoop {
     arm.text?.cancel()
     governor = arm.governor
     records.append(.promptCancelled(at: now))
+  }
+
+  /// The user has ended it. Segments still arriving are kept, but nothing is decided on them.
+  func prepareToEnd() {
+    ending = true
   }
 
   /// Folds whatever is still raw into the state, then closes the session.

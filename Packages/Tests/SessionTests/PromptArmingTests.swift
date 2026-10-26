@@ -23,7 +23,7 @@ import Transcription
         config: .initial,
         dependencies: .init(
           decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
-        transcriber: OpenTranscriber(stream: stream), clock: clock)
+        transcriber: OpenTranscriber(stream: stream, input: continuation), clock: clock)
       events = live.events().makeAsyncIterator()
       await live.start()
     }
