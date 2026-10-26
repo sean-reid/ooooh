@@ -61,6 +61,7 @@ The Worker runs at `https://api.ooooh.app` as the `production` environment, name
 - `worker/` is the Cloudflare Worker.
 - `tools/labeler/` marks good moments in a recorded session; serve it with `python3 -m http.server -d tools/labeler`, load a fixture and its audio, press a letter per utterance, and Export writes `<name>.labels.json`.
 - `tools/synth/` turns the scripts in `fixtures/synthetic/scripts/` into fixtures, labels, and audio.
+- `tools/store/` renders the App Store screenshots from the UI test captures and cuts the app preview; `tools/store/README.md` has the steps.
 
 ## Eval
 
