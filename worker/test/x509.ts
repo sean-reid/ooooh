@@ -97,11 +97,14 @@ interface CertificateOptions {
   notAfter?: Date;
 }
 
+/** Tests pin `now` to fixed dates, so a default certificate stays valid around any of them. */
+const fiveYears = 5 * 365 * 86_400_000;
+
 export async function certificate(options: CertificateOptions): Promise<Bytes> {
   const spki = new Uint8Array(await crypto.subtle.exportKey("spki", options.publicKey));
   const algorithm = seq(signatureOid(options.issuer.curve));
-  const notBefore = options.notBefore ?? new Date(Date.now() - 86_400_000);
-  const notAfter = options.notAfter ?? new Date(Date.now() + 86_400_000);
+  const notBefore = options.notBefore ?? new Date(Date.now() - fiveYears);
+  const notAfter = options.notAfter ?? new Date(Date.now() + fiveYears);
   const tbs = seq(
     explicit(0, integer(Uint8Array.of(2))),
     integer(crypto.getRandomValues(new Uint8Array(8))),
