@@ -546,11 +546,11 @@ import Transcription
     let speaker = Recorder()
     let haptics = Counter()
     var environment = environment(
-      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics)
+      deps(firing: .deepen, at: 3.0), speaker: speaker, haptics: haptics)
     environment.settings = try settings(quiet: .voice)
     let controller = SessionController(environment: environment)
 
-    await controller.start(.fixture(shortFixture, speed: 20))
+    await controller.start(.fixture(try realTimeFixture(then: speechAgain), speed: 1))
     #expect(!controller.quietMode)
     await wait { controller.phase == .speaking }
     #expect(speaker.calls.first == "speak What sits underneath that?")
