@@ -7,6 +7,7 @@ public struct SettingsView: View {
   @Bindable var settings: AppSettings
   var store: SessionStore
   var version: String
+  var transcription: String?
   var subscribeAction: () -> Void
   var openHistory: () -> Void
   var onDone: (() -> Void)?
@@ -15,34 +16,39 @@ public struct SettingsView: View {
   var scrolls = true
   @State private var sessionCount: Int?
   @State private var confirmingDelete = false
+  @State private var deleteFailure: String?
   @State private var showsPrivacy = false
+
+  static let deleteFailedLine = "Nothing was deleted. Your sessions are still on this phone."
 
   public static let siteURL = URL(string: "https://ooooh.app")!
   public static let termsURL = URL(string: "https://ooooh.app/terms.html")!
 
-  /// `subscribeAction` opens the paywall; `openHistory` opens the list where one session can
-  /// be deleted; `onDone` adds a Done button when the screen is presented as a sheet.
+  /// `transcription` names the engine Start runs on this phone; `subscribeAction` opens the
+  /// paywall; `openHistory` opens the list where one session can be deleted; `onDone` adds a
+  /// Done button when the screen is presented as a sheet.
   public init(
     settings: AppSettings, store: SessionStore, version: String = SettingsView.bundleVersion,
-    subscribeAction: @escaping () -> Void, openHistory: @escaping () -> Void,
-    onDone: (() -> Void)? = nil
+    transcription: String? = nil, subscribeAction: @escaping () -> Void,
+    openHistory: @escaping () -> Void, onDone: (() -> Void)? = nil
   ) {
     self.settings = settings
     self.store = store
     self.version = version
+    self.transcription = transcription
     self.subscribeAction = subscribeAction
     self.openHistory = openHistory
     self.onDone = onDone
   }
 
   init(
-    settings: AppSettings, store: SessionStore, version: String, sessionCount: Int?,
-    subscribeAction: @escaping () -> Void, openHistory: @escaping () -> Void,
-    onDone: (() -> Void)?
+    settings: AppSettings, store: SessionStore, version: String, transcription: String?,
+    sessionCount: Int?, subscribeAction: @escaping () -> Void,
+    openHistory: @escaping () -> Void, onDone: (() -> Void)?
   ) {
     self.init(
-      settings: settings, store: store, version: version, subscribeAction: subscribeAction,
-      openHistory: openHistory, onDone: onDone)
+      settings: settings, store: store, version: version, transcription: transcription,
+      subscribeAction: subscribeAction, openHistory: openHistory, onDone: onDone)
     _sessionCount = State(initialValue: sessionCount)
     scrolls = false
   }
@@ -77,9 +83,8 @@ public struct SettingsView: View {
         body
       }
     }
-    .task {
-      sessionCount = (try? await store.sessions(limit: .max))?.count ?? sessionCount
-    }
+    .task { await refreshCount() }
+    .onDisappear(perform: ExportFile.removeExports)
     .confirmationDialog(
       deleteTitle, isPresented: $confirmingDelete, titleVisibility: .visible
     ) {
@@ -143,6 +148,10 @@ public struct SettingsView: View {
         title: "Quiet mode",
         choices: AppSettings.QuietModeOverride.allCases.map { ($0, $0.title) },
         selection: $settings.quietModeOverride)
+      RowDivider()
+      RowLabel(title: "Transcription", detail: transcription)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settings.transcription")
     }
   }
 
@@ -176,6 +185,14 @@ public struct SettingsView: View {
       }
       .disabled(sessionCount == 0)
       .accessibilityIdentifier("settings.deleteAll")
+      if let deleteFailure {
+        Text(deleteFailure)
+          .font(Typography.caption)
+          .foregroundStyle(Palette.accent)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.bottom, 12)
+          .accessibilityIdentifier("settings.deleteFailure")
+      }
     }
   }
 
@@ -225,10 +242,22 @@ public struct SettingsView: View {
     }
   }
 
+  private func refreshCount() async {
+    sessionCount = (try? await store.sessionCount()) ?? sessionCount
+  }
+
+  /// On a store error the count is read again, so the row shows what is still there.
   private func deleteEverything() {
     Task {
-      try await store.deleteEverything()
-      sessionCount = 0
+      do {
+        try await store.deleteEverything()
+        ExportFile.removeExports()
+        sessionCount = 0
+        deleteFailure = nil
+      } catch {
+        deleteFailure = Self.deleteFailedLine
+        await refreshCount()
+      }
     }
   }
 }

@@ -1,18 +1,20 @@
 import { entitlement } from "../entitlement";
 import { json, readBody } from "../http";
 import {
+  countSession,
   minutesKey,
   openSession,
-  readCount,
   sessionKey,
-  sessionsKey,
-  sessionTtlSeconds,
+  sessionsUsed,
+  writeSession,
   type SessionRecord,
 } from "../session";
 import { settings } from "../settings";
 import { num, obj } from "../validate";
 
 const keepSeconds = 62 * 24 * 3600;
+
+const readCount = async (kv: KVNamespace, key: string) => Number((await kv.get(key)) ?? 0);
 
 const allowance = (session: SessionRecord) =>
   session.free
@@ -24,12 +26,7 @@ const allowance = (session: SessionRecord) =>
       }
     : { allowed: true, free: false };
 
-const open = (env: Env, device: string, session: SessionRecord) =>
-  env.BUDGET.put(sessionKey(device), JSON.stringify(session), {
-    expirationTtl: sessionTtlSeconds,
-  });
-
-/** Opens the device's session and counts a free one against the month; a start while one is open answers the same allowance. */
+/** Opens the device's session, or answers the open one; a free session counts at its first call or its end. */
 export async function startSession(
   request: Request,
   env: Env,
@@ -41,27 +38,27 @@ export async function startSession(
   const startedAt = now.getTime();
   if ((await entitlement(device, env, now)) === "paid") {
     const session: SessionRecord = { startedAt, free: false };
-    await open(env, device, session);
+    await writeSession(env, device, session, now);
     return json(allowance(session));
   }
-  const key = sessionsKey(device, now);
-  const used = await readCount(env.BUDGET, key);
+  const used = await sessionsUsed(device, env, now);
   const { freeSessionsPerMonth: limit, freePromptMinutes: promptMinutes } = settings(env);
   if (used >= limit) return json({ allowed: false, reason: "free-exhausted" });
   const session: SessionRecord = {
+    id: crypto.randomUUID(),
     startedAt,
     free: true,
     remainingFree: limit - used - 1,
     promptMinutes,
+    pending: true,
   };
-  await open(env, device, session);
-  await env.BUDGET.put(key, String(used + 1), { expirationTtl: keepSeconds });
+  await writeSession(env, device, session, now);
   return json(allowance(session));
 }
 
 const endBody = obj({ minutes: num });
 
-/** Closes the open session and adds its minutes to the month, clamped to its own length plus one. */
+/** Closes the open session, counts it if no call did, and adds its minutes, clamped to its length plus one. */
 export async function endSession(
   request: Request,
   env: Env,
@@ -71,6 +68,7 @@ export async function endSession(
   const { minutes } = await readBody(request, endBody);
   const session = await openSession(device, env);
   if (!session) return new Response(null, { status: 204 });
+  if (session.free && session.pending) await countSession(device, session, env);
   const wallClock = Math.max(0, now.getTime() - session.startedAt) / 60_000;
   const counted = Math.min(Math.max(0, minutes), wallClock + 1);
   const key = minutesKey(device, now);

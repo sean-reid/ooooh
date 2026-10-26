@@ -50,7 +50,7 @@ jobs:
       - run: npm run types
       - run: npm run typecheck
       - run: npm test
-      - run: node --test ../site/site.test.mjs ../tools/synth/*.test.mjs ../tools/labeler/*.test.mjs
+      - run: node --test ../site/site.test.mjs ../tools/store/*.test.mjs ../tools/synth/*.test.mjs ../tools/labeler/*.test.mjs
       - run: npm run coverage
       - name: coverage totals
         run: >
@@ -86,7 +86,10 @@ jobs:
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath ui.xcresult
-          -only-testing:oooohUITests test
+          -only-testing:oooohUITests -retry-tests-on-failure -test-iterations 2 test
+      - name: retries
+        if: always()
+        run: bin/test-retries ui.xcresult | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

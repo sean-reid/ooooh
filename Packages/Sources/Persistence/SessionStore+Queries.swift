@@ -7,49 +7,50 @@ import Transcription
 extension SessionStore {
   /// Newest first.
   public func sessions(limit: Int = 50, offset: Int = 0) throws -> [SessionSummary] {
-    var descriptor = FetchDescriptor<StoredSession>(
-      sortBy: [SortDescriptor(\.startedAt, order: .reverse)])
+    var descriptor = Self.summaryDescriptor()
     descriptor.fetchLimit = limit
     descriptor.fetchOffset = offset
     return try modelContext.fetch(descriptor).map(Self.summary)
   }
 
-  /// Sessions with the query in a segment, a note item, or the summary, newest first. Case
-  /// and diacritics do not matter.
-  public func search(_ query: String) throws -> [SessionSummary] {
+  public func sessionCount() throws -> Int {
+    try modelContext.fetchCount(FetchDescriptor<StoredSession>())
+  }
+
+  /// The newest `limit` sessions with the query in a segment, a note item, or the summary.
+  /// Case and diacritics do not matter. Returns nothing once the calling task is cancelled.
+  public func search(_ query: String, limit: Int = 50) throws -> [SessionSummary] {
     let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !needle.isEmpty else { return [] }
-    let inText = FetchDescriptor<StoredSession>(
-      predicate: #Predicate { session in
-        (session.segments?.contains { $0.text.localizedStandardContains(needle) } ?? false)
-          || (session.items?.contains { $0.text.localizedStandardContains(needle) } ?? false)
-      })
-    let inSummary = FetchDescriptor<StoredSession>(
-      predicate: #Predicate { $0.summary?.localizedStandardContains(needle) ?? false })
-    var seen = Set<UUID>()
-    return try (modelContext.fetch(inText) + modelContext.fetch(inSummary))
-      .filter { seen.insert($0.id).inserted }
-      .sorted { $0.startedAt > $1.startedAt }
-      .map(Self.summary)
+    guard !needle.isEmpty, limit > 0 else { return [] }
+    try Task.checkCancellation()
+    let inText = #Predicate<StoredSession> { session in
+      (session.segments?.contains { $0.text.localizedStandardContains(needle) } ?? false)
+        || (session.items?.contains { $0.text.localizedStandardContains(needle) } ?? false)
+    }
+    let inSummary = #Predicate<StoredSession> {
+      $0.summary?.localizedStandardContains(needle) ?? false
+    }
+    var descriptor = Self.summaryDescriptor(
+      predicate: #Predicate { inSummary.evaluate($0) || inText.evaluate($0) })
+    descriptor.fetchLimit = limit
+    return try modelContext.fetch(descriptor).map(Self.summary)
   }
 
   /// Unresolved threads, most recent session first, in note order within a session.
   public func openThreads(limit: Int = 3) throws -> [OpenThread] {
     guard limit > 0 else { return [] }
-    let descriptor = FetchDescriptor<StoredThread>(predicate: #Predicate { !$0.resolved })
-    let threads = try modelContext.fetch(descriptor)
-      .compactMap { thread -> (OpenThread, Int)? in
-        guard let session = thread.sourceSession else { return nil }
-        let open = OpenThread(
-          id: thread.id, text: thread.text, sessionID: session.id, sessionTitle: session.title,
-          sessionStartedAt: session.startedAt, noteItemID: thread.sourceNoteItemSlug)
-        return (open, thread.order)
-      }
-      .sorted { a, b in
-        a.0.sessionStartedAt != b.0.sessionStartedAt
-          ? a.0.sessionStartedAt > b.0.sessionStartedAt : a.1 < b.1
-      }
-    return Array(threads.map(\.0).prefix(limit))
+    var descriptor = FetchDescriptor<StoredThread>(
+      predicate: #Predicate { !$0.resolved && $0.sourceSession != nil },
+      sortBy: [
+        SortDescriptor(\.sourceSession?.startedAt, order: .reverse), SortDescriptor(\.order),
+      ])
+    descriptor.fetchLimit = limit
+    return try modelContext.fetch(descriptor).compactMap { thread in
+      guard let session = thread.sourceSession else { return nil }
+      return OpenThread(
+        id: thread.id, text: thread.text, sessionID: session.id, sessionTitle: session.title,
+        sessionStartedAt: session.startedAt, noteItemID: thread.sourceNoteItemSlug)
+    }
   }
 
   public func detail(_ sessionID: UUID) throws -> SessionDetail? {
@@ -70,6 +71,14 @@ extension SessionStore {
 
   public func items(in sessionID: UUID) throws -> [NoteEntry] {
     Self.entries(of: try session(sessionID))
+  }
+
+  /// Newest first.
+  static func summaryDescriptor(predicate: Predicate<StoredSession>? = nil)
+    -> FetchDescriptor<StoredSession>
+  {
+    FetchDescriptor<StoredSession>(
+      predicate: predicate, sortBy: [SortDescriptor(\.startedAt, order: .reverse)])
   }
 
   static func summary(_ session: StoredSession) -> SessionSummary {

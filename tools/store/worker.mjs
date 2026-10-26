@@ -68,12 +68,7 @@ async function serveSeed() {
       return json(res, 200, { ok: true, version: "store" });
     if (path === "/v1/config") return json(res, 200, governorConfig);
     if (path === "/v1/session/start")
-      return json(res, 200, {
-        allowed: true,
-        free: true,
-        remainingFree: 2,
-        promptMinutes: 20,
-      });
+      return json(res, 200, await fixture("session-start-free.json"));
     if (path === "/v1/session/end") return res.writeHead(204).end();
     if (path === "/v1/decide")
       return json(res, 200, await decide(parse(await read(req))));
@@ -98,7 +93,7 @@ async function record(upstream) {
   const root = new URL("../../", import.meta.url);
   const { segments } = JSON.parse(
     await readFile(
-      new URL("App/Resources/Fixtures/decision.fixture.json", root),
+      new URL("fixtures/synthetic/estimate/decision.fixture.json", root),
       "utf8",
     ),
   );
@@ -205,7 +200,7 @@ async function record(upstream) {
 }
 
 const handle = recordAt ? await record(recordAt) : await serveSeed();
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   const path = new URL(req.url, "http://localhost").pathname;
   if (!recordAt) console.log(req.method, path);
   try {
@@ -216,9 +211,10 @@ createServer(async (req, res) => {
       json(res, 502, { error: "upstream", status: 0, detail: error.message });
     else res.end();
   }
-}).listen(port, "127.0.0.1", () =>
+});
+server.listen(port, "127.0.0.1", () =>
   console.log(
-    `store worker on http://127.0.0.1:${port}` +
+    `store worker on http://127.0.0.1:${server.address().port}` +
       (recordAt ? `, recording ${recordAt}` : ""),
   ),
 );

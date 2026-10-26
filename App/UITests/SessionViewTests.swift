@@ -1,6 +1,6 @@
 import XCTest
 
-final class SessionViewTests: XCTestCase {
+final class SessionViewTests: UITestCase {
   @MainActor
   func testDemoSessionDark() {
     runDemo(named: "session-dark", arguments: ["-ui-color-scheme", "dark"])
@@ -21,33 +21,25 @@ final class SessionViewTests: XCTestCase {
   @MainActor
   private func runDemo(named name: String, arguments: [String]) {
     let app = XCUIApplication()
-    app.launchArguments += ["-onboardingComplete", "1"] + Worker.launchArguments + arguments
+    app.launchArguments +=
+      ["-onboardingComplete", "1", "-reset-store", "1"] + Worker.launchArguments + arguments
     app.launch()
 
     let demo = app.buttons["home.demo"]
-    XCTAssertTrue(demo.waitForExistence(timeout: 15))
+    waitUntilHittable(demo)
     demo.tap()
 
-    let orb =
-      app.otherElements["Your listener is listening"].firstMatch.exists
-      ? app.otherElements["Your listener is listening"].firstMatch
-      : app.images["Your listener is listening"].firstMatch
-    XCTAssertTrue(orb.waitForExistence(timeout: 15))
-
+    let orb = app.descendants(matching: .any)["Your listener is listening"].firstMatch
+    XCTAssertTrue(orb.appears())
     let elapsed = app.staticTexts["session.elapsed"]
-    XCTAssertTrue(elapsed.waitForExistence(timeout: 15))
+    XCTAssertTrue(elapsed.appears())
     let first = elapsed.label
-    let advanced = expectation(
-      for: NSPredicate(format: "label != %@", first), evaluatedWith: elapsed)
-    wait(for: [advanced], timeout: 15)
+    wait(until: { elapsed.label != first }, "the session clock never moved past \(first)")
     XCTAssertTrue(app.buttons["session.end"].exists)
 
-    let screenshot = app.screenshot()
-    let attachment = XCTAttachment(screenshot: screenshot)
-    attachment.name = name
-    attachment.lifetime = .keepAlways
-    add(attachment)
-    assertHaloFadesPastTheFrame(of: orb, in: screenshot.image, screen: app.frame)
+    if let image = attach(app, named: name) {
+      assertHaloFadesPastTheFrame(of: orb, in: image, screen: app.frame)
+    }
 
     app.buttons["session.end"].tap()
     // How much the demo said before End depends on the runner, and whether a Worker answers on
@@ -56,11 +48,9 @@ final class SessionViewTests: XCTestCase {
     let pending = app.otherElements["notes.pending"]
     let writing = app.staticTexts["notes.writing"]
     let written = app.otherElements["notes.view"]
-    let landed = expectation(
-      for: NSPredicate { _, _ in
-        empty.exists || pending.exists || writing.exists || written.exists
-      }, evaluatedWith: nil)
-    wait(for: [landed], timeout: 15)
+    wait(
+      until: { empty.exists || pending.exists || writing.exists || written.exists },
+      "End landed on no notes screen")
     if empty.exists {
       XCTAssertEqual(empty.label, "Nothing was said this time.")
       XCTAssertTrue(app.buttons["notes.done"].exists)
@@ -69,11 +59,7 @@ final class SessionViewTests: XCTestCase {
         app.staticTexts["notes.pending.line"].label.hasPrefix("Your listener is offline."))
       XCTAssertTrue(app.buttons["notes.done"].exists)
     }
-
-    let notes = XCTAttachment(screenshot: app.screenshot())
-    notes.name = "\(name)-notes"
-    notes.lifetime = .keepAlways
-    add(notes)
+    attach(app, named: "\(name)-notes")
   }
 
   /// Walks the row through the orb's center from 24 pt outside its frame to 24 pt inside. A halo

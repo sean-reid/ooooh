@@ -23,7 +23,7 @@ cd .. && xcodebuild -scheme ooooh -destination 'platform=iOS Simulator,name=iPho
 npm --prefix worker run format && swift format format -i -r Packages App   # what CI's lint jobs check
 ```
 
-Debug builds talk to `http://localhost:8787`; release builds take `xcodebuild OOOOH_WORKER_URL=https://<your worker> ...`. The simulator cannot transcribe, so Debug builds add a Demo button that replays a recorded fixture through the whole pipeline. Launch arguments for the simulator and the UI tests:
+Debug builds talk to `http://localhost:8787`; release builds take `xcodebuild OOOOH_WORKER_URL=https://<your worker> ...`. The simulator cannot transcribe, so Debug builds add a Demo button that replays a synthetic fixture through the whole pipeline. Launch arguments for the simulator and the UI tests:
 
 | Argument                            | Effect                                       |
 | ----------------------------------- | -------------------------------------------- |
@@ -62,7 +62,7 @@ A bad field is 422 with the field named, a device with no open session and no su
 
 There are no accounts; the device is the identity. A phone attests an App Attest key once per install, and every later request carries an assertion the Worker checks against `APP_ATTEST_APP_ID`, `APP_ATTEST_ENVIRONMENT`, a 300 second clock window, and a forward-only counter, answering 401 with the failing check as `reason`. The simulator cannot attest, so `.dev.vars` sets `REQUIRE_ATTESTATION=false`. A free session counts against the month and stops prompting at `promptMinutes`; a subscription is a StoreKit 2 transaction posted to `/v1/entitlement`, checked against `APP_BUNDLE_ID` and `APP_STORE_ENVIRONMENT` (`Sandbox` for TestFlight), and bound to the device through its `appAccountToken`.
 
-`npm test` runs every route against a fake upstream and, with keys in `.dev.vars`, five contract tests that call each provider once; `.github/workflows/contract.yml` runs those five daily with `TYPESAFE_API_KEY`, `ANTHROPIC_API_KEY`, and `ELEVENLABS_API_KEY` as Actions secrets. `WRITE_FIXTURES=1 npx vitest run --project node` rewrites the fixtures `ProxyTests` decodes, so a shape change on either side fails one of the two suites. The Worker runs at `https://api.ooooh.app` as the `production` environment; `.github/workflows/deploy.yml` tests, deploys, and probes `/health` on every push to `main` that touches `worker/`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as Actions secrets. `npm run deploy:dry` builds the production config without uploading and `bin/rotate-secret <NAME>` rotates a provider key.
+`npm test` runs every route against a fake upstream and, with keys in `.dev.vars`, five contract tests that call each provider once; `.github/workflows/contract.yml` runs those five daily with `TYPESAFE_API_KEY`, `ANTHROPIC_API_KEY`, and `ELEVENLABS_API_KEY` as Actions secrets. `WRITE_FIXTURES=1 npx vitest run --project node` rewrites the fixtures `ProxyTests` decodes and `WRITE_REQUEST_FIXTURES=1 swift test --package-path Packages` rewrites the request bodies the node project validates, so a shape change on either side fails one of the two suites. The Worker runs at `https://api.ooooh.app` as the `production` environment; `.github/workflows/deploy.yml` tests, deploys, and probes `/health` on every push to `main` that touches `worker/`, with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as Actions secrets. `npm run deploy:dry` builds the production config without uploading and `bin/rotate-secret <NAME>` rotates a provider key.
 
 ## Layout
 

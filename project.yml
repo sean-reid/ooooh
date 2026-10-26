@@ -27,6 +27,10 @@ targets:
       - App/Sources
       - path: App/Resources
         excludes: [Products.storekit]
+      - path: fixtures/synthetic/estimate/decision.fixture.json
+        buildPhase: resources
+      - path: fixtures/demo/history.notes.json
+        buildPhase: resources
     dependencies:
       - package: Packages
         product: Design
@@ -80,7 +84,7 @@ targets:
         Debug:
           OOOOH_WORKER_URL: http://localhost:8787
         Release:
-          EXCLUDED_SOURCE_FILE_NAMES: decision.fixture.json
+          EXCLUDED_SOURCE_FILE_NAMES: decision.fixture.json history.notes.json
   oooohTests:
     type: bundle.unit-test
     platform: iOS

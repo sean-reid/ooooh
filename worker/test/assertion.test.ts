@@ -22,12 +22,20 @@ import {
   type FakeUpstream,
 } from "./upstream";
 import { jsonRequest, openSession, origin } from "./request";
-import { attestEnv, counterOf, reason, seedDevice, wipeKV } from "./workers";
+import { attestEnv, counterOf, reason, seedDevice, wipeStorage } from "./workers";
 
 let authority: TestRoot;
 let device: Device;
 
 const get = (path: string) => worker.fetch(new Request(`${origin}${path}`), attestEnv(authority));
+
+/** How many requests the device's counter holds for this minute. */
+const rate = async (device: string) => {
+  const minute = Math.floor(Date.now() / 60_000);
+  let count = 0;
+  while (!(await env.DEVICE_COUNTER.getByName(device).hit(minute, count + 1))) count += 1;
+  return count;
+};
 
 const post = (
   path: string,
@@ -48,7 +56,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await wipeKV();
+  await wipeStorage();
   device = await seedDevice();
   await openSession(env, device.keyId);
 });
@@ -65,8 +73,7 @@ describe("assertion middleware", () => {
     expect(await counterOf(device.keyId)).toBe(1);
     expect(upstream.pending()).toBe(0);
     expect(bodyOf(upstream.requests[0])).toMatchObject({ model: "jev-latest" });
-    const minute = Math.floor(Date.now() / 60_000);
-    expect(await env.BUDGET.get(`rate:${device.keyId}:${minute}`)).toBe("1");
+    expect(await rate(device.keyId)).toBe(1);
   });
 
   it("keys the rate limit on the verified device, not the address", async () => {
@@ -77,8 +84,8 @@ describe("assertion middleware", () => {
       "cf-connecting-ip": "203.0.113.9",
     };
     expect((await post("/v1/decide", body, headers)).status).toBe(200);
-    const minute = Math.floor(Date.now() / 60_000);
-    expect(await env.BUDGET.get(`rate:203.0.113.9:${minute}`)).toBeNull();
+    expect(await rate("203.0.113.9")).toBe(0);
+    expect(await rate(device.keyId)).toBe(1);
   });
 
   it("refuses a request missing any of the three headers", async () => {
@@ -227,9 +234,9 @@ describe("assertion middleware", () => {
     const res = await post("/v1/session/start", body, await sign("/v1/session/start", body, 1));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ allowed: true, free: true, remainingFree: 2 });
-    expect(
-      await env.BUDGET.get(`sessions:${device.keyId}:${new Date().toISOString().slice(0, 7)}`),
-    ).toBe("1");
+    expect(await env.BUDGET.get(`session:${device.keyId}`, "json")).toMatchObject({
+      pending: true,
+    });
   });
 
   it("leaves health and config open", async () => {
@@ -249,7 +256,6 @@ describe("assertion middleware", () => {
       body: JSON.stringify(decideBody),
     });
     expect(res.status).toBe(200);
-    const minute = Math.floor(Date.now() / 60_000);
-    expect(await env.BUDGET.get(`rate:simulator:${minute}`)).toBe("1");
+    expect(await rate("simulator")).toBe(1);
   });
 });

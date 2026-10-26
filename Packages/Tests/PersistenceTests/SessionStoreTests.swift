@@ -101,6 +101,57 @@ import Transcription
     #expect(try await store.sessions(limit: 1, offset: 1).map(\.id) == [newer])
   }
 
+  @Test func sessionCountIsTheRowCount() async throws {
+    let store = try Support.store()
+    #expect(try await store.sessionCount() == 0)
+    let result = try await Support.shortResult()
+    for _ in 0..<4 {
+      try await store.save(result: result, notes: nil, title: "")
+    }
+    #expect(try await store.sessionCount() == 4)
+    #expect(try await store.sessionCount() == store.counts().sessions)
+  }
+
+  @Test func openThreadsAreTheNewestThreeOfTen() async throws {
+    let store = try Support.store()
+    let result = try await Support.shortResult()
+    let base = Date(timeIntervalSince1970: 1_792_900_000)
+    var ids: [UUID] = []
+    for index in 0..<10 {
+      let notes = SessionNotes(
+        title: "Session \(index)",
+        openThreads: [
+          NoteItem(id: "first", text: "First thread of \(index)"),
+          NoteItem(id: "second", text: "Second thread of \(index)"),
+        ])
+      // Saved out of order so the sort comes from the dates, not insertion.
+      let at = base.addingTimeInterval(Double((index * 7) % 10) * 3600)
+      ids.append(try await store.save(result: result, notes: notes, title: "", startedAt: at))
+    }
+    try await store.resolve(thread: try #require(try await store.openThreads(limit: 1).first).id)
+
+    let offered = try await store.openThreads()
+    #expect(
+      offered.map(\.text) == ["Second thread of 7", "First thread of 4", "Second thread of 4"])
+    #expect(offered.map(\.sessionID) == [ids[7], ids[4], ids[4]])
+    #expect(offered.map(\.sessionStartedAt) == [base + 9 * 3600, base + 8 * 3600, base + 8 * 3600])
+    #expect(try await store.openThreads(limit: 25).count == 19)
+  }
+
+  @Test func searchReturnsTheNewestPageOfMatches() async throws {
+    let store = try Support.store()
+    let base = Date(timeIntervalSince1970: 1_792_900_000)
+    for index in 0..<8 {
+      try await store.save(
+        result: await Support.result(lines: ["the garden needs a fence \(index)"]), notes: nil,
+        title: "Garden \(index)", startedAt: base.addingTimeInterval(Double(index) * 60))
+    }
+    let page = try await store.search("fence", limit: 3)
+    #expect(page.map(\.title) == ["Garden 7", "Garden 6", "Garden 5"])
+    #expect(try await store.search("fence").count == 8)
+    #expect(try await store.search("fence", limit: 0).isEmpty)
+  }
+
   @Test func searchFindsSegmentsAndItemsAndNotAbsentWords() async throws {
     let store = try Support.store()
     let result = try await Support.shortResult()

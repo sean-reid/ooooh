@@ -1,18 +1,16 @@
 // Helpers that need the Workers runtime: the test Worker itself, its KV namespace, and its objects.
-import { env, SELF } from "cloudflare:test";
+import { env, reset, SELF } from "cloudflare:test";
 import { expect } from "vitest";
 import { deviceKey, type DeviceRecord } from "../src/attest/record";
+import type { Provider } from "../src/budget";
 import { makeDevice, type TestRoot } from "./appattest";
 import { jsonRequest } from "./request";
 
 export const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   SELF.fetch(jsonRequest(path, body, headers));
 
-/** Every key in the shared namespace, so one suite's counters never reach the next. */
-export const wipeKV = async () => {
-  const { keys } = await env.BUDGET.list();
-  await Promise.all(keys.map((k) => env.BUDGET.delete(k.name)));
-};
+/** Every key in the namespace and every object's storage, so one test's counts never reach the next. */
+export const wipeStorage = () => reset();
 
 /** The test Env with attestation on against `authority` instead of Apple's root. */
 export const attestEnv = (authority: TestRoot, overrides: Partial<Env> = {}): Env => ({
@@ -24,6 +22,17 @@ export const attestEnv = (authority: TestRoot, overrides: Partial<Env> = {}): En
 });
 
 export const counterOf = (keyId: string) => env.DEVICE_COUNTER.getByName(keyId).current();
+
+export const today = () => new Date().toISOString().slice(0, 10);
+export const thisMonth = () => new Date().toISOString().slice(0, 7);
+
+/** Free sessions the device's object has counted for the month. */
+export const sessionsOf = (device: string, month = thisMonth()) =>
+  env.DEVICE_COUNTER.getByName(device).sessions(month);
+
+/** What the provider's object holds for the day. */
+export const spent = (provider: Provider, day = today()) =>
+  env.PROVIDER_BUDGET.getByName(provider).spent(day);
 
 export const reason = async (res: Response) => {
   expect(res.status).toBe(401);

@@ -2,10 +2,10 @@ import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { HttpError } from "../src/http";
 import { endSession } from "../src/routes/session";
-import { sessionTtlSeconds, type SessionRecord } from "../src/session";
+import { checkSession, sessionTtlSeconds, type SessionRecord } from "../src/session";
 import { jsonRequest, openSession } from "./request";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
-import { post, wipeKV } from "./workers";
+import { post, sessionsOf, thisMonth, wipeStorage } from "./workers";
 
 let chain: StoreChain;
 
@@ -17,7 +17,12 @@ const start = (device: string, now: Date, overrides: Partial<Env> = {}) =>
 const end = (device: string, minutes: number, now: Date) =>
   endSession(jsonRequest("/v1/session/end", { minutes }), env, device, now);
 
+/** A provider call under the session, as `guarded` runs it before the route. */
+const call = (device: string, now: Date) => checkSession(device, env, "prompt-minutes", now);
+
 const session = (device: string) => env.BUDGET.get<SessionRecord>(`session:${device}`, "json");
+
+const minutes = (device: string, month: string) => env.BUDGET.get(`minutes:${device}:${month}`);
 
 const minutesLater = (from: Date, minutes: number) => new Date(from.getTime() + minutes * 60_000);
 
@@ -25,7 +30,7 @@ beforeAll(async () => {
   chain = await makeStoreChain();
 });
 
-beforeEach(wipeKV);
+beforeEach(wipeStorage);
 
 describe("free sessions", () => {
   const october = new Date("2026-10-25T10:00:00Z");
@@ -43,18 +48,20 @@ describe("free sessions", () => {
     expect(await start("a", october)).toMatchObject({ remainingFree: 0 });
     await end("a", 5, minutesLater(october, 5));
     expect(await start("a", october)).toEqual({ allowed: false, reason: "free-exhausted" });
-    expect(await env.BUDGET.get("sessions:a:2026-10")).toBe("3");
+    expect(await sessionsOf("a", "2026-10")).toBe(3);
     expect(await session("a")).toBeNull();
     expect(await start("b", october)).toMatchObject({ allowed: true, remainingFree: 2 });
   });
 
-  it("opens a record with the start time, the allowance, and a four hour expiry", async () => {
+  it("opens a pending record with the start time, the allowance, and a four hour expiry", async () => {
     await start("a", october);
     expect(await session("a")).toEqual({
+      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       startedAt: october.getTime(),
       free: true,
       remainingFree: 2,
       promptMinutes: 20,
+      pending: true,
     });
     const listed = (await env.BUDGET.list({ prefix: "session:a" })).keys[0];
     const expiresIn = listed.expiration! - Date.now() / 1000;
@@ -62,11 +69,44 @@ describe("free sessions", () => {
     expect(expiresIn).toBeLessThanOrEqual(sessionTtlSeconds);
   });
 
-  it("answers a second start the same way without counting it again", async () => {
+  it("counts nothing for a start no call or end follows", async () => {
+    expect(await start("a", october)).toMatchObject({ remainingFree: 2 });
+    expect(await sessionsOf("a", "2026-10")).toBe(0);
+    await env.BUDGET.delete("session:a");
+    expect(await start("a", minutesLater(october, 300))).toMatchObject({ remainingFree: 2 });
+    expect(await sessionsOf("a", "2026-10")).toBe(0);
+  });
+
+  it("counts the session once, at its first call, and keeps the record's expiry", async () => {
+    await start("a", october);
+    const at = minutesLater(october, 3);
+    await call("a", at);
+    expect(await sessionsOf("a", "2026-10")).toBe(1);
+    expect(await session("a")).toMatchObject({ startedAt: october.getTime(), pending: false });
+    const listed = (await env.BUDGET.list({ prefix: "session:a" })).keys[0];
+    const expiresIn = listed.expiration! - Date.now() / 1000;
+    expect(expiresIn).toBeGreaterThan(sessionTtlSeconds - 180 - 60);
+    expect(expiresIn).toBeLessThanOrEqual(sessionTtlSeconds - 180);
+    await call("a", minutesLater(october, 4));
+    await end("a", 5, minutesLater(october, 5));
+    expect(await sessionsOf("a", "2026-10")).toBe(1);
+  });
+
+  it("counts once when the first calls arrive together", async () => {
+    await start("a", october);
+    await Promise.all(Array.from({ length: 5 }, () => call("a", minutesLater(october, 1))));
+    expect(await sessionsOf("a", "2026-10")).toBe(1);
+    await Promise.all([call("a", minutesLater(october, 2)), end("a", 2, minutesLater(october, 2))]);
+    expect(await sessionsOf("a", "2026-10")).toBe(1);
+  });
+
+  it("answers a second start the same way without opening another", async () => {
     const first = await start("a", october);
     expect(await start("a", minutesLater(october, 1))).toEqual(first);
-    expect(await env.BUDGET.get("sessions:a:2026-10")).toBe("1");
+    expect(await sessionsOf("a", "2026-10")).toBe(0);
     expect((await session("a"))?.startedAt).toBe(october.getTime());
+    await end("a", 1, minutesLater(october, 1));
+    expect(await sessionsOf("a", "2026-10")).toBe(1);
   });
 
   it("starts over at the UTC month boundary", async () => {
@@ -76,11 +116,10 @@ describe("free sessions", () => {
       await end("a", 0, lastMinute);
     }
     expect(await start("a", lastMinute)).toMatchObject({ allowed: false });
-    expect(await start("a", new Date("2026-11-01T00:00:00Z"))).toMatchObject({
-      allowed: true,
-      remainingFree: 2,
-    });
-    expect(await env.BUDGET.get("sessions:a:2026-11")).toBe("1");
+    const november = new Date("2026-11-01T00:00:00Z");
+    expect(await start("a", november)).toMatchObject({ allowed: true, remainingFree: 2 });
+    await end("a", 1, minutesLater(november, 1));
+    expect(await sessionsOf("a", "2026-11")).toBe(1);
   });
 
   it("reads the limits from vars", async () => {
@@ -97,38 +136,48 @@ describe("free sessions", () => {
     expect((await buyMonth("a", chain, env, october.getTime())).status).toBe(200);
     expect(await start("a", october)).toEqual({ allowed: true, free: false });
     expect(await session("a")).toEqual({ startedAt: october.getTime(), free: false });
-    expect(await env.BUDGET.get("sessions:a:2026-10")).toBeNull();
+    await call("a", minutesLater(october, 1));
+    expect(await sessionsOf("a", "2026-10")).toBe(0);
     await end("a", 30, minutesLater(october, 30));
-    expect(await env.BUDGET.get("minutes:a:2026-10")).toBe("30");
+    expect(await minutes("a", "2026-10")).toBe("30");
     expect(await start("a", october)).toEqual({ allowed: true, free: false });
-    expect(await env.BUDGET.get("sessions:a:2026-10")).toBeNull();
+    expect(await sessionsOf("a", "2026-10")).toBe(0);
   });
 
   it("records nothing for an end with no session open", async () => {
     expect((await end("a", 12, october)).status).toBe(204);
-    expect(await env.BUDGET.get("minutes:a:2026-10")).toBeNull();
+    expect(await minutes("a", "2026-10")).toBeNull();
+    expect(await sessionsOf("a", "2026-10")).toBe(0);
   });
 
   it("adds the minutes an end reports and closes the session", async () => {
     await start("a", october);
     expect((await end("a", 12, minutesLater(october, 12))).status).toBe(204);
-    expect(await env.BUDGET.get("minutes:a:2026-10")).toBe("12");
+    expect(await minutes("a", "2026-10")).toBe("12");
     expect(await session("a")).toBeNull();
     await start("a", october);
     await end("a", 7.5, minutesLater(october, 8));
     await start("a", october);
     await end("a", -3, minutesLater(october, 1));
-    expect(await env.BUDGET.get("minutes:a:2026-10")).toBe("19.5");
-    expect(await env.BUDGET.get("sessions:a:2026-10")).toBe("3");
+    expect(await minutes("a", "2026-10")).toBe("19.5");
+    expect(await sessionsOf("a", "2026-10")).toBe(3);
+  });
+
+  it("takes a second end as a no-op", async () => {
+    await start("a", october);
+    await end("a", 5, minutesLater(october, 5));
+    expect((await end("a", 5, minutesLater(october, 6))).status).toBe(204);
+    expect(await minutes("a", "2026-10")).toBe("5");
+    expect(await sessionsOf("a", "2026-10")).toBe(1);
   });
 
   it("clamps a long figure to the wall clock, and a clock behind the start to one minute", async () => {
     await start("a", october);
     await end("a", 1e308, minutesLater(october, 5));
-    expect(await env.BUDGET.get("minutes:a:2026-10")).toBe("6");
+    expect(await minutes("a", "2026-10")).toBe("6");
     await start("b", october);
     await end("b", 10, minutesLater(october, -5));
-    expect(await env.BUDGET.get("minutes:b:2026-10")).toBe("1");
+    expect(await minutes("b", "2026-10")).toBe("1");
   });
 
   it("rejects an end without minutes", async () => {
@@ -143,10 +192,11 @@ describe("free sessions", () => {
     const res = await post("/v1/session/start", {}, { "x-device": "sim" });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ allowed: true, remainingFree: 2 });
-    expect(await env.BUDGET.get(`sessions:sim:${new Date().toISOString().slice(0, 7)}`)).toBe("1");
+    expect(await sessionsOf("sim")).toBe(0);
     expect((await session("sim"))?.free).toBe(true);
     const ended = await post("/v1/session/end", { minutes: 0.5 }, { "x-device": "sim" });
     expect(ended.status).toBe(204);
     expect(await session("sim")).toBeNull();
+    expect(await sessionsOf("sim", thisMonth())).toBe(1);
   });
 });

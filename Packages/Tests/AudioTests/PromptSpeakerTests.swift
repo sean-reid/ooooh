@@ -31,6 +31,12 @@
       }
     }
 
+    @Test func buildsNoEngineUntilALineIsSpoken() async {
+      let speaker = PromptSpeaker()
+      #expect(await speaker.hasEngine == false)
+      #expect(await speaker.rendered == nil)
+    }
+
     @Test func playsEveryFrameAndReportsBothEnds() async throws {
       let speaker = PromptSpeaker()
       let collected = Task {
@@ -67,6 +73,7 @@
       #expect(rendered <= frames + slack)
       #expect(await speaker.rendered == nil)
       #expect(await speaker.text == nil)
+      #expect(await speaker.hasEngine)
     }
 
     @Test func stopCutsPlaybackAndDropsTheRest() async throws {

@@ -143,7 +143,11 @@ final class SessionController {
         try environment.audio.activate()
         let meter = AudioLevelMeter()
         levels = meter.levels()
-        let microphone = SpeechAnalyzerTranscriber(audioSink: meter)
+        let locale = Locale.current
+        guard let engine = await TranscriptionEngine.available(for: locale) else {
+          throw NoTranscriptionEngine(locale: locale)
+        }
+        let microphone = engine.makeTranscriber(locale: locale, audioSink: meter)
         try await microphone.start()
         transcriber = microphone
       case .fixture(let url, let speed):

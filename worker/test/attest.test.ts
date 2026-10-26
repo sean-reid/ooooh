@@ -14,7 +14,7 @@ import {
   type TestRoot,
 } from "./appattest";
 import { origin } from "./request";
-import { attestEnv, counterOf, reason, wipeKV } from "./workers";
+import { attestEnv, counterOf, reason, wipeStorage } from "./workers";
 
 let authority: TestRoot;
 
@@ -62,7 +62,7 @@ beforeAll(async () => {
   authority = await makeRoot();
 });
 
-beforeEach(wipeKV);
+beforeEach(wipeStorage);
 
 describe("Apple's root", () => {
   it("parses as a self-signed P-384 certificate valid to 2045", async () => {
@@ -336,8 +336,8 @@ describe("the address limit on challenge and attest", () => {
   it("never touches a verified device's provider rate key", async () => {
     const device = await enrol();
     for (let i = 0; i < 3; i++) expect((await challengeAs(device.keyId)).status).toBe(200);
-    expect(await env.BUDGET.get(`rate:${device.keyId}:${minute}`)).toBeNull();
-    expect(await env.BUDGET.get(`rate:${address}:${minute}`)).toBeNull();
+    expect(await env.DEVICE_COUNTER.getByName(device.keyId).hit(minute, 1)).toBe(true);
+    expect(await env.DEVICE_COUNTER.getByName(address).hit(minute, 1)).toBe(true);
     expect(await env.BUDGET.get(`attest-rate:${address}:${minute}`)).toBe("3");
   });
 });

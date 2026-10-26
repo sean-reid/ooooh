@@ -1,0 +1,49 @@
+#!/bin/sh
+# Prints, as a Markdown table, every test in a result bundle that ran more than once under
+# -retry-tests-on-failure, with its run count and final result, then the total.
+# bin/test-retries <bundle.xcresult>
+set -eu
+
+[ $# -eq 1 ] || {
+	echo "usage: bin/test-retries <bundle.xcresult>" >&2
+	exit 2
+}
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+xcrun xcresulttool get test-results tests --path "$1" --compact > "$tmp"
+python3 -I - "$tmp" <<'PY'
+import json, sys
+
+retried, total = [], 0
+
+def walk(node, path):
+    global total
+    kind = node.get("nodeType")
+    name = node.get("name", "")
+    if kind == "Test Case":
+        total += 1
+        runs = sum(1 for c in node.get("children", []) if c.get("nodeType") == "Repetition")
+        if runs > 1:
+            retried.append(("/".join(path + [name]), runs, node.get("result", "unknown")))
+        return
+    if kind in ("Test Suite", "UI test bundle", "Unit test bundle"):
+        path = path + [name]
+    for child in node.get("children", []):
+        walk(child, path)
+
+with open(sys.argv[1]) as report:
+    roots = json.load(report).get("testNodes", [])
+for root in roots:
+    walk(root, [])
+
+print("### UI test retries")
+print()
+if retried:
+    print("| Test | Runs | Result |")
+    print("| --- | --- | --- |")
+    for name, runs, result in retried:
+        print(f"| {name} | {runs} | {result} |")
+    print()
+print(f"{len(retried)} of {total} tests needed a retry.")
+PY

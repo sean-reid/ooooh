@@ -5,21 +5,27 @@ import Testing
 
 @testable import Proxy
 
-/// Records the hash it was asked to sign and answers with a fixed assertion, or nothing.
+/// Records the hash it was asked to sign and answers with a fixed assertion, nothing, or a failure.
 final class FakeAttestor: Attestor {
   let hashes = Mutex<[Data]>([])
   let reply: Assertion?
+  let failure: (any Error)?
 
-  init(reply: Assertion?) {
+  init(reply: Assertion?, failure: (any Error)? = nil) {
     self.reply = reply
+    self.failure = failure
   }
 
   func assertion(clientDataHash: Data) async throws -> Assertion? {
     hashes.withLock { $0.append(clientDataHash) }
+    if let failure { throw failure }
     return reply
   }
 
-  func keyId() async throws -> String? { reply?.keyId }
+  func keyId() async throws -> String? {
+    if let failure { throw failure }
+    return reply?.keyId
+  }
 }
 
 extension StubbedTransportTests {
@@ -69,6 +75,21 @@ extension StubbedTransportTests {
       #expect(request.value(forHTTPHeaderField: "x-assertion") == nil)
       #expect(request.value(forHTTPHeaderField: "x-assertion-time") == nil)
       #expect(attestor.hashes.withLock { $0.count } == 1)
+    }
+
+    @Test func anAttestorFailureCountsAgainstTheOfflineGuard() async throws {
+      let guardian = OfflineGuard(failuresToTrip: 1)
+      let attestor = FakeAttestor(reply: nil, failure: ProxyError.attestation("server-unavailable"))
+      StubProtocol.seen.withLock { $0 = [] }
+      var client = client(attestor)
+      client.offline = guardian
+
+      await #expect(throws: ProxyError.attestation("server-unavailable")) {
+        let _: SonnetPhraser.Response = try await client.post(
+          "v1/phrase", body: ["kind": "clarify"])
+      }
+      #expect(guardian.isOffline)
+      #expect(StubProtocol.seen.withLock { $0.isEmpty })
     }
 
     @Test func simulatorAttestorSignsNothingAndHasNoKeyId() async throws {

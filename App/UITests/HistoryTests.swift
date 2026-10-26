@@ -1,10 +1,7 @@
 import XCTest
 
 /// History and the carryover card over a seeded store, so they run without the Worker.
-final class HistoryTests: XCTestCase {
-  /// CI runners animate sheets slowly; every wait in this file gets the same room.
-  private let wait: TimeInterval = 15
-
+final class HistoryTests: UITestCase {
   @MainActor
   func testHistoryDark() {
     runHistory(named: "history-dark", arguments: ["-ui-color-scheme", "dark"])
@@ -34,66 +31,59 @@ final class HistoryTests: XCTestCase {
     app.launch()
 
     let card = app.otherElements["home.carryover"]
-    XCTAssertTrue(card.waitForExistence(timeout: wait))
+    XCTAssertTrue(card.appears())
+    let lease = card.buttons["Pick up Whether the eighteen month lease is a problem"]
     XCTAssertTrue(card.buttons["Pick up How Sam and I weight time against money"].exists)
-    XCTAssertTrue(card.buttons["Pick up Whether the eighteen month lease is a problem"].exists)
-    attach(app.screenshot(), named: "\(name)-carryover")
+    XCTAssertTrue(lease.exists)
+    attach(app, named: "\(name)-carryover")
     app.swipeUp()
-    attach(app.screenshot(), named: "\(name)-carryover-scrolled")
-    XCTAssertTrue(card.buttons["Pick up Whether the eighteen month lease is a problem"].isHittable)
+    attach(app, named: "\(name)-carryover-scrolled")
+    waitUntilHittable(lease)
     app.swipeDown()
 
     let history = app.buttons["home.history"]
+    waitUntilHittable(history)
+    history.tap()
     let list = app.collectionViews["history.list"]
-    tap(history, until: list)
     waitUntilHittable(list)
     let row = list.buttons.containing(
       NSPredicate(format: "label BEGINSWITH %@", "Carver Street or the park,")
     ).firstMatch
-    XCTAssertTrue(row.waitForExistence(timeout: wait))
+    XCTAssertTrue(row.appears())
     XCTAssertTrue(row.label.contains("2 open threads"))
-    attach(app.screenshot(), named: "\(name)-history")
+    attach(app, named: "\(name)-history")
 
     row.tap()
     let notes = app.otherElements["notes.view"]
-    XCTAssertTrue(notes.waitForExistence(timeout: wait))
+    XCTAssertTrue(notes.appears())
     XCTAssertTrue(notes.staticTexts["Carver Street or the park"].exists)
     XCTAssertTrue(notes.staticTexts["Open threads"].exists)
-    attach(app.screenshot(), named: "\(name)-stored-notes")
+    attach(app, named: "\(name)-stored-notes")
     app.buttons["notes.done"].tap()
     waitUntilHittable(list)
 
     if searchesAndDeletes {
       let search = app.textFields["history.search"]
-      focus(search)
+      waitUntilHittable(search)
+      search.tap()
+      wait(
+        until: { (search.value(forKey: "hasKeyboardFocus") as? Bool) == true },
+        "the search field never took keyboard focus")
       search.typeText("eighteen month")
-      XCTAssertTrue(row.waitForExistence(timeout: wait))
+      XCTAssertTrue(row.appears())
       search.typeText(" zebra")
-      XCTAssertTrue(app.staticTexts["history.empty"].waitForExistence(timeout: wait))
+      XCTAssertTrue(app.staticTexts["history.empty"].appears())
       app.buttons["Clear the search"].tap()
-      XCTAssertTrue(row.waitForExistence(timeout: wait))
+      XCTAssertTrue(row.appears())
 
       row.swipeLeft()
       let delete = app.buttons["Delete"]
-      XCTAssertTrue(delete.waitForExistence(timeout: wait))
+      XCTAssertTrue(delete.appears())
       delete.tap()
-      XCTAssertTrue(app.staticTexts["history.empty"].waitForExistence(timeout: wait))
+      XCTAssertTrue(app.staticTexts["history.empty"].appears())
     }
     app.buttons["history.done"].tap()
     waitUntilHittable(history)
-    XCTAssertEqual(card.exists, !searchesAndDeletes)
-  }
-
-  /// Taps until the field has keyboard focus, since a tap during a sheet transition is lost.
-  @MainActor
-  private func focus(_ field: XCUIElement) {
-    for _ in 0..<3 {
-      field.tap()
-      let focused = expectation(
-        for: NSPredicate { _, _ in (field.value(forKey: "hasKeyboardFocus") as? Bool) == true },
-        evaluatedWith: nil)
-      if XCTWaiter().wait(for: [focused], timeout: 3) == .completed { return }
-    }
-    XCTFail("the search field never took keyboard focus")
+    XCTAssertTrue(searchesAndDeletes ? card.disappears() : card.appears())
   }
 }

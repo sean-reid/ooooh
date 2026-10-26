@@ -11,7 +11,7 @@ import {
 import { endSession } from "../src/routes/session";
 import { assertionHeaders, makeRoot, type Device, type TestRoot } from "./appattest";
 import { jsonRequest, openSession } from "./request";
-import { attestEnv as attested, seedDevice, wipeKV } from "./workers";
+import { attestEnv as attested, seedDevice, wipeStorage } from "./workers";
 import {
   day,
   makeStoreChain,
@@ -70,7 +70,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await wipeKV();
+  await wipeStorage();
   counter = 0;
   device = await seedDevice();
 });
