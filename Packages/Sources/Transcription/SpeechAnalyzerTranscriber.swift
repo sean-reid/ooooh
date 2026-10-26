@@ -52,6 +52,7 @@
     private var analyzer: SpeechAnalyzer?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
     private var resultsTask: Task<Void, Never>?
+    private var configurationWatch: Task<Void, Never>?
     private var activity = VoiceActivity()
     private var isRunning = false
     private var startedAt: ContinuousClock.Instant?
@@ -108,12 +109,14 @@
       try audioEngine.start()
       startedAt = .now
       isRunning = true
+      configurationWatch = watchConfiguration()
       log("started")
     }
 
     public func stop() async {
       guard isRunning else { return }
       isRunning = false
+      configurationWatch?.cancel()
       audioEngine.inputNode.removeTap(onBus: 0)
       audioEngine.stop()
       inputContinuation?.finish()
@@ -137,10 +140,27 @@
       log("results failed error=\(String(describing: error))", error: true)
       guard isRunning else { return }
       isRunning = false
+      configurationWatch?.cancel()
       audioEngine.inputNode.removeTap(onBus: 0)
       audioEngine.stop()
       inputContinuation?.finish()
       finishStream()
+    }
+
+    /// The engine stops itself when the hardware format changes under it; that is the one way a
+    /// started tap goes quiet without an error.
+    private func watchConfiguration() -> Task<Void, Never> {
+      Task { [weak self] in
+        let changes = NotificationCenter.default.notifications(
+          named: .AVAudioEngineConfigurationChange)
+        for await _ in changes {
+          await self?.logConfigurationChange()
+        }
+      }
+    }
+
+    private func logConfigurationChange() {
+      log("engine configuration changed running=\(audioEngine.isRunning)")
     }
 
     private func finishStream() {

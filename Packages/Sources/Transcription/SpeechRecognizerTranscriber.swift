@@ -50,6 +50,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private let audioEngine = AVAudioEngine()
   let feed: RequestFeed<SFSpeechAudioBufferRecognitionRequest>
   private var consumer: Task<Void, Never>?
+  private var configurationWatch: Task<Void, Never>?
   private var silence: Task<Void, Never>?
   private var splitters: [Int: UtteranceSplitter] = [:]
   private var generation = 0
@@ -93,6 +94,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
       try beginRecognition()
       try installTap()
       try audioEngine.start()
+      configurationWatch = watchConfiguration()
       log("started")
     } catch {
       log("start failed error=\(String(describing: error))", error: true)
@@ -120,6 +122,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     guard isRunning else { return }
     isRunning = false
     silence?.cancel()
+    configurationWatch?.cancel()
     audioEngine.inputNode.removeTap(onBus: 0)
     audioEngine.stop()
     feed.swap(in: nil).previous?.endAudio()
@@ -245,11 +248,28 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     guard isRunning else { return }
     isRunning = false
     silence?.cancel()
+    configurationWatch?.cancel()
     audioEngine.inputNode.removeTap(onBus: 0)
     audioEngine.stop()
     recognizer.cancelAll()
     consumer?.cancel()
     finishStream()
+  }
+
+  /// The engine stops itself when the hardware format changes under it; that is the one way a
+  /// started tap goes quiet without an error.
+  private func watchConfiguration() -> Task<Void, Never> {
+    Task { [weak self] in
+      let changes = NotificationCenter.default.notifications(
+        named: .AVAudioEngineConfigurationChange)
+      for await _ in changes {
+        await self?.logConfigurationChange()
+      }
+    }
+  }
+
+  private func logConfigurationChange() {
+    log("engine configuration changed running=\(audioEngine.isRunning)")
   }
 
   private func finishStream() {
