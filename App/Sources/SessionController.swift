@@ -68,6 +68,7 @@ final class SessionController {
 
   private(set) var stage: Stage = .idle
   private(set) var startedAt: Date?
+  /// The moment End was tapped, or the loop ended on its own; the session the user is charged for.
   private(set) var endedAt: Date?
   private(set) var lastPrompt: String?
   private(set) var isOffline = false
@@ -245,6 +246,7 @@ final class SessionController {
 
   func end() async {
     guard stage == .running, let live else { return }
+    if endedAt == nil { endedAt = .now }
     await live.end()
     await observers.first?.value
   }
@@ -259,11 +261,11 @@ final class SessionController {
     }
   }
 
-  /// Posts the wall-clock minutes after the notes, since the Worker answers nothing for a session
-  /// it has closed.
+  /// Posts the minutes from Start to End after the notes, since the Worker answers nothing for a
+  /// session it has closed.
   private func postEnd() {
-    guard let gate, admission != nil, !startRefused else { return }
-    let minutes = (elapsed(at: .now) / 60 * 100).rounded() / 100
+    guard let gate, admission != nil, !startRefused, let startedAt, let endedAt else { return }
+    let minutes = SessionGate.minutes(endedAt.timeIntervalSince(startedAt))
     Task {
       do {
         try await gate.end(minutes)
@@ -386,7 +388,7 @@ final class SessionController {
     offlineChange?.cancel()
     for observer in observers { observer.cancel() }
     self.result = result
-    endedAt = .now
+    if endedAt == nil { endedAt = .now }
     let finals = result.transcript.count(where: \.isFinal)
     Self.log.info(
       "Session ended segments=\(result.transcript.count, privacy: .public) final=\(finals, privacy: .public)"
@@ -411,7 +413,7 @@ final class SessionController {
     notes = generator == nil ? .unavailable : .writing
     writing = Task {
       let saved = try? await store?.save(
-        result: result, notes: nil, title: "", startedAt: startedAt)
+        result: result, notes: nil, title: "", startedAt: startedAt, endedAt: endedAt)
       savedSessionID = saved
       if let generator {
         do {
