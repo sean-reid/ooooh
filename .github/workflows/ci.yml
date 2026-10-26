@@ -58,7 +58,7 @@ jobs:
           path: worker/dist/coverage/coverage-summary.json
           retention-days: 30
       - run: npm run deploy:dry
-      - run: npm audit --audit-level=high
+      - run: npm audit --audit-level=moderate
 
   app:
     if: github.event_name == 'pull_request'
