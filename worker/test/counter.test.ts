@@ -20,4 +20,19 @@ describe("DeviceCounter", () => {
     await stub.raise(9);
     expect(await stub.current()).toBe(9);
   });
+
+  it("stamps the time of each accepted assertion and none for a key that passed none", async () => {
+    const stub = env.DEVICE_COUNTER.getByName("seen");
+    expect(await stub.lastSeen()).toBeUndefined();
+    expect(await stub.advance(1, 0, 1_000)).toBe(true);
+    expect(await stub.lastSeen()).toBe(1_000);
+    expect(await stub.advance(1, 0, 2_000)).toBe(false);
+    expect(await stub.lastSeen()).toBe(1_000);
+    const before = Date.now();
+    expect(await stub.advance(2)).toBe(true);
+    const stamped = await stub.lastSeen();
+    expect(stamped).toBeGreaterThanOrEqual(before);
+    await stub.raise(5);
+    expect(await stub.lastSeen()).toBe(stamped);
+  });
 });

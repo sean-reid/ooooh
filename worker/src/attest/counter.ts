@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 const counterKey = "counter";
+const seenKey = "seen";
 const rateKey = "rate";
 const countedKey = "session-counted";
 const sessionsPrefix = "sessions:";
@@ -9,8 +10,8 @@ const sessionsKey = (month: string) => `${sessionsPrefix}${month}`;
 type Rate = { minute: number; count: number };
 
 /**
- * One per key id, holding the last assertion counter it accepted, its requests this minute, and
- * its free sessions by month. The storage calls are synchronous, so a check and the write behind
+ * One per key id, holding the last assertion counter it accepted and when, its requests this
+ * minute, and its free sessions by month. The storage calls are synchronous, so a check and the write behind
  * it run with nothing in between.
  */
 export class DeviceCounter extends DurableObject<Env> {
@@ -18,11 +19,20 @@ export class DeviceCounter extends DurableObject<Env> {
     return this.ctx.storage.kv.get<number>(counterKey) ?? 0;
   }
 
-  /** Accepts `counter` when it moves past the stored value and `floor`; false means a replay. */
-  advance(counter: number, floor = 0): boolean {
+  /**
+   * Accepts `counter` when it moves past the stored value and `floor` and stamps `at` as the
+   * last time it did; false means a replay.
+   */
+  advance(counter: number, floor = 0, at = Date.now()): boolean {
     if (counter <= Math.max(this.stored(), floor)) return false;
     this.ctx.storage.kv.put(counterKey, counter);
+    this.ctx.storage.kv.put(seenKey, at);
     return true;
+  }
+
+  /** When the last assertion was accepted, in ms; undefined for a key that has passed none. */
+  lastSeen(): number | undefined {
+    return this.ctx.storage.kv.get<number>(seenKey);
   }
 
   /** Lifts the stored value to `floor` when it sits below it. */
