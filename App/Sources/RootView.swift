@@ -136,8 +136,8 @@ struct RootView: View {
           .foregroundStyle(Palette.ink)
       }
       Spacer(minLength: 0)
-      if case .failed(let message) = controller.stage {
-        Text(message)
+      if case .failed(let failure) = controller.stage {
+        Text(failure.message)
           .font(Typography.caption)
           .foregroundStyle(Palette.accent)
           .multilineTextAlignment(.center)

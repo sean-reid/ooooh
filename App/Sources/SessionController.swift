@@ -23,7 +23,7 @@ final class SessionController {
 
   enum Stage: Equatable {
     case idle, starting, running, ended
-    case failed(String)
+    case failed(StartFailure)
   }
 
   enum NotesState: Equatable {
@@ -239,7 +239,8 @@ final class SessionController {
         Task { for await refused in clockChanges { clockRefused = refused } },
       ]
     } catch {
-      stage = .failed(StartFailure.message(for: error))
+      Self.log.error("Start failed: \(String(describing: error), privacy: .public)")
+      stage = .failed(StartFailure(error))
       try? environment.audio.deactivate()
     }
   }

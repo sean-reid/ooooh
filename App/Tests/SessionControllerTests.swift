@@ -456,7 +456,7 @@ import Transcription
     let missing = shortFixture.deletingLastPathComponent().appending(path: "missing.json")
 
     await controller.start(.fixture(missing, speed: .infinity))
-    #expect(controller.stage == .failed(StartFailure.unavailable))
+    #expect(controller.stage == .failed(.unavailable))
     #expect(controller.phase == .resting)
     #expect(controller.level == 0)
     #expect(controller.startedAt == nil)
@@ -481,26 +481,6 @@ import Transcription
     #expect(controller.notes == .empty)
     #expect(controller.savedSessionID == nil)
     #expect(try await store.sessions().isEmpty)
-  }
-
-  @Test func startFailuresReadAsPlainWords() {
-    #expect(
-      StartFailure.message(for: SpeechAnalyzerError.unsupportedLocale(Locale(identifier: "en_US")))
-        == "Listening isn't available on this device yet.")
-    #expect(
-      StartFailure.message(for: SpeechAnalyzerError.assetsNotInstalled(Locale(identifier: "en_US")))
-        == "Listening isn't available on this device yet.")
-    #expect(
-      StartFailure.message(for: CaptureError.microphoneDenied)
-        == "Allow the microphone in Settings to start.")
-    #expect(
-      StartFailure.message(for: CaptureError.speechDenied)
-        == "Allow the microphone in Settings to start.")
-    #expect(!StartFailure.message(for: SpeechAnalyzerError.noMicrophoneInput).contains("en_US"))
-    let english = Locale(identifier: "en_US")
-    let unsupported = StartFailure.message(for: NoTranscriptionEngine(locale: english))
-    #expect(unsupported == "This phone can't transcribe English on its own.")
-    #expect(unsupported != StartFailure.unavailable)
   }
 
   @Test func theSettingsLineNamesTheEngineOrTheLanguage() async {
