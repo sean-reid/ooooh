@@ -19,6 +19,18 @@ final class BillingLogicTests: XCTestCase {
     XCTAssertEqual(store.entitlement, .free(remainingSessions: 1))
   }
 
+  func testLoadMarksThePlansLoadedWhateverStoreKitReturns() async {
+    let store = BillingStore()
+    XCTAssertFalse(store.hasLoadedPlans)
+    try? await store.load()
+    XCTAssertTrue(store.hasLoadedPlans)
+  }
+
+  func testFixedPlansCountAsLoaded() {
+    XCTAssertTrue(BillingStore(plans: []).hasLoadedPlans)
+    XCTAssertFalse(BillingStore(plans: [], hasLoadedPlans: false).hasLoadedPlans)
+  }
+
   func testRefreshReadsTheFreeCountFromItsSource() async {
     let source = CountedSessions(remaining: 0)
     let store = BillingStore(freeSessions: source)

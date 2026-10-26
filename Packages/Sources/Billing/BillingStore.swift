@@ -11,6 +11,8 @@ public enum BillingError: Error, Equatable {
 @MainActor @Observable
 public final class BillingStore {
   public private(set) var plans: [Plan] = []
+  /// True once a load has finished, so an empty `plans` means StoreKit returned none.
+  public private(set) var hasLoadedPlans: Bool
   public private(set) var entitlement: Entitlement
   public private(set) var isPurchasing = false
   /// The latest signed transaction as the Worker will verify it.
@@ -36,6 +38,7 @@ public final class BillingStore {
     self.freeSessions = freeSessions
     self.freeSessionsRemaining = freeSessionsRemaining
     self.attestor = attestor
+    self.hasLoadedPlans = false
     self.entitlement = .free(remainingSessions: freeSessionsRemaining)
     updates = Task { [weak self] in
       for await result in Transaction.updates {
@@ -46,8 +49,9 @@ public final class BillingStore {
   }
 
   /// Fixed plans and nothing from StoreKit, for previews and snapshots.
-  init(plans: [Plan]) {
+  init(plans: [Plan], hasLoadedPlans: Bool = true) {
     self.plans = plans
+    self.hasLoadedPlans = hasLoadedPlans
     attestor = nil
     freeSessions = nil
     freeSessionsRemaining = FreeTier.sessionsPerMonth
@@ -57,6 +61,8 @@ public final class BillingStore {
   isolated deinit { updates?.cancel() }
 
   public func load() async throws {
+    hasLoadedPlans = false
+    defer { hasLoadedPlans = true }
     let fetched = try await Product.products(for: ProductID.allCases.map(\.rawValue))
     products = Dictionary(
       uniqueKeysWithValues: fetched.compactMap { product in
