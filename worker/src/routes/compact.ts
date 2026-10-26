@@ -1,4 +1,12 @@
-import { anthropicClient, credential, models, textOf, upstreamError } from "../anthropic";
+import {
+  anthropicClient,
+  credential,
+  models,
+  refused,
+  textOf,
+  upstreamError,
+  within,
+} from "../anthropic";
 import { chargeModel } from "../budget";
 import { HttpError, json, readBody } from "../http";
 import { compactState, existingIds, listNames, modes, segment, transcriptLines } from "../schema";
@@ -71,56 +79,64 @@ const checkIds = (p: StatePatch, existing: string[]) => {
 
 const compactMaxTokens = 4096;
 
-export async function compact(request: Request, env: Env): Promise<Response> {
-  const input = await readBody(request, body);
-  const client = anthropicClient(credential(env));
-  const ids = existingIds(input.state);
+/** Haiku patches a few minutes of transcript in seconds; the call runs between turns, so 30 s is the cap. */
+export const compactDeadlineMs = 30_000;
 
-  const user = [
-    `Existing ids (never reuse): ${ids.length ? ids.join(", ") : "none"}`,
-    `Current state:\n${JSON.stringify(input.state, null, 1)}`,
-    `Transcript since the last update:\n${transcriptLines(input.transcript)}`,
-  ].join("\n\n");
+export const compactWith =
+  (deadlineMs: number) =>
+  async (request: Request, env: Env): Promise<Response> => {
+    const input = await readBody(request, body);
+    const client = anthropicClient(credential(env));
+    const ids = existingIds(input.state);
 
-  const response = await client.messages
-    .create({
-      model: models.compact,
-      max_tokens: compactMaxTokens,
-      system,
-      messages: [{ role: "user", content: user }],
-      output_config: { effort: "low", format: { type: "json_schema", schema: patchSchema } },
-    })
-    .catch(upstreamError);
-  await chargeModel(env, response.model, response.usage);
+    const user = [
+      `Existing ids (never reuse): ${ids.length ? ids.join(", ") : "none"}`,
+      `Current state:\n${JSON.stringify(input.state, null, 1)}`,
+      `Transcript since the last update:\n${transcriptLines(input.transcript)}`,
+    ].join("\n\n");
 
-  if (response.stop_reason === "max_tokens") {
-    throw new HttpError(502, { error: "anthropic truncated", maxTokens: compactMaxTokens });
-  }
-  if (response.stop_reason === "refusal") {
-    throw new HttpError(502, { error: "anthropic refused", detail: response.stop_details });
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(textOf(response.content));
-  } catch {
-    throw new HttpError(502, { error: "bad patch", field: "", expected: "json" });
-  }
-  let result: StatePatch;
-  try {
-    result = patch(parsed, "");
-    checkIds(result, ids);
-  } catch (e) {
-    if (e instanceof ValidationError) {
-      throw new HttpError(502, { error: "bad patch", field: e.field, expected: e.expected });
+    const response = await within(deadlineMs, (signal) =>
+      client.messages.create(
+        {
+          model: models.compact,
+          max_tokens: compactMaxTokens,
+          system,
+          messages: [{ role: "user", content: user }],
+          output_config: { effort: "low", format: { type: "json_schema", schema: patchSchema } },
+        },
+        { signal },
+      ),
+    ).catch(upstreamError);
+    await chargeModel(env, response.model, response.usage);
+
+    if (response.stop_reason === "max_tokens") {
+      throw new HttpError(502, { error: "anthropic truncated", maxTokens: compactMaxTokens });
     }
-    throw e;
-  }
+    if (response.stop_reason === "refusal") throw refused(response);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(textOf(response.content));
+    } catch {
+      throw new HttpError(502, { error: "bad patch", field: "", expected: "json" });
+    }
+    let result: StatePatch;
+    try {
+      result = patch(parsed, "");
+      checkIds(result, ids);
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        throw new HttpError(502, { error: "bad patch", field: e.field, expected: e.expected });
+      }
+      throw e;
+    }
 
-  return json({
-    patch: result,
-    usage: {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    },
-  });
-}
+    return json({
+      patch: result,
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+    });
+  };
+
+export const compact = compactWith(compactDeadlineMs);
