@@ -9,6 +9,7 @@ public struct FixtureTranscriber: Transcriber {
 
   let fixture: Fixture
   let speed: Double
+  let replay = ReplayTask()
 
   public init(fixture: Fixture, speed: Double = .infinity) {
     self.fixture = fixture
@@ -28,6 +29,7 @@ public struct FixtureTranscriber: Transcriber {
           if speed.isFinite, segment.start > clock {
             try? await Task.sleep(for: .seconds((segment.start - clock) / speed))
           }
+          if Task.isCancelled { break }
           continuation.yield(.speechStarted(at: segment.start))
           continuation.yield(.segment(segment))
           continuation.yield(.speechEnded(at: segment.end))
@@ -36,9 +38,12 @@ public struct FixtureTranscriber: Transcriber {
         continuation.yield(.ended)
         continuation.finish()
       }
+      replay.set(task)
       continuation.onTermination = { _ in task.cancel() }
     }
   }
 
-  public func stop() async {}
+  public func stop() async {
+    await replay.end()
+  }
 }

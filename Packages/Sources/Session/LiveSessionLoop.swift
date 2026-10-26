@@ -27,8 +27,13 @@ public actor LiveSessionLoop {
   private var inPause = false
   private var emitted = 0
   private var loopEnded = false
+  private var ending = false
+  private var stopped = false
   private var completed = false
   private var startedAt: Duration?
+
+  /// How long End waits for the transcriber to finalise and end its stream before the loop stops reading.
+  static let stopGrace: Duration = .seconds(5)
 
   public init<C: Clock>(
     config: GovernorConfig, policy: CompactionPolicy = .standard,
@@ -75,9 +80,23 @@ public actor LiveSessionLoop {
     }
   }
 
-  /// The user ended it. Stops the transcriber, folds what is left, and emits `.ended`.
+  /// The user ended it. Stops the transcriber, reads what it finalises up to `.ended`, folds what is
+  /// left, and emits `.ended`. A stream still open after `stopGrace` is abandoned.
   public func end() async {
-    consumer?.cancel()
+    guard !completed, !ending else { return }
+    ending = true
+    cancelTimer()
+    await loop.prepareToEnd()
+    await stopTranscriber()
+    if let consumer {
+      let watchdog = Task { [clock] in
+        try? await clock.sleep(clock.now() + Self.stopGrace)
+        guard !Task.isCancelled else { return }
+        consumer.cancel()
+      }
+      await consumer.value
+      watchdog.cancel()
+    }
     await complete()
   }
 
@@ -102,7 +121,7 @@ public actor LiveSessionLoop {
         await drain()
         if segment.isFinal, !loopEnded {
           continuation.yield(.utterance(segment))
-          scheduleTimer()
+          if !ending { scheduleTimer() }
         }
       case .speechEnded(let at):
         await loop.handle(event)
@@ -131,7 +150,7 @@ public actor LiveSessionLoop {
 
   /// One tick: speaks the armed decision when it is due and runs the silence check when one is.
   private func fire(_ due: TimeInterval) async {
-    guard !completed else { return }
+    guard !completed, !ending else { return }
     await loop.pause(until: due)
     await drain()
     if loopEnded {
@@ -182,12 +201,18 @@ public actor LiveSessionLoop {
     }
   }
 
+  private func stopTranscriber() async {
+    guard !stopped else { return }
+    stopped = true
+    await transcriber.stop()
+  }
+
   private func complete() async {
     guard !completed else { return }
     completed = true
     cancelTimer()
     for task in forwarders { task.cancel() }
-    await transcriber.stop()
+    await stopTranscriber()
     let result = await loop.finish()
     continuation.yield(.ended(result))
     continuation.finish()

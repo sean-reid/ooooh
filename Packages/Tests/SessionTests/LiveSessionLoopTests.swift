@@ -62,7 +62,7 @@ import Transcription
     config.silenceChecks = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.5]
     let clock = TestClock()
     let (events, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
-    let open = OpenTranscriber(stream: events)
+    let open = OpenTranscriber(stream: events, input: continuation)
     let live = LiveSessionLoop(
       config: config, dependencies: base.deps(SilentDecisionProvider()), transcriber: open,
       clock: clock)
@@ -110,13 +110,70 @@ import Transcription
     }
   }
 
+  @Test func endKeepsTheSegmentTheTranscriberFinalisesOnStop() async throws {
+    let clock = TestClock()
+    let (stream, input) = AsyncStream.makeStream(of: TranscriptEvent.self)
+    let last = Segment(
+      text: "and that is the last thing I said", start: 1.0, end: 3.5, isFinal: true)
+    let live = LiveSessionLoop(
+      config: .initial, dependencies: base.deps(SilentDecisionProvider()),
+      transcriber: FinalisingTranscriber(stream: stream, input: input, last: last), clock: clock)
+    await live.start()
+    var iterator = live.events().makeAsyncIterator()
+    input.yield(.speechStarted(at: 0))
+    input.yield(.segment(Segment(text: "first", start: 0, end: 0.5, isFinal: true)))
+    input.yield(.speechEnded(at: 0.5))
+    _ = await iterator.next(until: \.isSpeechEnded)
+    input.yield(.speechStarted(at: 1.0))
+    input.yield(.segment(Segment(text: "and that", start: 1.0, end: 1.4, isFinal: false)))
+    while clock.sleeping == 0 { await Task.yield() }
+    await live.end()
+    let events = await iterator.rest()
+    let result = try result(of: events)
+
+    #expect(result.transcript.map(\.text) == ["first", "and that is the last thing I said"])
+    let heard = events.compactMap { if case .utterance(let s) = $0 { s.text } else { nil } }
+    #expect(heard == ["and that is the last thing I said"])
+    #expect(result.state.currentThread.hasSuffix("the last thing I said"))
+    #expect(result.records.last == .ended(at: 3.5, byUser: true))
+    let checks = result.records.filter { if case .check = $0 { true } else { false } }
+    #expect(checks.count == 1)
+    #expect(clock.sleeping == 0)
+  }
+
+  @Test func endGivesUpOnATranscriberThatNeverEndsItsStream() async throws {
+    let clock = TestClock()
+    let (events, input) = AsyncStream.makeStream(of: TranscriptEvent.self)
+    let live = LiveSessionLoop(
+      config: .initial, dependencies: base.deps(SilentDecisionProvider()),
+      transcriber: StuckTranscriber(stream: events), clock: clock)
+    await live.start()
+    var iterator = live.events().makeAsyncIterator()
+    input.yield(.speechStarted(at: 0))
+    input.yield(.segment(Segment(text: "one", start: 0, end: 0.5, isFinal: true)))
+    input.yield(.speechEnded(at: 0.5))
+    _ = await iterator.next(until: \.isSpeechEnded)
+    while clock.sleeping == 0 { await Task.yield() }
+    let ending = Task { await live.end() }
+    while !clock.deadlines.contains(LiveSessionLoop.stopGrace) { await Task.yield() }
+    #expect(clock.deadlines == [LiveSessionLoop.stopGrace])
+    clock.advance(by: LiveSessionLoop.stopGrace - .milliseconds(1))
+    #expect(clock.sleeping == 1)
+    clock.advance(by: .milliseconds(1))
+    await ending.value
+    let result = try result(of: await iterator.rest())
+
+    #expect(result.transcript.map(\.text) == ["one"])
+    #expect(result.records.last == .ended(at: 0.5, byUser: true))
+  }
+
   @Test func forwardsLevelsAndOfflineChanges() async throws {
     let (levels, levelSink) = AsyncStream.makeStream(of: Double.self)
     let (offline, offlineSink) = AsyncStream.makeStream(of: Bool.self)
-    let (events, _) = AsyncStream.makeStream(of: TranscriptEvent.self)
+    let (events, input) = AsyncStream.makeStream(of: TranscriptEvent.self)
     let live = LiveSessionLoop(
       config: .initial, dependencies: base.deps(SilentDecisionProvider()),
-      transcriber: OpenTranscriber(stream: events), levels: levels, offline: offline)
+      transcriber: OpenTranscriber(stream: events, input: input), levels: levels, offline: offline)
     await live.start()
     levelSink.yield(0.4)
     offlineSink.yield(true)
@@ -133,8 +190,33 @@ import Transcription
   }
 }
 
-/// Stays open until the test ends it, like a microphone would.
+/// Stays open until the test ends it, like a microphone would. `stop()` ends the stream at once.
 struct OpenTranscriber: Transcriber {
+  let stream: AsyncStream<TranscriptEvent>
+  let input: AsyncStream<TranscriptEvent>.Continuation
+  func events() -> AsyncStream<TranscriptEvent> { stream }
+  func stop() async {
+    input.yield(.ended)
+    input.finish()
+  }
+}
+
+/// A microphone with an utterance open when End arrives: `stop()` finalises it before `.ended`.
+struct FinalisingTranscriber: Transcriber {
+  let stream: AsyncStream<TranscriptEvent>
+  let input: AsyncStream<TranscriptEvent>.Continuation
+  let last: Segment
+  func events() -> AsyncStream<TranscriptEvent> { stream }
+  func stop() async {
+    input.yield(.segment(last))
+    input.yield(.speechEnded(at: last.end))
+    input.yield(.ended)
+    input.finish()
+  }
+}
+
+/// A transcriber whose `stop()` never ends the stream.
+struct StuckTranscriber: Transcriber {
   let stream: AsyncStream<TranscriptEvent>
   func events() -> AsyncStream<TranscriptEvent> { stream }
   func stop() async {}

@@ -59,13 +59,13 @@ test("every checked-in script validates, is 3 to 8 minutes of speech, and pauses
       midGaps >= pauses.length / (slow ? 5 : 2),
       `${name} needs ${slow ? "some" : "mostly"} gaps of 1.5 to 3 s`,
     );
-    const finished = script.utterances
-      .map((u, i) => (u.label === "finished" ? i : -1))
+    const closing = script.utterances
+      .map((u, i) => (u.label === "finished" || u.label === "wrapUp" ? i : -1))
       .filter((i) => i >= 0);
     assert.deepEqual(
-      finished,
+      closing,
       [script.utterances.length - 1],
-      `${name} must mark finished once, on the last line`,
+      `${name} must close once, with finished or wrapUp on the last line`,
     );
     assert.ok(
       /\b(um|uh)\b/i.test(script.utterances.map((u) => u.text).join(" ")),

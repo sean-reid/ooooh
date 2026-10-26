@@ -44,6 +44,9 @@ public actor SessionLoop {
   let policy: CompactionPolicy
   let deps: Dependencies
 
+  /// Finals a check and a phrase see verbatim; the Worker reads this many lines and no more.
+  static let recentWindow = 6
+
   var governor: Governor
   var state: CompactState
   var transcript: [Segment] = []
@@ -53,6 +56,8 @@ public actor SessionLoop {
   var lastCompactionAt: TimeInterval = 0
   var lastSpeechEnd: TimeInterval = 0
   var arm: Arm?
+  var compaction: Task<Void, Never>?
+  var ending = false
   var ended = false
 
   public init(
@@ -137,7 +142,7 @@ public actor SessionLoop {
   }
 
   func check(at now: TimeInterval, pause: TimeInterval, utteranceEnded: Bool) async {
-    guard arm == nil else { return }
+    guard arm == nil, !ending else { return }
     let signals = Signals(
       now: now, pauseLength: pause, speechDensity: density(at: now),
       awaitingFinishedReply: governor.finishedAskedAt != nil)
@@ -145,7 +150,7 @@ public actor SessionLoop {
     else { return }
 
     let input = CheckInput(
-      state: state, recentTranscript: uncompacted, signals: signals, checkIndex: checkIndex)
+      state: state, recentTranscript: recent, signals: signals, checkIndex: checkIndex)
     checkIndex += 1
     guard let answers = try? await deps.decisions.check(input) else { return }
     let before = governor
@@ -173,7 +178,7 @@ public actor SessionLoop {
   func arm(_ kind: ArmedPrompt, at now: TimeInterval, restoring governor: Governor) async {
     var text: Task<String, Never>?
     if case .intervention(let kind) = kind {
-      let (state, recent, phraser) = (state, uncompacted, deps.phraser)
+      let (state, recent, phraser) = (state, recent, deps.phraser)
       text = Task { (try? await phraser.phrase(kind, state: state, recent: recent)) ?? "" }
     }
     let due = max(lastSpeechEnd + config.armingDelay, now)
@@ -201,34 +206,52 @@ public actor SessionLoop {
     records.append(.promptCancelled(at: now))
   }
 
+  /// The user has ended it. Segments still arriving are kept, but nothing is decided on them.
+  func prepareToEnd() {
+    ending = true
+  }
+
   /// Folds whatever is still raw into the state, then closes the session.
   func end(at now: TimeInterval, byUser: Bool) async {
     guard !ended else { return }
+    ending = true
     if let arm {
       cancel(arm, at: now)
     }
-    if !uncompacted.isEmpty {
-      await compactIfDue(at: now, force: true)
-    }
+    await compactIfDue(at: now, force: true)
     records.append(.ended(at: now, byUser: byUser))
     ended = true
   }
 
+  /// One compaction runs at a time; a second caller waits for it and then sees what is left.
   func compactIfDue(at now: TimeInterval, force: Bool = false) async {
+    if let compaction { await compaction.value }
+    guard !uncompacted.isEmpty else { return }
     let words = uncompacted.reduce(0) { $0 + $1.text.split(separator: " ").count }
     guard force || now - lastCompactionAt >= policy.everySeconds || words >= policy.everyWords
     else { return }
-    guard let patch = try? await deps.compactor.compact(state: state, transcript: uncompacted)
+    let task = Task { await compact(at: now) }
+    compaction = task
+    await task.value
+  }
+
+  private func compact(at now: TimeInterval) async {
+    defer { compaction = nil }
+    let batch = uncompacted
+    guard let patch = try? await deps.compactor.compact(state: state, transcript: batch)
     else { return }
     do {
       state = try state.applying(patch)
       records.append(.compaction(at: now, patch: patch))
-      uncompacted.removeAll()
+      uncompacted.removeFirst(batch.count)
       lastCompactionAt = now
     } catch {
       records.append(.compactionRejected(at: now, reason: "\(error)"))
     }
   }
+
+  /// The last few utterances, whether or not a compaction has folded them into the state.
+  var recent: [Segment] { Array(transcript.suffix(Self.recentWindow)) }
 
   /// Fraction of the trailing window covered by speech.
   func density(at now: TimeInterval) -> Double {
