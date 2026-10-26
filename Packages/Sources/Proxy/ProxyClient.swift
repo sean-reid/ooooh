@@ -17,16 +17,19 @@ public struct ProxyClient: Sendable {
   public var attestor: (any Attestor)?
   /// Counts transport failures and successes when set.
   public var offline: OfflineGuard?
+  /// Supplies the time each request is signed with, and learns it from a stale 401.
+  public var clock: WorkerClock
 
   public init(
     baseURL: URL, token: String? = nil, session: URLSession = .shared,
-    attestor: (any Attestor)? = nil, offline: OfflineGuard? = nil
+    attestor: (any Attestor)? = nil, offline: OfflineGuard? = nil, clock: WorkerClock = .shared
   ) {
     self.baseURL = baseURL
     self.token = token
     self.session = session
     self.attestor = attestor
     self.offline = offline
+    self.clock = clock
   }
 
   /// App Attest on a phone, nothing on the simulator or a Mac.
@@ -70,7 +73,7 @@ public struct ProxyClient: Sendable {
     if let attestor {
       let clientData = ClientData(
         method: "POST", path: url.path(percentEncoded: true),
-        time: Int(Date().timeIntervalSince1970), bodyHash: Data(SHA256.hash(data: bytes)))
+        time: clock.now(), bodyHash: Data(SHA256.hash(data: bytes)))
       let assertion: Assertion?
       do {
         assertion = try await attestor.assertion(clientDataHash: clientData.hash)
@@ -91,10 +94,39 @@ public struct ProxyClient: Sendable {
   func post<Output: Decodable>(_ path: String, body: some Encodable, as: Output.Type = Output.self)
     async throws -> Output
   {
+    try JSONDecoder().decode(Output.self, from: try await send(path, body: body))
+  }
+
+  /// One signed POST, sent once more with the Worker's time after a stale 401. A second stale
+  /// answer is `clockSkew`.
+  func send(_ path: String, body: some Encodable) async throws -> Data {
+    do {
+      return try await exchange(path, body: body)
+    } catch ProxyError.unauthorized(reason: "stale") {
+      do {
+        return try await exchange(path, body: body)
+      } catch ProxyError.unauthorized(reason: "stale") {
+        clock.recordRefused()
+        throw ProxyError.clockSkew
+      }
+    }
+  }
+
+  private func exchange(_ path: String, body: some Encodable) async throws -> Data {
     let request = try await request(path, body: body)
     let (data, response) = try await transport { try await session.data(for: request) }
-    try ProxyError.check(response, data: data)
-    return try JSONDecoder().decode(Output.self, from: data)
+    do {
+      try ProxyError.check(response, data: data)
+    } catch ProxyError.unauthorized(reason: "stale") {
+      if let header = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Date"),
+        let serverTime = WorkerClock.httpDate(header)
+      {
+        clock.learn(serverTime: serverTime)
+      }
+      throw ProxyError.unauthorized(reason: "stale")
+    }
+    clock.recordAccepted()
+    return data
   }
 
   /// Reports the outcome of one round trip to the guard. An HTTP error is still a reachable Worker.
@@ -116,6 +148,8 @@ public enum ProxyError: Error, Equatable, Sendable {
   case noSession(reason: String)
   /// 401 `unauthorized` with the check that failed as `reason`.
   case unauthorized(reason: String)
+  /// 401 `stale` twice over, the second time signed with the Worker's own clock.
+  case clockSkew
   case notHTTP
   case stream(String)
   /// App Attest or the keychain failed this request; the next request enrols or signs again.
