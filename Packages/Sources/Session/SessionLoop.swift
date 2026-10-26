@@ -44,6 +44,9 @@ public actor SessionLoop {
   let policy: CompactionPolicy
   let deps: Dependencies
 
+  /// Finals a check and a phrase see verbatim; the Worker reads this many lines and no more.
+  static let recentWindow = 6
+
   var governor: Governor
   var state: CompactState
   var transcript: [Segment] = []
@@ -147,7 +150,7 @@ public actor SessionLoop {
     else { return }
 
     let input = CheckInput(
-      state: state, recentTranscript: uncompacted, signals: signals, checkIndex: checkIndex)
+      state: state, recentTranscript: recent, signals: signals, checkIndex: checkIndex)
     checkIndex += 1
     guard let answers = try? await deps.decisions.check(input) else { return }
     let before = governor
@@ -175,7 +178,7 @@ public actor SessionLoop {
   func arm(_ kind: ArmedPrompt, at now: TimeInterval, restoring governor: Governor) async {
     var text: Task<String, Never>?
     if case .intervention(let kind) = kind {
-      let (state, recent, phraser) = (state, uncompacted, deps.phraser)
+      let (state, recent, phraser) = (state, recent, deps.phraser)
       text = Task { (try? await phraser.phrase(kind, state: state, recent: recent)) ?? "" }
     }
     let due = max(lastSpeechEnd + config.armingDelay, now)
@@ -246,6 +249,9 @@ public actor SessionLoop {
       records.append(.compactionRejected(at: now, reason: "\(error)"))
     }
   }
+
+  /// The last few utterances, whether or not a compaction has folded them into the state.
+  var recent: [Segment] { Array(transcript.suffix(Self.recentWindow)) }
 
   /// Fraction of the trailing window covered by speech.
   func density(at now: TimeInterval) -> Double {
