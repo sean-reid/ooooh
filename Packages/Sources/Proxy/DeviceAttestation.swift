@@ -110,6 +110,11 @@ public actor DeviceAttestation: Attestor {
     return proxyError
   }
 
+  /// Drops the key id a development build stored, so the next request enrols as a new device.
+  public static func forgetStoredKey() {
+    KeychainKeyIdStore().delete()
+  }
+
   private func forget() {
     keyId = nil
     store.delete()
