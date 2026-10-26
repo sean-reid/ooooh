@@ -70,13 +70,6 @@ export const requireSecret = (value: string | undefined, name: string) => {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** A positive, finite number from a var, else the fallback; a typo must not disable a cap. */
-export const envNumber = (value: string | undefined, fallback: number) => {
-  if (value === undefined || value === "") return fallback;
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
-
 /** Seconds from a Retry-After header, a count or an HTTP date, clamped to 1..60. */
 export const retryAfterFrom = (
   header: string | null | undefined,
@@ -93,3 +86,22 @@ export const retryAfterFrom = (
 
 /** Retries wait at most this long; a provider asking for more gets the 503 straight away. */
 export const maxRetryWaitMs = 2000;
+
+/** A provider that is rate limited or out of time is 503 with `retryAfter` in seconds. */
+export const unavailable = (provider: string, retryAfter: number) =>
+  new HttpError(503, { error: `${provider} unavailable`, retryAfter });
+
+/**
+ * A provider's failed reply as the client sees it: 429 is 503 with the header's wait, anything
+ * else 502 with the status. The reply goes to the log and nothing of it to the body.
+ */
+export const upstreamFailure = (
+  provider: string,
+  status: number | undefined,
+  retryAfter: string | null,
+  detail: string,
+) => {
+  if (status === 429) return unavailable(provider, retryAfterFrom(retryAfter));
+  console.error(provider, status, detail.slice(0, 500));
+  return new HttpError(502, { error: provider, status, detail: "upstream error" });
+};

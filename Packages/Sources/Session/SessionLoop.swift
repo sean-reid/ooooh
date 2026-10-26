@@ -69,6 +69,17 @@ public actor SessionLoop {
   /// When the armed decision speaks, nil while nothing is armed.
   public var armDue: TimeInterval? { arm?.due }
 
+  /// When the next silence check falls, nil while a decision is armed, once the schedule is
+  /// spent, or after the session ended.
+  public var nextCheckAt: TimeInterval? {
+    guard !ended, arm == nil else { return nil }
+    return governor.nextCheck(speechEnd: lastSpeechEnd)
+  }
+
+  /// The next time the clock has to call `pause(until:)`: the armed decision's due time or the
+  /// next silence check.
+  public var nextTick: TimeInterval? { [armDue, nextCheckAt].compactMap { $0 }.min() }
+
   /// Consumes the whole stream and returns what happened.
   public func run(_ transcriber: any Transcriber) async -> SessionResult {
     for await event in transcriber.events() {
@@ -130,7 +141,8 @@ public actor SessionLoop {
     let signals = Signals(
       now: now, pauseLength: pause, speechDensity: density(at: now),
       awaitingFinishedReply: governor.finishedAskedAt != nil)
-    guard governor.shouldCheck(signals: signals, utteranceEnded: utteranceEnded) else { return }
+    guard governor.takeCheck(now: now, speechEnd: lastSpeechEnd, utteranceEnded: utteranceEnded)
+    else { return }
 
     let input = CheckInput(
       state: state, recentTranscript: uncompacted, signals: signals, checkIndex: checkIndex)

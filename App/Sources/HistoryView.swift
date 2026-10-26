@@ -54,11 +54,14 @@ struct HistoryView: View {
         .foregroundStyle(Palette.ink)
         .accessibilityAddTraits(.isHeader)
       Spacer()
-      Button("Done") { dismiss() }
-        .font(Typography.body)
-        .foregroundStyle(Palette.inkDim)
-        .frame(minWidth: 44, minHeight: 44)
-        .accessibilityIdentifier("history.done")
+      Button {
+        dismiss()
+      } label: {
+        Text("Done").tapTarget()
+      }
+      .font(Typography.body)
+      .foregroundStyle(Palette.inkDim)
+      .accessibilityIdentifier("history.done")
     }
     .padding(.horizontal, 24)
     .padding(.top, 20)
@@ -80,7 +83,7 @@ struct HistoryView: View {
         } label: {
           Image(systemName: "xmark.circle.fill")
             .foregroundStyle(Palette.inkDim)
-            .frame(minWidth: 44, minHeight: 44)
+            .tapTarget()
         }
         .accessibilityLabel("Clear the search")
       }

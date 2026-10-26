@@ -8,6 +8,7 @@ import {
   readDer,
   type Certificate,
 } from "../x509";
+import { counterIn, rpIdMatches } from "./authdata";
 import { decodeCbor, field, isBytes, isList, isText } from "./cbor";
 import { appleAppAttestRootPem } from "./root";
 
@@ -33,12 +34,6 @@ export interface AttestationSettings {
   rootPem?: string;
   now?: Date;
 }
-
-export const settingsFrom = (env: Env): AttestationSettings => ({
-  appId: env.APP_ATTEST_APP_ID ?? "C6UWR42ZAP.com.seanreid.ooooh",
-  environment: env.APP_ATTEST_ENVIRONMENT === "development" ? "development" : "production",
-  rootPem: env.APP_ATTEST_ROOT_PEM,
-});
 
 const nonceExtension = "1.2.840.113635.100.8.2";
 
@@ -109,11 +104,8 @@ export async function verifyAttestation(
   const keyHash = await sha256(credCert.publicKey);
   if (toBase64(keyHash) !== keyId) throw new AttestationError("bad-key-id");
 
-  const rpIdHash = await sha256(new TextEncoder().encode(settings.appId));
-  if (!equalBytes(authData.subarray(0, 32), rpIdHash)) throw new AttestationError("bad-rp-id");
-
-  const counter = new DataView(authData.buffer, authData.byteOffset + 33, 4).getUint32(0);
-  if (counter !== 0) throw new AttestationError("bad-counter");
+  if (!(await rpIdMatches(authData, settings.appId))) throw new AttestationError("bad-rp-id");
+  if (counterIn(authData) !== 0) throw new AttestationError("bad-counter");
 
   if (!equalBytes(authData.subarray(37, 53), aaguid(settings.environment))) {
     throw new AttestationError("bad-aaguid");

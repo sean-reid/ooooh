@@ -121,7 +121,14 @@ actor LiveJev: DecisionProvider {
 
 var jevTokens = 0
 
-@MainActor func evaluate(_ run: Run, config base: GovernorConfig) async throws -> EvalReport {
+struct Outcome {
+  var report: EvalReport
+  var checks: Int
+  /// Checks in a pause, so nothing was said since the check before.
+  var silent: Int
+}
+
+@MainActor func evaluate(_ run: Run, config base: GovernorConfig) async throws -> Outcome {
   var config = base
   let decisions: any DecisionProvider
   var recorder: RecordingDecisionProvider?
@@ -166,7 +173,13 @@ var jevTokens = 0
         "  \(run.name): \(checks) checks recorded, \(failures) failed, \(tokens) Jev input tokens\n"
           .utf8))
   }
-  return EvalReport.score(result, against: run.labels)
+  let ends = Set(result.transcript.map(\.end))
+  let checks = result.records.compactMap {
+    if case .check(let at, _, _, _) = $0 { at } else { nil }
+  }
+  return Outcome(
+    report: EvalReport.score(result, against: run.labels), checks: checks.count,
+    silent: checks.filter { !ends.contains($0) }.count)
 }
 
 /// One line per check: time, answers, and whether a label sits within one utterance before it.
@@ -225,21 +238,27 @@ let mode =
   : runs.allSatisfy { $0.answers == nil } ? "oracle, floor off" : "recorded answers"
 print("config v\(config.version)  arming \(config.armingDelay) s  \(mode)")
 
-var reports: [EvalReport] = []
+var outcomes: [Outcome] = []
 for run in runs {
-  let report = try await evaluate(run, config: config)
-  reports.append(report)
+  let outcome = try await evaluate(run, config: config)
+  outcomes.append(outcome)
   if runs.count > 1 {
+    let report = outcome.report
     let p = report.overall.precision.map { String(format: "%.2f", $0) } ?? "-"
     let r = report.overall.recall.map { String(format: "%.2f", $0) } ?? "-"
     let mark = report.isPerfect ? " " : "!"
-    print("\(mark) \(run.name.padding(toLength: 20, withPad: " ", startingAt: 0)) p \(p)  r \(r)")
+    let name = run.name.padding(toLength: 20, withPad: " ", startingAt: 0)
+    print("\(mark) \(name) p \(p)  r \(r)  checks \(outcome.checks)  silent \(outcome.silent)")
   }
 }
 
+let reports = outcomes.map(\.report)
 let combined = EvalReport.merged(reports)
 if runs.count > 1 { print("") }
 print(combined.summary)
+let checks = outcomes.reduce(0) { $0 + $1.checks }
+let silent = outcomes.reduce(0) { $0 + $1.silent }
+print("checks \(checks)  silent \(silent)  (\(checks == 0 ? 0 : silent * 100 / checks)%)")
 if liveURL != nil { print("jev input tokens \(jevTokens)") }
 
 if args.contains("--require-perfect"), !reports.allSatisfy(\.isPerfect) {

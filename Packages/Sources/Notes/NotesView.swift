@@ -77,14 +77,13 @@ public struct NotesView: View {
       ShareLink(item: notes.markdown(date: date)) {
         Image(systemName: "square.and.arrow.up")
           .font(.body.weight(.medium))
-          .frame(minWidth: 44, minHeight: 44)
+          .tapTarget()
       }
       .accessibilityLabel("Share notes")
       Spacer()
-      Button("Done", action: onDone)
+      Button(action: onDone) { Text("Done").tapTarget() }
         .accessibilityIdentifier("notes.done")
         .font(.body.weight(.semibold))
-        .frame(minWidth: 44, minHeight: 44)
     }
     .foregroundStyle(Palette.accent)
     .padding(.horizontal, 12)
@@ -112,10 +111,10 @@ struct NoteItemRow: View {
               .padding(.leading, 18)
           }
         }
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-      .contentShape(Rectangle())
       .accessibilityElement(children: .combine)
       .accessibilityLabel(label)
       .accessibilityHint(revealed ? "Hides the words it came from" : "Shows the words it came from")

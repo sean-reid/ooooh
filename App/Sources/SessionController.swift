@@ -48,6 +48,8 @@ final class SessionController {
     /// Every session is saved here when set.
     var store: SessionStore?
     var haptic: @MainActor () -> Void = {}
+    /// Reads a quiet-mode prompt to VoiceOver, at the moment the haptic lands.
+    var announce: @MainActor (String) -> Void = { _ in }
     var offlineDelay: Duration = .seconds(3)
     var aboutToSpeakHold: Duration = .seconds(1)
     var configTimeout: Duration = .seconds(1)
@@ -315,7 +317,10 @@ final class SessionController {
         case .started:
           promptPending = false
           isSpeaking = true
-          if quiet { environment.haptic() }
+          if quiet {
+            environment.haptic()
+            environment.announce(text)
+          }
         case .finished:
           isSpeaking = false
         }

@@ -2,13 +2,11 @@ import {
   anthropicClient,
   credential,
   models,
-  refused,
-  textOf,
+  structured,
   upstreamError,
   within,
 } from "../anthropic";
-import { chargeModel } from "../budget";
-import { HttpError, json, readBody } from "../http";
+import { json, readBody } from "../http";
 import { compactState, segment, type Segment } from "../schema";
 import { array, num, obj, optional, str, ValidationError } from "../validate";
 
@@ -152,33 +150,8 @@ export async function notesRoute(request: Request, env: Env): Promise<Response> 
       { signal },
     ),
   ).catch(upstreamError);
-  await chargeModel(env, response.model, response.usage);
-
-  if (response.stop_reason === "max_tokens") {
-    throw new HttpError(502, { error: "anthropic truncated", maxTokens: notesMaxTokens });
-  }
-  if (response.stop_reason === "refusal") throw refused(response);
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(textOf(response.content));
-  } catch {
-    throw new HttpError(502, { error: "bad notes", field: "", expected: "json" });
-  }
-  let result: Notes;
-  try {
-    result = checkNotes(notes(parsed, ""), input.transcript);
-  } catch (e) {
-    if (e instanceof ValidationError) {
-      throw new HttpError(502, { error: "bad notes", field: e.field, expected: e.expected });
-    }
-    throw e;
-  }
-
-  return json({
-    notes: result,
-    usage: {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    },
-  });
+  const { value, usage } = await structured(env, response, notesMaxTokens, "bad notes", (p) =>
+    checkNotes(notes(p, ""), input.transcript),
+  );
+  return json({ notes: value, usage });
 }

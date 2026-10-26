@@ -1,8 +1,6 @@
 import { entitlement } from "./entitlement";
-import { envNumber, HttpError } from "./http";
-
-export const freeSessionsPerMonth = (env: Env) => envNumber(env.FREE_SESSIONS_PER_MONTH, 3);
-export const freePromptMinutes = (env: Env) => envNumber(env.FREE_PROMPT_MINUTES, 20);
+import { HttpError } from "./http";
+import { settings } from "./settings";
 
 const month = (now: Date) => now.toISOString().slice(0, 7);
 
@@ -39,7 +37,7 @@ export async function checkSession(
   if (!session) {
     if ((await entitlement(device, env, now)) === "paid") return;
     const used = await readCount(env.BUDGET, sessionsKey(device, now));
-    throw noSession(used >= freeSessionsPerMonth(env) ? "free-used" : "not-started");
+    throw noSession(used >= settings(env).freeSessionsPerMonth ? "free-used" : "not-started");
   }
   if (
     session.free &&

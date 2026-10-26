@@ -1,11 +1,16 @@
 import { blobPath } from "./orb-geometry.mjs";
 
-// The App Store Connect record does not exist yet; this becomes the real link when it does.
-const APP_STORE_URL = "#";
+// The App Store Connect record does not exist yet; the placeholder becomes a link when this holds the URL.
+const APP_STORE_URL = "";
 
 const store = document.querySelector(".store");
-store.href = APP_STORE_URL;
-if (APP_STORE_URL !== "#") store.textContent = "Download on the App Store";
+if (APP_STORE_URL) {
+  const link = document.createElement("a");
+  link.className = store.className;
+  link.href = APP_STORE_URL;
+  link.textContent = "Download on the App Store";
+  store.replaceWith(link);
+}
 
 const TINTS = {
   dark: {
@@ -36,6 +41,17 @@ const rgba = ([r, g, b], a) => `rgba(${r}, ${g}, ${b}, ${a})`;
 
 // Fraction of the orb's side the canvas extends past its box on each edge; site.css sizes it to match.
 const OVERFLOW = 0.25;
+// Pixels per CSS pixel for the blurred layers; the blur hides the upscale.
+const SOFT_SCALE = 0.5;
+// The grain disc is built for the resting radius and scaled to the live one, so it covers the widest body.
+const GRAIN_REACH = 1.2;
+
+function onMedia(query, handler) {
+  const list = matchMedia(query);
+  if (list.addEventListener) list.addEventListener("change", handler);
+  else if (list.addListener) list.addListener(handler);
+  return list;
+}
 
 function grainTile() {
   const size = 160;
@@ -60,8 +76,9 @@ class Orb {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
-    this.layer = document.createElement("canvas");
-    this.grain = this.ctx.createPattern(grainTile(), "repeat");
+    this.blurred = document.createElement("canvas");
+    this.grain = document.createElement("canvas");
+    this.grainPattern = this.ctx.createPattern(grainTile(), "repeat");
     this.size = 0;
     this.margin = 0;
     this.dpr = 1;
@@ -73,20 +90,21 @@ class Orb {
     this.lastScroll = window.scrollY;
     this.last = 0;
     this.raf = 0;
+    this.visible = true;
     this.filters = "filter" in this.ctx;
-    const dark = matchMedia("(prefers-color-scheme: dark)");
-    this.tint = TINTS[dark.matches ? "dark" : "light"];
-    dark.addEventListener("change", (e) => {
+    const dark = onMedia("(prefers-color-scheme: dark)", (e) => {
       this.tint = TINTS[e.matches ? "dark" : "light"];
       if (this.reduced) this.drawStill();
     });
+    this.tint = TINTS[dark.matches ? "dark" : "light"];
     this.reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    new ResizeObserver(() => this.resize()).observe(canvas);
-    this.resize();
-    if (this.reduced) {
-      canvas.classList.add("still");
-      return;
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(() => this.resize()).observe(canvas);
+    } else {
+      window.addEventListener("resize", () => this.resize());
     }
+    this.resize();
+    if (this.reduced) return;
     this.bind();
     this.start();
   }
@@ -99,8 +117,27 @@ class Orb {
     this.dpr = Math.min(devicePixelRatio || 1, 3);
     const px = Math.round(css * this.dpr);
     this.canvas.width = this.canvas.height = px;
-    this.layer.width = this.layer.height = px;
+    this.blurred.width = this.blurred.height = Math.ceil(css * SOFT_SCALE);
+    this.buildGrain();
     if (this.reduced) this.drawStill();
+  }
+
+  buildGrain() {
+    const r = this.size * 0.26;
+    const reach = r * GRAIN_REACH;
+    const side = Math.ceil(2 * reach * this.dpr);
+    this.grain.width = this.grain.height = side;
+    const g = this.grain.getContext("2d");
+    g.setTransform(this.dpr, 0, 0, this.dpr, side / 2, side / 2);
+    g.fillStyle = this.grainPattern;
+    g.fillRect(-reach, -reach, 2 * reach, 2 * reach);
+    g.globalCompositeOperation = "destination-in";
+    const fade = g.createRadialGradient(0, 0, 0, 0, 0, r * 1.1);
+    fade.addColorStop(0, "rgba(255, 255, 255, 0.05)");
+    fade.addColorStop(0.55, "rgba(255, 255, 255, 0.35)");
+    fade.addColorStop(1, "rgba(255, 255, 255, 1)");
+    g.fillStyle = fade;
+    g.fillRect(-reach, -reach, 2 * reach, 2 * reach);
   }
 
   bind() {
@@ -129,10 +166,17 @@ class Orb {
       if (document.hidden) this.stop();
       else this.start();
     });
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(([entry]) => {
+        this.visible = entry.isIntersecting;
+        if (this.visible) this.start();
+        else this.stop();
+      }).observe(this.canvas);
+    }
   }
 
   start() {
-    if (this.raf || document.hidden) return;
+    if (this.raf || document.hidden || !this.visible) return;
     this.last = 0;
     const tick = (now) => {
       this.raf = requestAnimationFrame(tick);
@@ -179,8 +223,27 @@ class Orb {
     this.draw(0, 0.3, { glow: 0.7, drift: 0.4, speed: 0 });
   }
 
-  blur(ctx, radius) {
-    if (this.filters) ctx.filter = `blur(${radius}px)`;
+  // Paints blurred fills at SOFT_SCALE and composites the square of half-side `reach` around the centre.
+  soft(reach, paint, compose) {
+    const { ctx, blurred, size, margin, dpr } = this;
+    const c = size / 2;
+    const half = Math.min(reach, c + margin);
+    const x0 = c - half;
+    const side = 2 * half;
+    const s = blurred.getContext("2d");
+    s.setTransform(SOFT_SCALE, 0, 0, SOFT_SCALE, margin * SOFT_SCALE, margin * SOFT_SCALE);
+    s.clearRect(x0, x0, side, side);
+    const blur = (radius) => {
+      if (this.filters) s.filter = `blur(${(radius * SOFT_SCALE) / dpr}px)`;
+    };
+    paint(s, blur);
+    if (this.filters) s.filter = "none";
+    const sx = (x0 + margin) * SOFT_SCALE;
+    const sw = side * SOFT_SCALE;
+    ctx.save();
+    if (compose) compose(ctx);
+    ctx.drawImage(blurred, sx, sx, sw, sw, x0, x0, side, side);
+    ctx.restore();
   }
 
   draw(clock, breath, pose) {
@@ -209,35 +272,26 @@ class Orb {
       breath,
     });
 
-    ctx.save();
-    ctx.globalCompositeOperation = tint.glowBlend;
-    this.blur(ctx, base * 0.3);
     const g = tint.glowAlpha * pose.glow;
-    const haloFill = ctx.createRadialGradient(
-      c,
-      c,
-      base * 0.4,
-      c,
-      c,
-      base * 1.9,
-    );
-    haloFill.addColorStop(0, rgba(tint.glow, g));
-    haloFill.addColorStop(0.4, rgba(tint.glow, 0.45 * g));
-    haloFill.addColorStop(0.75, rgba(tint.glow, 0.12 * g));
-    haloFill.addColorStop(1, rgba(tint.glow, 0));
-    ctx.fillStyle = haloFill;
-    ctx.fill(halo);
-    ctx.restore();
-
-    ctx.save();
-    this.blur(ctx, base * 0.12);
-    const underFill = ctx.createRadialGradient(c, c, 0, c, c, base * 1.14);
-    underFill.addColorStop(0, rgba(tint.glow, 0.55));
-    underFill.addColorStop(0.8, rgba(tint.glow, 0.35));
-    underFill.addColorStop(1, rgba(tint.glow, 0));
-    ctx.fillStyle = underFill;
-    ctx.fill(under);
-    ctx.restore();
+    this.soft(base * 3.1, (s, blur) => {
+      s.globalCompositeOperation = tint.glowBlend;
+      blur(base * 0.3);
+      const haloFill = s.createRadialGradient(c, c, base * 0.4, c, c, base * 1.9);
+      haloFill.addColorStop(0, rgba(tint.glow, g));
+      haloFill.addColorStop(0.4, rgba(tint.glow, 0.45 * g));
+      haloFill.addColorStop(0.75, rgba(tint.glow, 0.12 * g));
+      haloFill.addColorStop(1, rgba(tint.glow, 0));
+      s.fillStyle = haloFill;
+      s.fill(halo);
+      s.globalCompositeOperation = "source-over";
+      blur(base * 0.12);
+      const underFill = s.createRadialGradient(c, c, 0, c, c, base * 1.14);
+      underFill.addColorStop(0, rgba(tint.glow, 0.55));
+      underFill.addColorStop(0.8, rgba(tint.glow, 0.35));
+      underFill.addColorStop(1, rgba(tint.glow, 0));
+      s.fillStyle = underFill;
+      s.fill(under);
+    });
 
     const cx = c - base * 0.06;
     const cy = c - base * 0.08;
@@ -250,34 +304,25 @@ class Orb {
     ctx.fill(body);
 
     if (tint.sheen) {
-      ctx.save();
-      ctx.clip(body);
-      this.blur(ctx, base * 0.22);
-      ctx.fillStyle = `rgba(255, 255, 255, ${(0.1 + 0.15 * pose.glow) * tint.sheen})`;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, base * 0.4, base * 0.32, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      this.soft(
+        base * GRAIN_REACH,
+        (s, blur) => {
+          blur(base * 0.22);
+          s.fillStyle = `rgba(255, 255, 255, ${(0.1 + 0.15 * pose.glow) * tint.sheen})`;
+          s.beginPath();
+          s.ellipse(cx, cy, base * 0.4, base * 0.32, 0, 0, Math.PI * 2);
+          s.fill();
+        },
+        (t) => t.clip(body),
+      );
     }
 
-    const layer = this.layer.getContext("2d");
-    layer.setTransform(dpr, 0, 0, dpr, margin * dpr, margin * dpr);
-    layer.clearRect(-margin, -margin, size + 2 * margin, size + 2 * margin);
-    layer.fillStyle = this.grain;
-    layer.fill(body);
-    layer.globalCompositeOperation = "destination-in";
-    const fade = layer.createRadialGradient(c, c, 0, c, c, base * 1.1);
-    fade.addColorStop(0, "rgba(255, 255, 255, 0.05)");
-    fade.addColorStop(0.55, "rgba(255, 255, 255, 0.35)");
-    fade.addColorStop(1, "rgba(255, 255, 255, 1)");
-    layer.fillStyle = fade;
-    layer.fill(body);
-    layer.globalCompositeOperation = "source-over";
+    const reach = base * GRAIN_REACH;
     ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clip(body);
     ctx.globalCompositeOperation = "soft-light";
     ctx.globalAlpha = 0.12;
-    ctx.drawImage(this.layer, 0, 0);
+    ctx.drawImage(this.grain, c - reach, c - reach, 2 * reach, 2 * reach);
     ctx.restore();
   }
 }

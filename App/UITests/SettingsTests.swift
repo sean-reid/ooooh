@@ -44,7 +44,9 @@ final class SettingsTests: XCTestCase {
     XCTAssertEqual(
       app.buttons["settings.deleteAll"].label, "Delete everything, 1 session on this phone")
     let version = app.descendants(matching: .any).matching(identifier: "settings.version")
-    XCTAssertEqual(version.firstMatch.label, "Version, 0.1.0 (1)")
+    XCTAssertNotNil(
+      version.firstMatch.label.wholeMatch(of: /Version, \d+\.\d+\.\d+ \(\d+\)/),
+      version.firstMatch.label)
     attach(app.screenshot(), named: "\(name)-settings")
 
     let subscribe = app.buttons["settings.subscribe"]

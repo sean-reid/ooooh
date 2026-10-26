@@ -1,11 +1,10 @@
-import { env, SELF } from "cloudflare:test";
+import { env } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   audioBytes,
   bodyOf,
   compactBody,
   decideBody,
-  fakeUpstream,
   haikuPatch,
   haikuReply,
   jevReply,
@@ -18,6 +17,7 @@ import {
   sonnetReply,
   sonnetStream,
   speakBody,
+  stubUpstream,
   type FakeUpstream,
   type Reply,
 } from "./upstream";
@@ -26,23 +26,11 @@ import { compactWith } from "../src/routes/compact";
 import { phraseWith } from "../src/routes/phrase";
 import { deadlines, speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
+import { jsonRequest, startRequest } from "./request";
+import { post as postJson } from "./workers";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
-  SELF.fetch(`https://ooooh.test${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-device": "routes", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const startRequest = () => new Request("https://ooooh.test/v1/session/start", { method: "POST" });
-
-// A route called directly, past the attestation and budget wrappers, the way the deadline tests do.
-const direct = (path: string, body: unknown, headers: Record<string, string> = {}) =>
-  new Request(`https://ooooh.test${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
+  postJson(path, body, { "x-device": "routes", ...headers });
 
 const sseEvents = (text: string) =>
   text
@@ -61,11 +49,7 @@ const today = new Date().toISOString().slice(0, 10);
 const spent = async () => Number((await env.BUDGET.get(`budget:anthropic:${today}`)) ?? 0);
 
 let upstream: FakeUpstream;
-const expectUpstream = (...replies: Reply[]) => {
-  upstream = fakeUpstream(replies);
-  vi.stubGlobal("fetch", upstream.fetch);
-  return upstream;
-};
+const expectUpstream = (...replies: Reply[]) => (upstream = stubUpstream(...replies));
 
 afterEach(() => {
   expect(upstream.pending()).toBe(0);
@@ -322,7 +306,9 @@ describe("POST /v1/compact", () => {
   it("answers 503 inside the deadline when the reply body stalls", async () => {
     expectUpstream({ body: new ReadableStream<Uint8Array>() });
     const started = Date.now();
-    await expect(compactWith(100)(direct("/v1/compact", compactBody), env)).rejects.toMatchObject({
+    await expect(
+      compactWith(100)(jsonRequest("/v1/compact", compactBody), env),
+    ).rejects.toMatchObject({
       status: 503,
       body: { error: "anthropic unavailable", retryAfter: 1 },
     });
@@ -407,14 +393,7 @@ describe("POST /v1/notes", () => {
       REQUIRE_ATTESTATION: "false",
     } as Env;
     await worker.fetch(startRequest(), env);
-    const res = await worker.fetch(
-      new Request("https://ooooh.test/v1/notes", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(notesBody),
-      }),
-      env,
-    );
+    const res = await worker.fetch(jsonRequest("/v1/notes", notesBody), env);
     expect(res.status).toBe(200);
     const day = new Date().toISOString().slice(0, 10);
     expect(await env.BUDGET.get(`budget:anthropic:${day}`)).toBe("3920");
@@ -467,12 +446,7 @@ describe("Anthropic credentials", () => {
   beforeAll(async () => {
     await worker.fetch(startRequest(), env);
   });
-  const request = () =>
-    new Request("https://ooooh.test/v1/compact", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(compactBody),
-    });
+  const request = () => jsonRequest("/v1/compact", compactBody);
 
   it("sends a stored key as a bearer with no oauth beta", async () => {
     expectUpstream({ body: haikuReply });
@@ -500,14 +474,10 @@ describe("Anthropic credentials", () => {
 
   it("keeps the oauth beta next to the fallback beta on the phrase route", async () => {
     expectUpstream({ body: sonnetReply(shortSentence) });
-    const res = await worker.fetch(
-      new Request("https://ooooh.test/v1/phrase", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(phraseBody),
-      }),
-      { ...env, ANTHROPIC_AUTH_TOKEN: "oauth-token" },
-    );
+    const res = await worker.fetch(jsonRequest("/v1/phrase", phraseBody), {
+      ...env,
+      ANTHROPIC_AUTH_TOKEN: "oauth-token",
+    });
     expect(res.status).toBe(200);
     const betas = upstream.requests[0].headers["anthropic-beta"].split(",").sort();
     expect(betas).toEqual(["oauth-2025-04-20", "server-side-fallback-2026-07-01"]);
@@ -691,7 +661,7 @@ describe("POST /v1/phrase", () => {
     expectUpstream({ body: stalled, headers: { "content-type": "text/event-stream" } });
 
     const res = await phraseWith({ callMs: 5000, stallMs: 100 })(
-      direct("/v1/phrase", phraseBody, { accept: "text/event-stream" }),
+      jsonRequest("/v1/phrase", phraseBody, { accept: "text/event-stream" }),
       env,
     );
     expect(res.status).toBe(200);
@@ -826,16 +796,11 @@ describe("POST /v1/speak", () => {
   it("answers a missing secret with 500 misconfigured and no name", async () => {
     expectUpstream();
     await expect(
-      speakWith(deadlines)(direct("/v1/speak", speakBody), { ...env, ELEVENLABS_API_KEY: "" }),
+      speakWith(deadlines)(jsonRequest("/v1/speak", speakBody), { ...env, ELEVENLABS_API_KEY: "" }),
     ).rejects.toMatchObject({ status: 500, body: { error: "misconfigured" } });
   });
 
-  const speakRequest = () =>
-    new Request("https://ooooh.test/v1/speak", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(speakBody),
-    });
+  const speakRequest = () => jsonRequest("/v1/speak", speakBody);
 
   it("returns 503 when the headers do not arrive within the deadline", async () => {
     expectUpstream({ hangs: true });

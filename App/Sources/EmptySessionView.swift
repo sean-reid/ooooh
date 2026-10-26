@@ -21,17 +21,11 @@ struct EmptySessionView: View {
           .padding(.top, 32)
           .accessibilityIdentifier("notes.empty")
         Spacer()
-        Button(action: done) {
-          Text("Done")
-            .font(Typography.body)
-            .frame(maxWidth: .infinity, minHeight: 56)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(Palette.inkOnAmber)
-        .background(Palette.amber, in: Capsule())
-        .padding(.horizontal, 24)
-        .padding(.bottom, 12)
-        .accessibilityIdentifier("notes.done")
+        Button("Done", action: done)
+          .buttonStyle(.amber)
+          .padding(.horizontal, 24)
+          .padding(.bottom, 12)
+          .accessibilityIdentifier("notes.done")
       }
     }
   }

@@ -11,7 +11,7 @@ export function radiusAt(theta, { radius, clock, drift, breath }) {
 }
 
 export function blobPoints(params) {
-  const sq = Math.sqrt(params.stretch ?? 1);
+  const sq = Math.sqrt(params.stretch === undefined ? 1 : params.stretch);
   const points = [];
   for (let i = 0; i < POINT_COUNT; i++) {
     const theta = (i / POINT_COUNT) * 2 * Math.PI;

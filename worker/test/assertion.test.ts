@@ -2,7 +2,6 @@ import { createExecutionContext, env, SELF, waitOnExecutionContext } from "cloud
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import type { DeviceRecord } from "../src/attest/record";
-import { startSession } from "../src/routes/session";
 import { sha256, toBase64 } from "../src/bytes";
 import {
   assertionHeaders,
@@ -17,69 +16,41 @@ import {
   bodyOf,
   compactBody,
   decideBody,
-  fakeUpstream,
   haikuReply,
   jevReply,
+  stubUpstream,
   type FakeUpstream,
 } from "./upstream";
+import { jsonRequest, openSession, origin } from "./request";
+import { attestEnv, counterOf, reason, seedDevice, wipeKV } from "./workers";
 
 let authority: TestRoot;
 let device: Device;
-const attestEnv = (): Env => ({
-  ...env,
-  REQUIRE_ATTESTATION: "true",
-  APP_ATTEST_ENVIRONMENT: "development",
-  APP_ATTEST_ROOT_PEM: authority.rootPem,
-});
 
-const call = (
-  path: string,
-  init: RequestInit = {},
-  environment = attestEnv(),
-  ctx?: ExecutionContext,
-) => worker.fetch(new Request(`https://ooooh.test${path}`, init), environment, ctx);
+const get = (path: string) => worker.fetch(new Request(`${origin}${path}`), attestEnv(authority));
 
 const post = (
   path: string,
   body: string,
   headers: Record<string, string>,
   ctx?: ExecutionContext,
-) =>
-  call(
-    path,
-    { method: "POST", headers: { "content-type": "application/json", ...headers }, body },
-    attestEnv(),
-    ctx,
-  );
+) => worker.fetch(jsonRequest(path, body, headers), attestEnv(authority), ctx);
 
 const sign = (path: string, body: string, counter: number, rest: Partial<SignedRequest> = {}) =>
   assertionHeaders(device, { path, body, counter, ...rest });
 
 const stored = (keyId: string) => env.BUDGET.get<DeviceRecord>(`device:${keyId}`, "json");
-const counterOf = (keyId: string) => env.DEVICE_COUNTER.getByName(keyId).current();
 
 const now = () => Math.floor(Date.now() / 1000);
-
-const reason = async (res: Response) => {
-  expect(res.status).toBe(401);
-  return ((await res.json()) as { reason: string }).reason;
-};
 
 beforeAll(async () => {
   authority = await makeRoot();
 });
 
 beforeEach(async () => {
-  const keys = await env.BUDGET.list();
-  await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
-  device = await makeDevice();
-  const record: DeviceRecord = { publicKey: device.jwk, createdAt: new Date().toISOString() };
-  await env.BUDGET.put(`device:${device.keyId}`, JSON.stringify(record));
-  await startSession(
-    new Request("https://ooooh.test/v1/session/start", { method: "POST" }),
-    env,
-    device.keyId,
-  );
+  await wipeKV();
+  device = await seedDevice();
+  await openSession(env, device.keyId);
 });
 
 describe("assertion middleware", () => {
@@ -87,8 +58,7 @@ describe("assertion middleware", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("lets a signed request through, stores the counter, and rates by the verified key", async () => {
-    upstream = fakeUpstream([{ body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply });
     const body = JSON.stringify(decideBody);
     const res = await post("/v1/decide", body, await sign("/v1/decide", body, 1));
     expect(res.status).toBe(200);
@@ -100,8 +70,7 @@ describe("assertion middleware", () => {
   });
 
   it("keys the rate limit on the verified device, not the address", async () => {
-    upstream = fakeUpstream([{ body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply });
     const body = JSON.stringify(decideBody);
     const headers = {
       ...(await sign("/v1/decide", body, 1)),
@@ -165,8 +134,7 @@ describe("assertion middleware", () => {
   });
 
   it("binds an assertion to the route it was signed for", async () => {
-    upstream = fakeUpstream([{ body: haikuReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: haikuReply });
     const body = JSON.stringify(compactBody);
     const headers = await sign("/v1/compact", body, 1);
     expect(await reason(await post("/v1/notes", body, headers))).toBe("bad-assertion");
@@ -177,8 +145,7 @@ describe("assertion middleware", () => {
   });
 
   it("binds an assertion to the time it carries, within 300 seconds of its own clock", async () => {
-    upstream = fakeUpstream([{ body: jevReply }, { body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply }, { body: jevReply });
     const body = JSON.stringify(decideBody);
     const old = await sign("/v1/decide", body, 1, { time: now() - 301 });
     expect(await reason(await post("/v1/decide", body, old))).toBe("stale");
@@ -200,8 +167,7 @@ describe("assertion middleware", () => {
   });
 
   it("refuses a counter that does not move forward", async () => {
-    upstream = fakeUpstream([{ body: jevReply }, { body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply }, { body: jevReply });
     const body = JSON.stringify(decideBody);
     const headers = await sign("/v1/decide", body, 5);
     expect((await post("/v1/decide", body, headers)).status).toBe(200);
@@ -215,8 +181,7 @@ describe("assertion middleware", () => {
   });
 
   it("lets one of several concurrent copies of an assertion through", async () => {
-    upstream = fakeUpstream([{ body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply });
     const body = JSON.stringify(decideBody);
     const headers = await sign("/v1/decide", body, 1);
     const responses = await Promise.all(
@@ -229,8 +194,7 @@ describe("assertion middleware", () => {
   });
 
   it("moves a counter still stored on the record into the device's object on first use", async () => {
-    upstream = fakeUpstream([{ body: jevReply }, { body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply }, { body: jevReply });
     const record: DeviceRecord = {
       publicKey: device.jwk,
       counter: 3,
@@ -269,13 +233,12 @@ describe("assertion middleware", () => {
   });
 
   it("leaves health and config open", async () => {
-    expect((await call("/health")).status).toBe(200);
-    expect((await call("/v1/config")).status).toBe(200);
+    expect((await get("/health")).status).toBe(200);
+    expect((await get("/v1/config")).status).toBe(200);
   });
 
   it("skips verification when REQUIRE_ATTESTATION is false", async () => {
-    upstream = fakeUpstream([{ body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply });
     await SELF.fetch("https://ooooh.test/v1/session/start", {
       method: "POST",
       headers: { "x-device": "simulator" },

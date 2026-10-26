@@ -10,8 +10,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public var command: Thresholds
   public var densityWindow: TimeInterval
   public var endSilence: TimeInterval
-  public var checkPause: TimeInterval
-  public var minCheckInterval: TimeInterval
+  /// Pause lengths at which the loop asks Jev during silence. After the last, nothing until speech resumes.
+  public var silenceChecks: [TimeInterval]
   /// How long the pause after an utterance has to hold before an armed decision speaks.
   public var armingDelay: TimeInterval
   /// Weight per cue name. The moment score is the largest of goodMoment and each weighted cue.
@@ -27,8 +27,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     command: Thresholds,
     densityWindow: TimeInterval,
     endSilence: TimeInterval,
-    checkPause: TimeInterval,
-    minCheckInterval: TimeInterval,
+    silenceChecks: [TimeInterval] = [5, 11, 20],
     armingDelay: TimeInterval = 1.5,
     cueWeights: [String: Double] = [:],
     cueKinds: [String: InterventionKind] = [:]
@@ -40,8 +39,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     self.command = command
     self.densityWindow = densityWindow
     self.endSilence = endSilence
-    self.checkPause = checkPause
-    self.minCheckInterval = minCheckInterval
+    self.silenceChecks = silenceChecks
     self.armingDelay = armingDelay
     self.cueWeights = cueWeights
     self.cueKinds = cueKinds
@@ -56,8 +54,8 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     command = try c.decode(Thresholds.self, forKey: .command)
     densityWindow = try c.decode(TimeInterval.self, forKey: .densityWindow)
     endSilence = try c.decode(TimeInterval.self, forKey: .endSilence)
-    checkPause = try c.decode(TimeInterval.self, forKey: .checkPause)
-    minCheckInterval = try c.decode(TimeInterval.self, forKey: .minCheckInterval)
+    silenceChecks =
+      try c.decodeIfPresent([TimeInterval].self, forKey: .silenceChecks) ?? [5, 11, 20]
     armingDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .armingDelay) ?? 1.5
     cueWeights = try c.decodeIfPresent([String: Double].self, forKey: .cueWeights) ?? [:]
     cueKinds = try c.decodeIfPresent([String: InterventionKind].self, forKey: .cueKinds) ?? [:]
@@ -86,15 +84,14 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   /// Starting point before any calibration. The eval replaces these numbers.
   public static var initial: GovernorConfig {
     GovernorConfig(
-      version: 4,
+      version: 5,
       floor: FloorRange(min: 30, max: 120),
       speak: Thresholds(probability: 0.9, confidence: 0),
       finished: Thresholds(probability: 0.6, confidence: 0.7),
       command: Thresholds(probability: 0.9, confidence: 0.7),
       densityWindow: 120,
       endSilence: 30,
-      checkPause: 2,
-      minCheckInterval: 3,
+      silenceChecks: [5, 11, 20],
       armingDelay: 1.5,
       cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
       cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]

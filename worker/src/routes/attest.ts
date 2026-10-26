@@ -1,5 +1,5 @@
 import { addressFrom } from "../attest/device";
-import { AttestationError, settingsFrom, verifyAttestation } from "../attest/verify";
+import { AttestationError, verifyAttestation } from "../attest/verify";
 import { fromBase64, toBase64 } from "../bytes";
 import {
   counterFor,
@@ -9,6 +9,7 @@ import {
   type DeviceRecord,
 } from "../attest/record";
 import { HttpError, json, readBody } from "../http";
+import { settings } from "../settings";
 import { obj, str } from "../validate";
 
 const challengeTtlSeconds = 300;
@@ -65,7 +66,7 @@ export async function attest(request: Request, env: Env): Promise<Response> {
       keyId,
       attestationBytes,
       challengeBytes,
-      settingsFrom(env),
+      settings(env).attestation,
     );
     const known = await readDevice(env, keyId);
     const record: DeviceRecord = { publicKey, createdAt: new Date().toISOString() };

@@ -101,10 +101,9 @@ public struct SettingsView: View {
         .accessibilityAddTraits(.isHeader)
       Spacer()
       if let onDone {
-        Button("Done", action: onDone)
+        Button(action: onDone) { Text("Done").tapTarget() }
           .font(.body.weight(.semibold))
           .foregroundStyle(Palette.accent)
-          .frame(minWidth: 44, minHeight: 44)
           .accessibilityIdentifier("settings.done")
       }
     }
