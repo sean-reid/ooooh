@@ -49,6 +49,14 @@ import Testing
     #expect(motion.rests)
   }
 
+  @Test func aRestedOrbPausesOnlyWhileItsInputsStayStill() {
+    #expect(Orb.pauses(true, 0, .resting))
+    #expect(!Orb.pauses(false, 0, .resting))
+    #expect(!Orb.pauses(true, 0.2, .resting))
+    #expect(!Orb.pauses(true, 0, .listening))
+    #expect(!Orb.pauses(true, 0, .offline))
+  }
+
   @Test @MainActor func restingSettlesAfterListeningAndWakesOnLevel() {
     let motion = OrbMotion()
     let start = Date(timeIntervalSinceReferenceDate: 0)

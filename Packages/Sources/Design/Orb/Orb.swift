@@ -32,7 +32,9 @@ public struct Orb: View {
       } else if let time {
         canvas(OrbMotion.still(at: time, level: level, phase: phase))
       } else {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: rests)) { context in
+        TimelineView(
+          .animation(minimumInterval: 1 / 30, paused: Self.pauses(rests, level, phase))
+        ) { context in
           canvas(motion.advance(to: context.date, level: level, phase: phase))
             .onChange(of: motion.rests, initial: true) { _, value in rests = value }
         }
@@ -42,6 +44,12 @@ public struct Orb: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(phase.accessibilityLabel)
     .accessibilityAddTraits(.isImage)
+  }
+
+  /// A paused timeline stops evaluating its content, so the inputs that would wake the orb are
+  /// read here: the pause holds only while the frame rests and nothing has changed.
+  static func pauses(_ rests: Bool, _ level: Double, _ phase: OrbPhase) -> Bool {
+    rests && phase == .resting && level <= 0
   }
 
   private var stillOpacity: Double {
