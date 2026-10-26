@@ -53,8 +53,13 @@
       let decoder = SpeechDecoder(output: output)
       let (engine, player) = graph()
       let feed = Task {
-        for try await chunk in audio {
-          guard mine == generation else { return }
+        var bytes = audio.makeAsyncIterator()
+        while let chunk = try await bytes.next() {
+          guard mine == generation else {
+            // The stream learns of a cancel only inside next(); a chunk that arrived with one needs one more read.
+            if Task.isCancelled { _ = try? await bytes.next() }
+            return
+          }
           for packets in try parser.parse(chunk) {
             guard let pcm = try decoder.decode(packets) else { continue }
             schedule(pcm, on: player, generation: mine)
