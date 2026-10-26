@@ -9,7 +9,6 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --env production",
     "deploy:dry": "wrangler deploy --env production --dry-run --outdir dist",
-    "build": "wrangler deploy --dry-run --outdir dist",
     "lint": "eslint .",
     "format": "prettier --write . ../tools",
     "format:check": "prettier --check . ../tools",
