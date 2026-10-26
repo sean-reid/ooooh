@@ -12,7 +12,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ooooh" />
     <meta property="og:title" content="Privacy, ooooh" />
-    <meta property="og:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that stores nothing, notes in your own iCloud." />
+    <meta property="og:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that keeps no text, notes in your own iCloud." />
     <meta property="og:url" content="https://ooooh.app/privacy.html" />
     <meta property="og:image" content="https://ooooh.app/images/og.png" />
     <meta property="og:image:width" content="1200" />
@@ -20,7 +20,7 @@
     <meta property="og:image:alt" content="A warm amber orb beside the word ooooh on a night sky." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Privacy, ooooh" />
-    <meta name="twitter:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that stores nothing, notes in your own iCloud." />
+    <meta name="twitter:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that keeps no text, notes in your own iCloud." />
     <meta name="twitter:image" content="https://ooooh.app/images/og.png" />
 </head>
   <body class="doc">
@@ -49,13 +49,50 @@
           whether that device has a subscription.
         </p>
         <p>
-          My server keeps counters: how many requests it served, how many
-          minutes, how many prompts, and how many times a provider failed. It
-          also keeps a monthly count of free sessions per device, keyed on an
-          App Attest key identifier, and a per-device count of requests in the
-          last minute that expires within minutes. The key identifier is a
+          My server keeps a few records per device. Each one is keyed on the
+          App Attest key identifier and nothing else. The key identifier is a
           random value Apple issues to your copy of the app. I can't turn it
-          back into you.
+          back into you. The records are:
+        </p>
+        <ul>
+          <li>
+            The public key your phone attested, with a counter that moves
+            forward on every signed request. This record has no expiry. If you
+            delete the app, the next install attests a new key, and the old
+            record stays behind as a public key tied to nothing.
+          </li>
+          <li>
+            The month's count of free sessions and the minutes they ran, kept
+            for 62 days.
+          </li>
+          <li>
+            The subscription record, if the device has one: the product id,
+            the original transaction id, the account token, when Apple signed
+            the transaction, when it expires, when its grace period ends, a
+            revocation date if Apple revoked it, and when my server verified
+            it. The account token is derived from the key identifier, so it
+            names an install, not a person. The record is kept until 30 days
+            after the subscription expires, alongside one note under the
+            original transaction id saying which key identifier first claimed
+            it, kept for the same time.
+          </li>
+          <li>
+            A count of signed requests in the current minute, gone after two
+            minutes. The two calls that enrol a key happen before there is a
+            key identifier, so those are counted per IP address instead, for
+            the same two minutes.
+          </li>
+          <li>
+            A one-time challenge for enrolling a key: 32 random bytes tied to
+            no device, deleted on use or after five minutes.
+          </li>
+        </ul>
+        <p>
+          None of this holds a name, an email address, an Apple ID, audio, or a
+          transcript, and nothing in it links a key identifier to a person.
+          Every signed request also carries the time it was signed. My server
+          checks that the time is within five minutes of its own clock and
+          doesn't store it.
         </p>
 
         <h2>Where your words go and why</h2>
@@ -80,10 +117,12 @@
           <li>ElevenLabs turns each question into speech.</li>
         </ul>
         <p>
-          My server stores none of this. It passes the request through, adds one
-          to a counter, and forgets it. Each provider handles the text under its
-          own terms. I don't know how long each one keeps it, and I'd rather
-          tell you that than guess.
+          My server stores none of this. It passes the request through and
+          forgets it. The one thing it writes is what the call cost, added to a
+          counter per provider per day that carries no device and is kept for
+          three days. Each provider handles the text under its own terms. I
+          don't know how long each one keeps it, and I'd rather tell you that
+          than guess.
         </p>
 
         <h2>What stays on your phone</h2>
@@ -121,8 +160,9 @@
         <p>
           From settings you can delete one session, delete everything, or export
           everything as Markdown. Deleting removes the data from your phone and
-          from your iCloud. My server has nothing to delete except the aggregate
-          counters, which aren't linked to a person.
+          from your iCloud. The records on my server age out on the schedule
+          above, the attested public key excepted, and none of them is linked
+          to you.
         </p>
 
         <h2>Children</h2>
