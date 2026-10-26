@@ -39,6 +39,52 @@ import Testing
     #expect(frame.pose.speed == 0)
   }
 
+  @Test @MainActor func restingAtSilenceRestsFromTheFirstFrame() {
+    let motion = OrbMotion()
+    let start = Date(timeIntervalSinceReferenceDate: 0)
+    let first = motion.advance(to: start, level: 0, phase: .resting)
+    #expect(motion.rests)
+    let later = motion.advance(to: start + 5, level: 0, phase: .resting)
+    #expect(later.clock == first.clock)
+    #expect(motion.rests)
+  }
+
+  @Test @MainActor func restingSettlesAfterListeningAndWakesOnLevel() {
+    let motion = OrbMotion()
+    let start = Date(timeIntervalSinceReferenceDate: 0)
+    _ = motion.advance(to: start, level: 0.3, phase: .listening)
+    #expect(!motion.rests)
+    var restedAt: TimeInterval?
+    var clockAtRest: TimeInterval?
+    for tick in 1...120 {
+      let time = Double(tick) / 30
+      let frame = motion.advance(to: start + time, level: 0, phase: .resting)
+      if motion.rests {
+        if restedAt == nil {
+          restedAt = time
+          clockAtRest = frame.clock
+        } else {
+          #expect(frame.clock == clockAtRest)
+        }
+      }
+    }
+    let settled = try! #require(restedAt)
+    #expect(settled > 1 && settled < 3, "settled after \(settled) s")
+    _ = motion.advance(to: start + 5, level: 0.5, phase: .resting)
+    #expect(!motion.rests)
+  }
+
+  @Test @MainActor func offlineAtSilenceRestsAndListeningNeverDoes() {
+    let motion = OrbMotion()
+    let start = Date(timeIntervalSinceReferenceDate: 0)
+    _ = motion.advance(to: start, level: 0, phase: .offline)
+    #expect(motion.rests)
+    for tick in 1...60 {
+      _ = motion.advance(to: start + Double(tick) / 30, level: 0, phase: .listening)
+    }
+    #expect(!motion.rests)
+  }
+
   @Test func blobStaysClosedAndNearItsRadius() {
     let path = OrbGeometry.blob(
       center: .init(x: 100, y: 100), radius: 50, clock: 2.5, drift: 1, breath: 1, stretch: 1.18)
