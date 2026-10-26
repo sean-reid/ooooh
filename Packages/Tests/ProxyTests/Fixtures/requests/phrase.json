@@ -1,0 +1,53 @@
+{
+  "kind" : "clarify",
+  "lastIntervention" : {
+    "at" : 60,
+    "kind" : "clarify",
+    "text" : "Which part feels least clear?"
+  },
+  "recent" : [
+    {
+      "end" : 126,
+      "start" : 120,
+      "text" : "So the queue keeps retrying and I think that's the actual problem."
+    },
+    {
+      "end" : 133,
+      "start" : 127,
+      "text" : "Or maybe it's the sync layer, I keep going back and forth on that."
+    }
+  ],
+  "state" : {
+    "currentThread" : "Whether to rebuild the sync layer or patch the queue.",
+    "decisions" : [
+
+    ],
+    "lastIntervention" : {
+      "at" : 60,
+      "kind" : "clarify",
+      "text" : "Which part feels least clear?"
+    },
+    "mainIdeas" : [
+      {
+        "id" : "sync-rebuild",
+        "resolved" : false,
+        "text" : "A rebuild would remove the retry queue."
+      }
+    ],
+    "mode" : "exploring",
+    "openQuestions" : [
+      {
+        "id" : "who-owns-sync",
+        "resolved" : false,
+        "text" : "Who owns the sync layer after the move?"
+      }
+    ],
+    "recentTopics" : [
+      "sync",
+      "queue"
+    ],
+    "uncertainties" : [
+
+    ]
+  }
+}
