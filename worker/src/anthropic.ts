@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { HttpError, missingSecret, retryAfterFrom } from "./http";
+import { HttpError, missingSecret, unavailable, upstreamFailure } from "./http";
 
 export const models = {
   compact: "claude-haiku-5-5",
@@ -30,21 +30,14 @@ export const anthropicClient = (cred: Credential, options: { timeout?: number } 
     timeout: options.timeout ?? 30_000,
   });
 
-const unavailable = (retryAfter: number) =>
-  new HttpError(503, { error: "anthropic unavailable", retryAfter });
-
 const isAbort = (e: unknown) =>
   e instanceof Anthropic.APIUserAbortError ||
   (e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError"));
 
 export const upstreamError = (e: unknown): never => {
-  if (isAbort(e)) throw unavailable(1);
-  if (e instanceof Anthropic.RateLimitError) {
-    throw unavailable(retryAfterFrom(e.headers?.get("retry-after")));
-  }
+  if (isAbort(e)) throw unavailable("anthropic", 1);
   if (e instanceof Anthropic.APIError) {
-    console.error("anthropic", e.status, e.message);
-    throw new HttpError(502, { error: "anthropic", status: e.status, detail: "upstream error" });
+    throw upstreamFailure("anthropic", e.status, e.headers?.get("retry-after") ?? null, e.message);
   }
   throw e;
 };

@@ -1,5 +1,13 @@
 import { charge } from "../budget";
-import { HttpError, maxRetryWaitMs, readBody, requireSecret, retryAfterFrom, sleep } from "../http";
+import {
+  maxRetryWaitMs,
+  readBody,
+  requireSecret,
+  retryAfterFrom,
+  sleep,
+  unavailable,
+  upstreamFailure,
+} from "../http";
 import { settings } from "../settings";
 import { obj, str, ValidationError, type Validator } from "../validate";
 
@@ -31,9 +39,6 @@ const body = obj({ text: line });
 
 const isTimeout = (e: unknown) => e instanceof DOMException && e.name === "TimeoutError";
 
-const unavailable = (retryAfter: number) =>
-  new HttpError(503, { error: "elevenlabs unavailable", retryAfter });
-
 const synthesize = async (apiKey: string, voice: string, text: string, fetchMs: number) => {
   const url = `${speech.endpoint}/${encodeURIComponent(voice)}/stream?output_format=${speech.outputFormat}`;
   try {
@@ -44,16 +49,13 @@ const synthesize = async (apiKey: string, voice: string, text: string, fetchMs: 
       signal: AbortSignal.timeout(fetchMs),
     });
   } catch (e) {
-    if (isTimeout(e)) throw unavailable(1);
+    if (isTimeout(e)) throw unavailable("elevenlabs", 1);
     throw e;
   }
 };
 
 const upstreamError = async (res: Response): Promise<never> => {
-  const detail = await res.text();
-  if (res.status === 429) throw unavailable(retryAfterFrom(res.headers.get("retry-after")));
-  console.error("elevenlabs", res.status, detail.slice(0, 500));
-  throw new HttpError(502, { error: "elevenlabs", status: res.status, detail: "upstream error" });
+  throw upstreamFailure("elevenlabs", res.status, res.headers.get("retry-after"), await res.text());
 };
 
 /** Passes the audio through and errors the client stream when no chunk arrives within `stallMs`. */
