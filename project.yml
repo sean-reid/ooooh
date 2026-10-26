@@ -148,6 +148,8 @@ schemes:
     run:
       config: Debug
       storeKitConfiguration: App/Resources/Products.storekit
+      commandLineArguments:
+        "-worker-url https://api.ooooh.app": true
     test:
       config: Debug
       targets:
