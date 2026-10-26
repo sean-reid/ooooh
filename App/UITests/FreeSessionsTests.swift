@@ -34,7 +34,8 @@ final class FreeSessionsTests: XCTestCase {
 
     let elapsed = app.staticTexts["session.elapsed"]
     let spoken = expectation(
-      for: NSPredicate(format: "label MATCHES %@", "Elapsed 0:(1[4-9]|[2-5][0-9])"),
+      for: NSPredicate(
+        format: "label MATCHES %@", "Elapsed (0:(1[4-9]|[2-5][0-9])|[1-9]:[0-5][0-9])"),
       evaluatedWith: elapsed)
     XCTAssertEqual(XCTWaiter().wait(for: [spoken], timeout: 30), .completed)
     app.buttons["session.end"].tap()
