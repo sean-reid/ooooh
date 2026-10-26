@@ -21,7 +21,7 @@ npm test                               # worker tests in the Workers runtime
 npm run dev                            # wrangler dev on http://localhost:8787
 ```
 
-Debug builds talk to `http://localhost:8787`; release builds take `xcodebuild OOOOH_WORKER_URL=https://<your worker> ...`. The simulator cannot transcribe, so Debug builds add a Demo button that replays a recorded fixture through the whole pipeline. Launch arguments for the simulator and the UI tests:
+Debug builds talk to `http://localhost:8787`; release builds take `xcodebuild OOOOH_WORKER_URL=https://<your worker> ...`. The simulator cannot transcribe, so Debug builds add a Demo button that replays a synthetic fixture through the whole pipeline. Launch arguments for the simulator and the UI tests:
 
 | Argument                            | Effect                                       |
 | ----------------------------------- | -------------------------------------------- |

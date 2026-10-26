@@ -27,6 +27,8 @@ targets:
       - App/Sources
       - path: App/Resources
         excludes: [Products.storekit]
+      - path: fixtures/synthetic/estimate/decision.fixture.json
+        buildPhase: resources
     dependencies:
       - package: Packages
         product: Design

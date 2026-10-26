@@ -13,21 +13,21 @@
       decisions: [
         NoteItem(
           id: "make-the-case", text: "Make the case for the park place tonight with the numbers",
-          span: .init(start: 393, end: 410))
+          span: .init(start: 487, end: 510))
       ],
       insights: [
         NoteItem(
           id: "six-hundred-not-thousand",
           text: "The real gap is six hundred a month, not a thousand",
-          span: .init(start: 203, end: 214))
+          span: .init(start: 245, end: 256))
       ],
       openThreads: [
         NoteItem(
           id: "time-versus-money", text: "How Sam and I weight time against money",
-          span: .init(start: 355, end: 369)),
+          span: .init(start: 440, end: 454)),
         NoteItem(
           id: "eighteen-month-lease", text: "Whether the eighteen month lease is a problem",
-          span: .init(start: 315, end: 339)),
+          span: .init(start: 389, end: 415)),
       ])
 
     static func apply(to store: SessionStore) async {

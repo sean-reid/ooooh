@@ -79,10 +79,10 @@ final class StoreCaptureTests: XCTestCase {
     try? await Task.sleep(for: .seconds(2))
     attach(app.screenshot(), named: "store-prompt")
 
-    // Two minutes of the fixture give the notes ideas and insights to show, not only open threads.
-    let twoMinutesIn = expectation(
-      for: NSPredicate(format: "label BEGINSWITH %@", "Elapsed 2:0"), evaluatedWith: elapsed)
-    await fulfillment(of: [twoMinutesIn], timeout: 120)
+    // The seeded notes quote utterance 9, which ends at 2:16, so End waits for 2:20.
+    let pastTheQuote = expectation(
+      for: NSPredicate(format: "label BEGINSWITH %@", "Elapsed 2:2"), evaluatedWith: elapsed)
+    await fulfillment(of: [pastTheQuote], timeout: 150)
     app.buttons["session.end"].tap()
     let notes = app.otherElements["notes.view"]
     XCTAssertTrue(notes.waitForExistence(timeout: 90))

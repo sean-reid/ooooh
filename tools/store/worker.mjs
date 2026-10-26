@@ -98,7 +98,7 @@ async function record(upstream) {
   const root = new URL("../../", import.meta.url);
   const { segments } = JSON.parse(
     await readFile(
-      new URL("App/Resources/Fixtures/decision.fixture.json", root),
+      new URL("fixtures/synthetic/estimate/decision.fixture.json", root),
       "utf8",
     ),
   );
