@@ -18,7 +18,8 @@ public struct PrivacyView: View {
     (
       "What leaves your phone",
       [
-        "Your speech is turned into text on the phone. The audio never leaves it.",
+        "Your speech is turned into text on the phone. The audio never leaves it. The app keeps "
+          + "listening with the screen locked while a session is running.",
         "The transcript and a short structured summary of the session go, as text, through a "
           + "server I run on Cloudflare Workers to three providers. TypeSafe AI runs Jev, which "
           + "decides whether the app should speak. Anthropic runs Claude, which keeps the summary, "
@@ -44,7 +45,9 @@ public struct PrivacyView: View {
         "The open session, so a second start while one is running counts nothing. Four hours.",
         "The subscription record, with an account token derived from the key id, so it names an "
           + "install and not a person. 30 days past the subscription's expiry.",
-        "A count of signed requests in the current minute. Two minutes.",
+        "A count of signed requests in the current minute. Two minutes. The two calls that enrol "
+          + "a key happen before there is a key id, so those are counted per IP address instead, "
+          + "for the same two minutes.",
         "A one-time challenge for enrolling a key. Five minutes, or until it's used.",
         "None of it holds a name, an email address, an Apple ID, audio, or a transcript. Every "
           + "signed request carries the time it was signed; my server checks that against its "
@@ -54,25 +57,17 @@ public struct PrivacyView: View {
     (
       "What stays on your phone",
       [
-        "Notes, transcripts, and settings are stored on the device. Audio is discarded when a "
-          + "session ends. If you keep the audio for a session, it stays in the app's storage on "
-          + "your phone and nowhere else."
-      ]
-    ),
-    (
-      "iCloud",
-      [
-        "With iCloud on, notes, transcripts, and settings sync through your own iCloud account. "
-          + "That data sits under your Apple account and Apple's terms. I have no access to it."
+        "Audio is discarded when a session ends. Notes, transcripts, and settings are stored on "
+          + "the phone and nowhere else."
       ]
     ),
     (
       "Your controls",
       [
-        "From Settings you can delete one session, delete everything, or export everything as "
-          + "Markdown. Deleting removes the data from your phone and your iCloud. The records on "
-          + "my server age out on the schedule above, the attested public key excepted, and none "
-          + "of them is linked to you."
+        "From Settings you can delete one session, delete everything, or export your notes as "
+          + "Markdown. Deleting removes the data from your phone. The records on my server age "
+          + "out on the schedule above, the attested public key excepted, and none of them is "
+          + "linked to you."
       ]
     ),
     (

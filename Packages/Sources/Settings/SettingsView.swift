@@ -86,8 +86,8 @@ public struct SettingsView: View {
       Button("Delete everything", role: .destructive) { deleteEverything() }
     } message: {
       Text(
-        "Removes every session, with its notes, transcript, and kept audio, from this phone. "
-          + "There is no undo.")
+        "Removes every session, with its notes and transcript, from this phone. There is no undo."
+      )
     }
   }
 
@@ -140,11 +140,6 @@ public struct SettingsView: View {
       }
       .toggleStyle(SkyToggleStyle())
       RowDivider()
-      Toggle(isOn: $settings.keepAudioByDefault) {
-        RowLabel(title: "Keep audio", detail: "The default for each new session")
-      }
-      .toggleStyle(SkyToggleStyle())
-      RowDivider()
       ChoiceRow(
         title: "Quiet mode",
         choices: AppSettings.QuietModeOverride.allCases.map { ($0, $0.title) },
@@ -161,7 +156,7 @@ public struct SettingsView: View {
         preview: SharePreview("ooooh export", image: Image(systemName: "doc.zipper"))
       ) {
         HStack(spacing: 12) {
-          RowLabel(title: "Export everything")
+          RowLabel(title: "Export notes")
           Image(systemName: "square.and.arrow.up")
             .font(.footnote.weight(.semibold))
             .foregroundStyle(Palette.inkDim)
@@ -169,7 +164,7 @@ public struct SettingsView: View {
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .accessibilityLabel("Export everything as a zip of Markdown")
+      .accessibilityLabel("Export notes as a zip of Markdown")
       .accessibilityIdentifier("settings.export")
       RowDivider()
       ActionRow(title: "Delete one session", detail: "In History", action: openHistory)
