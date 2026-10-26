@@ -8,6 +8,7 @@ import Observation
 import Persistence
 import Proxy
 import Session
+import Settings
 import State
 import Transcription
 
@@ -61,6 +62,8 @@ final class SessionController {
     var gate: SessionGate?
     /// The Worker's clock as every client in the process learned it. Tests pass their own.
     var clock: WorkerClock = .shared
+    /// The listener switches, read at Start. Nil runs with their defaults.
+    var settings: AppSettings?
   }
 
   private(set) var stage: Stage = .idle
@@ -89,6 +92,7 @@ final class SessionController {
   private var promptPendingSince: Date?
   private var isSpeaking = false
   private var voice: any PromptSpeaking = SilentSpeaker()
+  private var quietOverride: AppSettings.QuietModeOverride = .auto
   private var generator: (any NotesGenerator)?
   private var live: LiveSessionLoop?
   private var observers: [Task<Void, Never>] = []
@@ -159,6 +163,7 @@ final class SessionController {
       case .fixture(let url, let speed):
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
       }
+      quietOverride = environment.settings?.quietModeOverride ?? .auto
       quietMode = isQuiet(environment.audio.route())
 
       let guardian = OfflineGuard(
@@ -209,6 +214,9 @@ final class SessionController {
         config = fixed
       } else {
         config = await fetchConfig(client)
+      }
+      if environment.settings?.challengeEnabled == false {
+        dependencies = ChallengeFilter(config: config).wrap(dependencies)
       }
 
       let live = LiveSessionLoop(
@@ -266,7 +274,11 @@ final class SessionController {
   }
 
   private func isQuiet(_ route: AudioRoute) -> Bool {
-    !(environment.forceVoice || shouldSpeak(route: route))
+    switch quietOverride {
+    case .voice: false
+    case .quiet: true
+    case .auto: !(environment.forceVoice || shouldSpeak(route: route))
+    }
   }
 
   private func fetchConfig(_ client: ProxyClient?) async -> GovernorConfig {

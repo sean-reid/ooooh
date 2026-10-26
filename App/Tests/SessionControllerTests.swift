@@ -1,9 +1,11 @@
+import Audio
 import Foundation
 import Governor
 import Notes
 import Persistence
 import Proxy
 import Session
+import Settings
 import State
 import Synchronization
 import Testing
@@ -410,6 +412,148 @@ import Transcription
     let line = await SettingsSheet.transcriptionLine(for: Locale(identifier: "en_US"))
     let engines = TranscriptionEngine.allCases.map(\.title)
     #expect(engines.contains(line) || line == "Not available for English")
+  }
+
+  /// Listener switches on their own defaults, so no test reads the phone's.
+  func settings(challenge: Bool = true, quiet: AppSettings.QuietModeOverride = .auto) throws
+    -> AppSettings
+  {
+    let suite = "controller-tests-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defaults.removePersistentDomain(forName: suite)
+    let settings = AppSettings(defaults: defaults)
+    settings.challengeEnabled = challenge
+    settings.quietModeOverride = quiet
+    return settings
+  }
+
+  func routedAudio(_ route: AudioRoute, changes: AsyncStream<AudioRoute>) -> AudioAccess {
+    AudioAccess(activate: {}, deactivate: {}, route: { route }, routeChanges: { changes })
+  }
+
+  @Test func automaticQuietModeFollowsTheRoute() async throws {
+    let (routes, route) = AsyncStream.makeStream(of: AudioRoute.self)
+    var environment = environment(
+      deps(firing: .deepen, at: -1), speaker: Recorder(), haptics: Counter())
+    environment.audio = routedAudio(.speaker, changes: routes)
+    environment.settings = try settings(quiet: .auto)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(try openEndedFixture(), speed: 1))
+    #expect(controller.quietMode)
+    route.yield(.headphones)
+    await wait { !controller.quietMode }
+    route.yield(.speaker)
+    await wait { controller.quietMode }
+    await controller.end()
+  }
+
+  @Test func alwaysVoiceSpeaksOnTheSpeaker() async throws {
+    let speaker = Recorder()
+    let haptics = Counter()
+    var environment = environment(
+      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics)
+    environment.settings = try settings(quiet: .voice)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: 20))
+    #expect(!controller.quietMode)
+    await wait { controller.phase == .speaking }
+    #expect(speaker.calls.first == "speak What sits underneath that?")
+    #expect(haptics.count == 0)
+    await wait { controller.stage == .ended }
+    #expect(!controller.quietMode)
+  }
+
+  @Test func alwaysQuietHoldsThroughARouteChange() async throws {
+    let speaker = Recorder()
+    let haptics = Counter()
+    let announcements = Lines()
+    let (routes, route) = AsyncStream.makeStream(of: AudioRoute.self)
+    var environment = environment(
+      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics,
+      announcements: announcements)
+    environment.audio = routedAudio(.headphones, changes: routes)
+    environment.settings = try settings(quiet: .quiet)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: 20))
+    #expect(controller.quietMode)
+    route.yield(.speaker)
+    route.yield(.headphones)
+    await wait { controller.phase == .speaking }
+    #expect(controller.quietMode)
+    #expect(haptics.count == 1)
+    #expect(announcements.lines == ["What sits underneath that?"])
+    await wait { controller.stage == .ended }
+    #expect(speaker.calls.isEmpty)
+    #expect(controller.quietMode)
+  }
+
+  func armed(_ result: SessionResult) -> [ArmedPrompt] {
+    result.records.compactMap {
+      if case .promptArmed(_, let kind) = $0 { kind } else { nil }
+    }
+  }
+
+  @Test func aChallengeArmsNothingWhileTheSwitchIsOff() async throws {
+    var environment = environment(
+      deps(firing: .challenge, at: 14.0), speaker: Recorder(), haptics: Counter())
+    environment.settings = try settings(challenge: false)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    let result = try #require(controller.result)
+    #expect(armed(result).isEmpty)
+    #expect(result.prompts.isEmpty)
+    #expect(controller.lastPrompt == nil)
+    #expect(result.records.contains { if case .check = $0 { true } else { false } })
+
+    var otherKinds = environment
+    otherKinds.dependencies = deps(firing: .deepen, at: 14.0)
+    let deepening = SessionController(environment: otherKinds)
+    await deepening.start(.fixture(shortFixture, speed: .infinity))
+    await wait { deepening.stage == .ended }
+    #expect(armed(try #require(deepening.result)) == [.intervention(.deepen)])
+  }
+
+  @Test func aCueMappedToChallengeArmsNothingWhileTheSwitchIsOff() async throws {
+    var config = GovernorConfig.initial
+    config.cueWeights = ["pushback": 1]
+    config.cueKinds = ["pushback": .challenge]
+    let decisions = ScriptedDecisionProvider { input in
+      var answers = JevAnswers.quiet
+      if input.recentTranscript.last?.end == 14.0 {
+        answers.cues = ["pushback": 0.95]
+        answers.intervention = .init(.deepen, confidence: 0.9)
+      }
+      return answers
+    }
+    var environment = environment(
+      .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
+      speaker: Recorder(), haptics: Counter())
+    environment.config = config
+    environment.settings = try settings(challenge: false)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(armed(try #require(controller.result)).isEmpty)
+  }
+
+  @Test func aChallengeArmsWhileTheSwitchIsOn() async throws {
+    var environment = environment(
+      deps(firing: .challenge, at: 14.0), speaker: Recorder(), haptics: Counter())
+    environment.settings = try settings(challenge: true)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    let result = try #require(controller.result)
+    #expect(armed(result) == [.intervention(.challenge)])
+    #expect(result.prompts.map(\.kind) == [.challenge])
+    #expect(controller.lastPrompt == "What would make that wrong?")
   }
 
   @Test func aFreeSessionPromptsAndPostsItsMinutesAtTheEnd() async throws {
