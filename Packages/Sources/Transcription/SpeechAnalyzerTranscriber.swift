@@ -52,8 +52,11 @@
     private var analyzer: SpeechAnalyzer?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
     private var resultsTask: Task<Void, Never>?
+    private var configurationWatch: Task<Void, Never>?
     private var activity = VoiceActivity()
     private var isRunning = false
+    private var startedAt: ContinuousClock.Instant?
+    private var heardResult = false
 
     public init(
       module: Module = .speechTranscriber, locale: Locale = .current,
@@ -70,12 +73,22 @@
 
     public func start() async throws {
       guard !isRunning else { return }
+      do {
+        try await begin()
+      } catch {
+        log("start failed error=\(String(describing: error))", error: true)
+        throw error
+      }
+    }
+
+    private func begin() async throws {
       let module = try await Self.makeModule(self.module, locale: locale)
-      try await Self.ensureAssets(for: module.speechModule, locale: locale)
+      try await Self.ensureAssets(for: module.speechModule, locale: locale, engine: engine)
       guard
         let format = await SpeechAnalyzer.bestAvailableAudioFormat(
           compatibleWith: [module.speechModule])
       else { throw SpeechAnalyzerError.noCompatibleAudioFormat }
+      log("analyzer format=\(format.logDescription)")
 
       let (input, inputContinuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
       let analyzer = SpeechAnalyzer(modules: [module.speechModule])
@@ -94,12 +107,16 @@
       }
       try installTap(format: format, into: inputContinuation)
       try audioEngine.start()
+      startedAt = .now
       isRunning = true
+      configurationWatch = watchConfiguration()
+      log("started")
     }
 
     public func stop() async {
       guard isRunning else { return }
       isRunning = false
+      configurationWatch?.cancel()
       audioEngine.inputNode.removeTap(onBus: 0)
       audioEngine.stop()
       inputContinuation?.finish()
@@ -109,18 +126,41 @@
     }
 
     private func handle(_ segment: Segment) {
+      if !heardResult, let startedAt {
+        heardResult = true
+        let latency = startedAt.duration(to: .now).wholeMilliseconds
+        log("first result latencyMs=\(latency) final=\(segment.isFinal)")
+      }
       for event in activity.events(for: segment) {
         continuation.yield(event)
       }
     }
 
     private func fail(_ error: any Error) {
+      log("results failed error=\(String(describing: error))", error: true)
       guard isRunning else { return }
       isRunning = false
+      configurationWatch?.cancel()
       audioEngine.inputNode.removeTap(onBus: 0)
       audioEngine.stop()
       inputContinuation?.finish()
       finishStream()
+    }
+
+    /// The engine stops itself when the hardware format changes under it; that is the one way a
+    /// started tap goes quiet without an error.
+    private func watchConfiguration() -> Task<Void, Never> {
+      Task { [weak self] in
+        let changes = NotificationCenter.default.notifications(
+          named: .AVAudioEngineConfigurationChange)
+        for await _ in changes {
+          await self?.logConfigurationChange()
+        }
+      }
+    }
+
+    private func logConfigurationChange() {
+      log("engine configuration changed running=\(audioEngine.isRunning)")
     }
 
     private func finishStream() {
@@ -136,18 +176,35 @@
     ) throws {
       let node = audioEngine.inputNode
       let inputFormat = node.outputFormat(forBus: 0)
+      log("input format=\(inputFormat.logDescription)")
       guard inputFormat.sampleRate > 0 else { throw SpeechAnalyzerError.noMicrophoneInput }
       guard let converter = BufferConverter(from: inputFormat, to: format) else {
         throw SpeechAnalyzerError.audioConversionUnavailable
       }
       let sink = audioSink
+      let monitor = TapMonitor(engine: engine)
       node.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { buffer, _ in
+        monitor.observe(buffer)
         sink?.write(buffer)
         if let converted = converter.convert(buffer) {
           input.yield(AnalyzerInput(buffer: converted))
         }
       }
       audioEngine.prepare()
+    }
+
+    private nonisolated func log(_ message: String, error: Bool = false) {
+      Self.log(message, engine: engine, error: error)
+    }
+
+    private static func log(_ message: String, engine: TranscriptionEngine, error: Bool = false) {
+      if error {
+        transcriptionLog.error(
+          "\(message, privacy: .public) engine=\(engine.rawValue, privacy: .public)")
+      } else {
+        transcriptionLog.info(
+          "\(message, privacy: .public) engine=\(engine.rawValue, privacy: .public)")
+      }
     }
 
     private static func makeModule(_ module: Module, locale: Locale) async throws
@@ -176,14 +233,19 @@
         reportingOptions: [.volatileResults], attributeOptions: [.audioTimeRange])
     }
 
-    private static func ensureAssets(for module: any SpeechModule, locale: Locale) async throws {
+    private static func ensureAssets(
+      for module: any SpeechModule, locale: Locale, engine: TranscriptionEngine
+    ) async throws {
       let status = await AssetInventory.status(forModules: [module])
+      log("assets before=\(String(describing: status))", engine: engine)
       if status == .installed { return }
       if status == .unsupported { throw SpeechAnalyzerError.unsupportedLocale(locale) }
       if let request = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
         try await request.downloadAndInstall()
       }
-      guard await AssetInventory.status(forModules: [module]) == .installed else {
+      let after = await AssetInventory.status(forModules: [module])
+      log("assets after=\(String(describing: after))", engine: engine)
+      guard after == .installed else {
         throw SpeechAnalyzerError.assetsNotInstalled(locale)
       }
     }

@@ -154,6 +154,7 @@ final class SessionController {
         }
         let microphone = engine.makeTranscriber(locale: locale, audioSink: meter)
         try await microphone.start()
+        Self.log.info("Transcribing with \(engine.title, privacy: .public)")
         transcriber = microphone
       case .fixture(let url, let speed):
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
@@ -362,6 +363,10 @@ final class SessionController {
     for observer in observers { observer.cancel() }
     self.result = result
     endedAt = .now
+    let finals = result.transcript.count(where: \.isFinal)
+    Self.log.info(
+      "Session ended segments=\(result.transcript.count, privacy: .public) final=\(finals, privacy: .public)"
+    )
     isSpeaking = false
     promptPending = false
     isHearingSpeech = false

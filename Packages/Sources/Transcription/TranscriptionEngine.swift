@@ -80,19 +80,33 @@ public protocol LiveTranscriber: Transcriber {
       availability.speechTranscriberAvailable = SpeechTranscriber.isAvailable
       availability.speechTranscriberSupportsLocale =
         await SpeechTranscriber.supportedLocale(equivalentTo: locale) != nil
+      var assets = "noLocale"
       if let supported = await DictationTranscriber.supportedLocale(equivalentTo: locale) {
         availability.dictationTranscriberSupportsLocale = true
         let module = SpeechAnalyzerTranscriber.dictationModule(locale: supported)
-        availability.dictationTranscriberAssetsSupported =
-          await AssetInventory.status(forModules: [module]) != .unsupported
+        let status = await AssetInventory.status(forModules: [module])
+        assets = String(describing: status)
+        availability.dictationTranscriberAssetsSupported = status != .unsupported
       }
-      availability.recognizerSupportsOnDevice = SpeechRecognizerTranscriber.supportsOnDevice(
-        locale)
+      let recognizer = SFSpeechRecognizer(locale: locale)
+      availability.recognizerSupportsOnDevice = recognizer?.supportsOnDeviceRecognition ?? false
+      transcriptionLog.info(
+        """
+        probe locale=\(locale.identifier, privacy: .public) \
+        speechTranscriber available=\(availability.speechTranscriberAvailable, privacy: .public) \
+        locale=\(availability.speechTranscriberSupportsLocale, privacy: .public) \
+        dictation locale=\(availability.dictationTranscriberSupportsLocale, privacy: .public) \
+        assets=\(assets, privacy: .public) \
+        recognizer onDevice=\(availability.recognizerSupportsOnDevice, privacy: .public) \
+        available=\(recognizer?.isAvailable ?? false, privacy: .public)
+        """)
       return availability
     }
 
     public static func available(for locale: Locale) async -> TranscriptionEngine? {
-      select(await availability(for: locale))
+      let engine = select(await availability(for: locale))
+      transcriptionLog.info("engine=\(engine?.rawValue ?? "none", privacy: .public)")
+      return engine
     }
 
     public func makeTranscriber(locale: Locale, audioSink: (any AudioBufferSink)?)
