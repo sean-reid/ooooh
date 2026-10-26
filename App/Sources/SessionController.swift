@@ -36,6 +36,8 @@ final class SessionController {
   struct Environment {
     var workerURL: URL?
     var session: URLSession = .shared
+    /// Signs every Worker request when set.
+    var attestor: (any Attestor)?
     var audio: AudioAccess = .device
     /// Set to replace the Worker-fed voice, as the tests do.
     var speaker: (any PromptSpeaking)?
@@ -144,7 +146,9 @@ final class SessionController {
       let guardian = OfflineGuard(
         offline: environment.workerURL == nil && environment.dependencies == nil)
       let client = environment.workerURL.map {
-        ProxyClient(baseURL: $0, session: environment.session, offline: guardian)
+        ProxyClient(
+          baseURL: $0, session: environment.session, attestor: environment.attestor,
+          offline: guardian)
       }
       if let speaker = environment.speaker {
         voice = speaker
