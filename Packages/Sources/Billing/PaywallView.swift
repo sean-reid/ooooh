@@ -10,6 +10,11 @@ public struct PaywallView<Header: View>: View {
   var scrolls = true
   @State private var failure: String?
 
+  /// Shown while the Worker refuses the transaction StoreKit holds; Restore posts it again.
+  public static var unconfirmedLine: String {
+    "Your subscription could not be confirmed with the server. Restore purchases to try again."
+  }
+
   public static var privacyURL: URL { URL(string: "https://ooooh.app/privacy.html")! }
   public static var termsURL: URL { URL(string: "https://ooooh.app/terms.html")! }
 
@@ -57,8 +62,8 @@ public struct PaywallView<Header: View>: View {
         }
       }
       .padding(.top, 8)
-      if let failure {
-        Text(failure)
+      if let line = failure ?? (store.isUnconfirmed ? Self.unconfirmedLine : nil) {
+        Text(line)
           .font(Typography.caption)
           .foregroundStyle(Palette.accent)
       }
@@ -135,7 +140,8 @@ public struct PaywallView<Header: View>: View {
   private func finish(_ action: () async throws -> Entitlement) async {
     do {
       failure = nil
-      if try await action().isPaid { onClose() }
+      let entitlement = try await action()
+      if entitlement.isPaid, !store.isUnconfirmed { onClose() }
     } catch {
       failure = error.localizedDescription
     }

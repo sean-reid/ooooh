@@ -7,6 +7,7 @@ import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
 import { sha256, toBase64, toHex } from "../../src/bytes";
 import { memoryKV, noCounter } from "../kv";
+import { makeStoreChain, signTransaction, transactionPayload, type StoreChain } from "../storekit";
 import {
   compactBody,
   decideBody,
@@ -179,5 +180,70 @@ describe("ProxyTests fixtures", () => {
     ];
     const actual = await call("/v1/phrase", phraseBody, replies, "text/event-stream");
     compare(resolve(fixturesDir, "phrase.sse"), actual);
+  });
+});
+
+const postEntitlement = (device: string, transaction: string, chain: StoreChain) =>
+  worker.fetch(
+    new Request("https://ooooh.test/v1/entitlement", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-device": device },
+      body: JSON.stringify({ transaction }),
+    }),
+    { ...testEnv, APPLE_ROOT_PEM: chain.rootPem },
+  );
+
+// Fixed dates, so the signed transactions and the answers come out the same on every run.
+describe("entitlement fixtures", () => {
+  let chain: StoreChain;
+  let paid: string;
+
+  beforeAll(async () => {
+    chain = await makeStoreChain({
+      leafNotBefore: new Date("2026-01-01T00:00:00Z"),
+      leafNotAfter: new Date("2036-01-01T00:00:00Z"),
+    });
+    paid = await signTransaction(
+      chain,
+      transactionPayload(new Date("2026-10-25T10:00:00Z").getTime(), {
+        appAccountToken: await appAccountTokenFor("fixture-entitled"),
+        expiresDate: new Date("2099-01-01T00:00:00Z").getTime(),
+      }),
+    );
+  });
+
+  it("entitlement-paid.json is a subscription that runs into the future", async () => {
+    const res = await postEntitlement("fixture-entitled", paid, chain);
+    expect(res.status).toBe(200);
+    compare(
+      resolve(fixturesDir, "entitlement-paid.json"),
+      JSON.stringify(await res.json(), null, 2) + "\n",
+    );
+  });
+
+  it("entitlement-free.json is a subscription that ran out", async () => {
+    const lapsed = await signTransaction(
+      chain,
+      transactionPayload(new Date("2026-05-01T00:00:00Z").getTime(), {
+        originalTransactionId: "2000000123456001",
+        appAccountToken: await appAccountTokenFor("fixture-lapsed"),
+        expiresDate: new Date("2026-06-01T00:00:00Z").getTime(),
+      }),
+    );
+    const res = await postEntitlement("fixture-lapsed", lapsed, chain);
+    expect(res.status).toBe(200);
+    compare(
+      resolve(fixturesDir, "entitlement-free.json"),
+      JSON.stringify(await res.json(), null, 2) + "\n",
+    );
+  });
+
+  it("entitlement-refused.json is a second device posting a claimed transaction", async () => {
+    const res = await postEntitlement("fixture-second-phone", paid, chain);
+    expect(res.status).toBe(401);
+    compare(
+      resolve(fixturesDir, "entitlement-refused.json"),
+      JSON.stringify(await res.json(), null, 2) + "\n",
+    );
   });
 });

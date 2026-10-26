@@ -12,7 +12,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ooooh" />
     <meta property="og:title" content="Privacy, ooooh" />
-    <meta property="og:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that keeps no text, notes in your own iCloud." />
+    <meta property="og:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that keeps no text, notes on your phone." />
     <meta property="og:url" content="https://ooooh.app/privacy.html" />
     <meta property="og:image" content="https://ooooh.app/images/og.png" />
     <meta property="og:image:width" content="1200" />
@@ -20,7 +20,7 @@
     <meta property="og:image:alt" content="A warm amber orb beside the word ooooh on a night sky." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Privacy, ooooh" />
-    <meta name="twitter:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that keeps no text, notes in your own iCloud." />
+    <meta name="twitter:description" content="What ooooh does with your words: transcription on the phone, text to three providers through a server that keeps no text, notes on your phone." />
     <meta name="twitter:image" content="https://ooooh.app/images/og.png" />
 </head>
   <body class="doc">
@@ -29,7 +29,7 @@
         <a class="back" href="./">ooooh</a>
         <h1>Privacy policy</h1>
         <p class="updated">
-          Last updated <time datetime="2026-10-25">October 25, 2026</time>
+          Last updated <time datetime="2026-10-26">October 26, 2026</time>
         </p>
       </header>
 
@@ -66,6 +66,10 @@
             for 62 days.
           </li>
           <li>
+            The open session, so a second start while one is running counts
+            nothing. It expires four hours after the start.
+          </li>
+          <li>
             The subscription record, if the device has one: the product id,
             the original transaction id, the account token, when Apple signed
             the transaction, when it expires, when its grace period ends, a
@@ -98,7 +102,8 @@
         <h2>Where your words go and why</h2>
         <p>
           Your speech is transcribed on the phone by Apple's speech framework.
-          The audio never leaves the device.
+          The audio never leaves the device. The app keeps listening with the
+          screen locked while a session is running.
         </p>
         <p>
           The transcript text and a compact structured summary of the session
@@ -127,17 +132,8 @@
 
         <h2>What stays on your phone</h2>
         <p>
-          Raw audio is discarded when a session ends. If you turn on the keep
-          switch for a session, the audio stays in the app's storage on your
-          phone and nowhere else. Notes, transcripts, and settings are stored on
-          the device with SwiftData.
-        </p>
-
-        <h2>iCloud</h2>
-        <p>
-          Notes, transcripts, and settings sync through your own iCloud account
-          using CloudKit. That data sits in your iCloud, under your Apple
-          account and Apple's terms. I have no access to it.
+          Raw audio is discarded when a session ends. Notes, transcripts, and
+          settings are stored on the phone and nowhere else.
         </p>
 
         <h2>Subscriptions</h2>
@@ -150,19 +146,18 @@
 
         <h2>Analytics</h2>
         <p>
-          Crash reports and performance metrics reach me through Apple's
-          MetricKit and Xcode crash reporting, under the analytics settings on
-          your iPhone. If you've turned off sharing with app developers, I get
-          nothing. There is no third-party analytics SDK in the app.
+          Crash reports and performance data reach me only through Apple,
+          under the analytics settings on your iPhone. If you've turned off
+          sharing with app developers, I get nothing. There is no third-party
+          analytics SDK in the app.
         </p>
 
         <h2>Your controls</h2>
         <p>
           From settings you can delete one session, delete everything, or export
-          everything as Markdown. Deleting removes the data from your phone and
-          from your iCloud. The records on my server age out on the schedule
-          above, the attested public key excepted, and none of them is linked
-          to you.
+          your notes as Markdown. Deleting removes the data from your phone. The
+          records on my server age out on the schedule above, the attested
+          public key excepted, and none of them is linked to you.
         </p>
 
         <h2>Children</h2>
