@@ -12,13 +12,11 @@ public enum Palette {
     light: Shade(0.957, 0.937, 0.902), dark: Shade(0.047, 0.051, 0.067))
   public static let skyRaised = adaptive(
     light: Shade(0.914, 0.886, 0.835), dark: Shade(0.086, 0.090, 0.110))
-  public static let amber = adaptive(
-    light: Shade(0.980, 0.741, 0.345), dark: Shade(0.980, 0.741, 0.345))
-  public static let amberDim = adaptive(
-    light: Shade(0.980, 0.741, 0.345, alpha: 0.35), dark: Shade(0.980, 0.741, 0.345, alpha: 0.35))
+  static let amberShade = Shade(0.980, 0.741, 0.345)
+  public static let amber = adaptive(light: amberShade, dark: amberShade)
+  public static let amberDim = adaptive(light: amberShade.alpha(0.35), dark: amberShade.alpha(0.35))
   /// Amber as text, a glyph, or a tint: deeper on the paper so it clears 4.5:1 against the sky.
-  public static let accent = adaptive(
-    light: Shade(0.612, 0.306, 0.027), dark: Shade(0.980, 0.741, 0.345))
+  public static let accent = adaptive(light: Shade(0.612, 0.306, 0.027), dark: amberShade)
   /// Text on an amber fill, dark in both schemes.
   public static let inkOnAmber = adaptive(
     light: Shade(0.118, 0.102, 0.078), dark: Shade(0.047, 0.051, 0.067))
@@ -38,6 +36,15 @@ public enum Palette {
       self.green = green
       self.blue = blue
       self.alpha = alpha
+    }
+
+    func alpha(_ alpha: Double) -> Shade {
+      Shade(red, green, blue, alpha: alpha)
+    }
+
+    /// The shade fixed, not adaptive.
+    var color: Color {
+      Color(red: red, green: green, blue: blue, opacity: alpha)
     }
   }
 
