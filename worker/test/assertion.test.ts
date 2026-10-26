@@ -1,4 +1,4 @@
-import { env, SELF } from "cloudflare:test";
+import { createExecutionContext, env, SELF, waitOnExecutionContext } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import type { DeviceRecord } from "../src/attest/record";
@@ -32,16 +32,31 @@ const attestEnv = (): Env => ({
   APP_ATTEST_ROOT_PEM: authority.rootPem,
 });
 
-const call = (path: string, init: RequestInit = {}, environment = attestEnv()) =>
-  worker.fetch(new Request(`https://ooooh.test${path}`, init), environment);
+const call = (
+  path: string,
+  init: RequestInit = {},
+  environment = attestEnv(),
+  ctx?: ExecutionContext,
+) => worker.fetch(new Request(`https://ooooh.test${path}`, init), environment, ctx);
 
-const post = (path: string, body: string, headers: Record<string, string>) =>
-  call(path, { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
+const post = (
+  path: string,
+  body: string,
+  headers: Record<string, string>,
+  ctx?: ExecutionContext,
+) =>
+  call(
+    path,
+    { method: "POST", headers: { "content-type": "application/json", ...headers }, body },
+    attestEnv(),
+    ctx,
+  );
 
 const sign = (path: string, body: string, counter: number, rest: Partial<SignedRequest> = {}) =>
   assertionHeaders(device, { path, body, counter, ...rest });
 
 const stored = (keyId: string) => env.BUDGET.get<DeviceRecord>(`device:${keyId}`, "json");
+const counterOf = (keyId: string) => env.DEVICE_COUNTER.getByName(keyId).current();
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -58,11 +73,7 @@ beforeEach(async () => {
   const keys = await env.BUDGET.list();
   await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
   device = await makeDevice();
-  const record: DeviceRecord = {
-    publicKey: device.jwk,
-    counter: 0,
-    createdAt: new Date().toISOString(),
-  };
+  const record: DeviceRecord = { publicKey: device.jwk, createdAt: new Date().toISOString() };
   await env.BUDGET.put(`device:${device.keyId}`, JSON.stringify(record));
   await startSession(
     new Request("https://ooooh.test/v1/session/start", { method: "POST" }),
@@ -81,7 +92,7 @@ describe("assertion middleware", () => {
     const body = JSON.stringify(decideBody);
     const res = await post("/v1/decide", body, await sign("/v1/decide", body, 1));
     expect(res.status).toBe(200);
-    expect((await stored(device.keyId))?.counter).toBe(1);
+    expect(await counterOf(device.keyId)).toBe(1);
     expect(upstream.pending()).toBe(0);
     expect(bodyOf(upstream.requests[0])).toMatchObject({ model: "jev-latest" });
     const minute = Math.floor(Date.now() / 60_000);
@@ -119,7 +130,7 @@ describe("assertion middleware", () => {
     expect(await reason(await post("/v1/decide", body, noTime))).toBe("bad-assertion");
     const wordy = { ...noTime, "x-assertion-time": `${time}s` };
     expect(await reason(await post("/v1/decide", body, wordy))).toBe("bad-assertion");
-    expect((await stored(device.keyId))?.counter).toBe(0);
+    expect(await counterOf(device.keyId)).toBe(0);
   });
 
   it("refuses a device it has never seen", async () => {
@@ -150,7 +161,7 @@ describe("assertion middleware", () => {
 
     const garbage = { ...good, "x-assertion": toBase64(new Uint8Array([1, 2, 3])) };
     expect(await reason(await post("/v1/decide", body, garbage))).toBe("bad-assertion");
-    expect((await stored(device.keyId))?.counter).toBe(0);
+    expect(await counterOf(device.keyId)).toBe(0);
   });
 
   it("binds an assertion to the route it was signed for", async () => {
@@ -159,9 +170,9 @@ describe("assertion middleware", () => {
     const body = JSON.stringify(compactBody);
     const headers = await sign("/v1/compact", body, 1);
     expect(await reason(await post("/v1/notes", body, headers))).toBe("bad-assertion");
-    expect((await stored(device.keyId))?.counter).toBe(0);
+    expect(await counterOf(device.keyId)).toBe(0);
     expect((await post("/v1/compact", body, headers)).status).toBe(200);
-    expect((await stored(device.keyId))?.counter).toBe(1);
+    expect(await counterOf(device.keyId)).toBe(1);
     expect(upstream.pending()).toBe(0);
   });
 
@@ -178,13 +189,13 @@ describe("assertion middleware", () => {
     const shifted = { ...(await sign("/v1/decide", body, 1, { time: signedAt })) };
     shifted["x-assertion-time"] = String(signedAt + 1);
     expect(await reason(await post("/v1/decide", body, shifted))).toBe("bad-assertion");
-    expect((await stored(device.keyId))?.counter).toBe(0);
+    expect(await counterOf(device.keyId)).toBe(0);
 
     const ahead = await sign("/v1/decide", body, 1, { time: now() + 299 });
     expect((await post("/v1/decide", body, ahead)).status).toBe(200);
     const behind = await sign("/v1/decide", body, 2, { time: now() - 299 });
     expect((await post("/v1/decide", body, behind)).status).toBe(200);
-    expect((await stored(device.keyId))?.counter).toBe(2);
+    expect(await counterOf(device.keyId)).toBe(2);
     expect(upstream.pending()).toBe(0);
   });
 
@@ -199,7 +210,50 @@ describe("assertion middleware", () => {
       "replay",
     );
     expect((await post("/v1/decide", body, await sign("/v1/decide", body, 6))).status).toBe(200);
-    expect((await stored(device.keyId))?.counter).toBe(6);
+    expect(await counterOf(device.keyId)).toBe(6);
+    expect(upstream.pending()).toBe(0);
+  });
+
+  it("lets one of several concurrent copies of an assertion through", async () => {
+    upstream = fakeUpstream([{ body: jevReply }]);
+    vi.stubGlobal("fetch", upstream.fetch);
+    const body = JSON.stringify(decideBody);
+    const headers = await sign("/v1/decide", body, 1);
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () => post("/v1/decide", body, headers)),
+    );
+    const statuses = responses.map((res) => res.status).sort();
+    expect(statuses).toEqual([200, 401, 401, 401, 401]);
+    expect(await counterOf(device.keyId)).toBe(1);
+    expect(upstream.pending()).toBe(0);
+  });
+
+  it("moves a counter still stored on the record into the device's object on first use", async () => {
+    upstream = fakeUpstream([{ body: jevReply }, { body: jevReply }]);
+    vi.stubGlobal("fetch", upstream.fetch);
+    const record: DeviceRecord = {
+      publicKey: device.jwk,
+      counter: 3,
+      createdAt: new Date().toISOString(),
+    };
+    await env.BUDGET.put(`device:${device.keyId}`, JSON.stringify(record));
+    const body = JSON.stringify(decideBody);
+    expect(await reason(await post("/v1/decide", body, await sign("/v1/decide", body, 3)))).toBe(
+      "replay",
+    );
+    expect((await stored(device.keyId))?.counter).toBe(3);
+    const ctx = createExecutionContext();
+    const res = await post("/v1/decide", body, await sign("/v1/decide", body, 4), ctx);
+    expect(res.status).toBe(200);
+    await waitOnExecutionContext(ctx);
+    const migrated = await stored(device.keyId);
+    expect(migrated?.counter).toBeUndefined();
+    expect(migrated?.publicKey).toEqual(device.jwk);
+    expect(await counterOf(device.keyId)).toBe(4);
+    expect(await reason(await post("/v1/decide", body, await sign("/v1/decide", body, 4)))).toBe(
+      "replay",
+    );
+    expect((await post("/v1/decide", body, await sign("/v1/decide", body, 5))).status).toBe(200);
     expect(upstream.pending()).toBe(0);
   });
 

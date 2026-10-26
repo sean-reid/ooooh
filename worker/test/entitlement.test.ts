@@ -71,11 +71,7 @@ const claim = (originalTransactionId = "2000000123456000") =>
 
 const enrol = async () => {
   const fresh = await makeDevice();
-  const record: DeviceRecord = {
-    publicKey: fresh.jwk,
-    counter: 0,
-    createdAt: new Date().toISOString(),
-  };
+  const record: DeviceRecord = { publicKey: fresh.jwk, createdAt: new Date().toISOString() };
   await env.BUDGET.put(`device:${fresh.keyId}`, JSON.stringify(record));
   return fresh;
 };

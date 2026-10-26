@@ -13,6 +13,8 @@ import { attest, challenge } from "./routes/attest";
 import { endSession, startSession } from "./routes/session";
 import { speak } from "./routes/speak";
 
+export { DeviceCounter } from "./attest/counter";
+
 type Handler = (request: Request, env: Env) => Promise<Response> | Response;
 
 const routes: Record<string, Partial<Record<string, Handler>>> = {

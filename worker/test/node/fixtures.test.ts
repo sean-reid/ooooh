@@ -6,7 +6,7 @@ import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
 import { sha256, toBase64, toHex } from "../../src/bytes";
-import { memoryKV } from "../kv";
+import { memoryKV, noCounter } from "../kv";
 import {
   compactBody,
   decideBody,
@@ -32,6 +32,7 @@ const fixturesDir = resolve(
 export const testEnv: Env = {
   ...vars,
   BUDGET: memoryKV(),
+  DEVICE_COUNTER: noCounter,
   TYPESAFE_API_KEY: "test-jev",
   ANTHROPIC_API_KEY: "test-anthropic",
   ELEVENLABS_API_KEY: "test-elevenlabs",

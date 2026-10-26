@@ -1,7 +1,13 @@
 import { addressFrom } from "../attest/device";
 import { AttestationError, settingsFrom, verifyAttestation } from "../attest/verify";
 import { fromBase64, toBase64 } from "../bytes";
-import { deviceKey, unauthorized, type DeviceRecord } from "../attest/record";
+import {
+  counterFor,
+  deviceKey,
+  readDevice,
+  unauthorized,
+  type DeviceRecord,
+} from "../attest/record";
 import { HttpError, json, readBody } from "../http";
 import { obj, str } from "../validate";
 
@@ -61,13 +67,12 @@ export async function attest(request: Request, env: Env): Promise<Response> {
       challengeBytes,
       settingsFrom(env),
     );
-    const known = await env.BUDGET.get<DeviceRecord>(deviceKey(keyId), "json");
-    const record: DeviceRecord = {
-      publicKey,
-      counter: known?.counter ?? 0,
-      createdAt: new Date().toISOString(),
-    };
-    await env.BUDGET.put(deviceKey(keyId), JSON.stringify(record));
+    const known = await readDevice(env, keyId);
+    const record: DeviceRecord = { publicKey, createdAt: new Date().toISOString() };
+    await Promise.all([
+      env.BUDGET.put(deviceKey(keyId), JSON.stringify(record)),
+      known?.counter === undefined ? undefined : counterFor(env, keyId).raise(known.counter),
+    ]);
   } catch (e) {
     if (e instanceof AttestationError) throw unauthorized(e.reason);
     throw e;
