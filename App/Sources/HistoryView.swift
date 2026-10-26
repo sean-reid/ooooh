@@ -34,7 +34,7 @@ struct HistoryView: View {
           .toolbar(.hidden, for: .navigationBar)
       }
     }
-    .tint(Palette.amber)
+    .tint(Palette.accent)
     .task { await model.load() }
     .task(id: model.query) { await model.search() }
   }
