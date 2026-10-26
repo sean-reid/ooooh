@@ -130,6 +130,15 @@ describe("ProxyTests fixtures", () => {
   const startSession = (device: string) =>
     call("/v1/session/start", {}, [], "application/json", device).then(JSON.parse);
 
+  const endSession = async (device: string) => {
+    const request = new Request("https://ooooh.test/v1/session/end", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-device": device },
+      body: JSON.stringify({ minutes: 1 }),
+    });
+    expect((await worker.fetch(request, testEnv)).status).toBe(204);
+  };
+
   it("session-start-free.json is the first session of the month", async () => {
     const actual = await startSession("fixture-free");
     compare(
@@ -152,7 +161,10 @@ describe("ProxyTests fixtures", () => {
   });
 
   it("session-start-refused.json is the fourth session of the month", async () => {
-    for (let i = 0; i < 3; i++) await startSession("fixture-refused");
+    for (let i = 0; i < 3; i++) {
+      await startSession("fixture-refused");
+      await endSession("fixture-refused");
+    }
     const actual = await startSession("fixture-refused");
     compare(
       resolve(fixturesDir, "session-start-refused.json"),
