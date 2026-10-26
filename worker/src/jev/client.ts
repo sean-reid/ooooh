@@ -1,5 +1,5 @@
 import { HttpError, maxRetryWaitMs, retryAfterFrom, sleep } from "../http";
-import { array, num, obj, oneOf, str, ValidationError, type Validator } from "../validate";
+import { num, obj, oneOf, optional, ValidationError, type Validator } from "../validate";
 import { jevModel, questions, type QuestionName } from "./questions";
 
 export const jevEndpoint = "https://api.typesafe.ai/v1/systemone";
@@ -11,11 +11,16 @@ export const jevTimeoutMs = 5000;
 const noulAnswer = obj({ type: oneOf(["noul"]), noul: num });
 const choiceAnswer = <const T extends readonly string[]>(options: T) =>
   obj({ type: oneOf(["choice"]), choice: oneOf(options), confidence: num });
+// Jev sends the legend as an object keyed by score; older replies sent an array. Neither is read.
+const legend: Validator<unknown> = (v, p) => {
+  if (Array.isArray(v) || (typeof v === "object" && v !== null)) return v;
+  throw new ValidationError(p, "array or object");
+};
 const scoreAnswer = obj({
   type: oneOf(["score"]),
   score: num,
   confidence: num,
-  legend: array(str),
+  legend: optional(legend),
 });
 
 type Question = (typeof questions)[QuestionName];
