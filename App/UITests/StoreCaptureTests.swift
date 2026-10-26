@@ -68,7 +68,7 @@ final class StoreCaptureTests: XCTestCase {
     attach(app.screenshot(), named: "store-listening")
 
     let speaking = orb["Your listener is speaking"]
-    XCTAssertTrue(speaking.waitForExistence(timeout: 120))
+    XCTAssertTrue(speaking.waitForExistence(timeout: 420))
     attach(app.screenshot(), named: "store-speaking")
 
     let listening = orb["Your listener is listening"]
@@ -79,6 +79,10 @@ final class StoreCaptureTests: XCTestCase {
     try? await Task.sleep(for: .seconds(2))
     attach(app.screenshot(), named: "store-prompt")
 
+    // Two minutes of the fixture give the notes ideas and insights to show, not only open threads.
+    let twoMinutesIn = expectation(
+      for: NSPredicate(format: "label BEGINSWITH %@", "Elapsed 2:0"), evaluatedWith: elapsed)
+    await fulfillment(of: [twoMinutesIn], timeout: 120)
     app.buttons["session.end"].tap()
     let notes = app.otherElements["notes.view"]
     XCTAssertTrue(notes.waitForExistence(timeout: 90))
