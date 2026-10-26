@@ -1,6 +1,7 @@
 import Billing
 import Persistence
 import Proxy
+import SwiftUI
 import UIKit
 
 extension SessionController.Environment {
@@ -9,6 +10,7 @@ extension SessionController.Environment {
   static var app: Self {
     var environment = Self(workerURL: WorkerURL.fromBundle)
     environment.haptic = { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+    environment.announce = { AccessibilityNotification.Announcement($0).post() }
     environment.store = AppStore.shared
     environment.attestor = AppAttestor.shared
     #if DEBUG

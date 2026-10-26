@@ -61,13 +61,15 @@ import Transcription
       }, compactor: PassthroughCompactor(), phraser: TemplatePhraser())
   }
 
-  func environment(_ deps: SessionLoop.Dependencies?, speaker: Recorder, haptics: Counter)
-    -> SessionController.Environment
-  {
+  func environment(
+    _ deps: SessionLoop.Dependencies?, speaker: Recorder, haptics: Counter,
+    announcements: Lines? = nil
+  ) -> SessionController.Environment {
     var environment = SessionController.Environment(workerURL: nil)
     environment.audio = .none
     environment.speaker = speaker
     environment.haptic = { haptics.count += 1 }
+    environment.announce = { announcements?.lines.append($0) }
     environment.offlineDelay = .zero
     environment.aboutToSpeakHold = .milliseconds(200)
     environment.dependencies = deps
@@ -76,6 +78,8 @@ import Transcription
   }
 
   final class Counter { var count = 0 }
+
+  final class Lines { var lines: [String] = [] }
 
   /// A fixture session gated through a real `ProxyClient` against `GateProtocol`, answering the
   /// start with `body` for this `host`. With no `deps`, the Worker's own providers run against
@@ -140,8 +144,11 @@ import Transcription
   @Test func quietModeSpeaksThroughTheOrbAndOneHaptic() async throws {
     let speaker = Recorder()
     let haptics = Counter()
+    let announcements = Lines()
     let controller = SessionController(
-      environment: environment(deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics))
+      environment: environment(
+        deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics,
+        announcements: announcements))
 
     await controller.start(.fixture(shortFixture, speed: 20))
     #expect(controller.stage == .running)
@@ -153,6 +160,7 @@ import Transcription
     await wait { controller.phase == .speaking }
     #expect(controller.lastPrompt == "What sits underneath that?")
     #expect(haptics.count == 1)
+    #expect(announcements.lines == ["What sits underneath that?"])
     await wait { controller.phase != .speaking }
     #expect(speaker.calls.isEmpty)
     await wait { controller.stage == .ended }
@@ -183,8 +191,10 @@ import Transcription
   @Test func voiceModeStopsTheLineWhenTheUserSpeaksAgain() async throws {
     let speaker = Recorder()
     let haptics = Counter()
+    let announcements = Lines()
     var environment = environment(
-      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics)
+      deps(firing: .deepen, at: 14.0), speaker: speaker, haptics: haptics,
+      announcements: announcements)
     environment.audio = AudioAccess(
       activate: {}, deactivate: {}, route: { .headphones },
       routeChanges: { AsyncStream { $0.finish() } })
@@ -200,6 +210,7 @@ import Transcription
     await wait { controller.phase != .speaking }
     #expect(controller.lastPrompt == "What sits underneath that?")
     #expect(haptics.count == 0)
+    #expect(announcements.lines.isEmpty)
     await wait { controller.stage == .ended }
     #expect(speaker.calls.count == 2)
   }
