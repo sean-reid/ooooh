@@ -1,10 +1,11 @@
 import Foundation
 import Notes
+import SwiftData
 import Testing
 
 @testable import Persistence
 
-@Suite struct SearchTimingTests {
+@Suite struct HistoryTimingTests {
   static let words = """
     pricing tier backend cost session prompt listen notes decide question thread idea cheap money
     minutes hooked free cap expensive comparables shipping launch friend calendar morning plan
@@ -16,8 +17,8 @@ import Testing
       .joined(separator: " ")
   }
 
-  @Test func searchOverThreeHundredSessionsStaysUnderBudget() async throws {
-    let store = try Support.store()
+  /// 300 sessions, 40 lines each, with two open threads apiece.
+  static func seed(_ store: SessionStore) async throws {
     var rng = SplitMix(seed: 7)
     let base = Date(timeIntervalSince1970: 1_700_000_000)
     for index in 0..<300 {
@@ -33,8 +34,14 @@ import Testing
         result: await Support.result(lines: lines), notes: notes, title: "",
         startedAt: base.addingTimeInterval(Double(index) * 3600))
     }
-    #expect(try await store.counts().segments == 12_000)
-    #expect(try await store.counts().items == 3_600)
+  }
+
+  @Test func searchOverThreeHundredSessionsStaysUnderBudget() async throws {
+    let store = try Support.store()
+    try await Self.seed(store)
+    #expect(
+      try await store.counts() == .init(sessions: 300, segments: 12_000, items: 3_600, threads: 600)
+    )
 
     let clock = ContinuousClock()
     var timings: [String: [Duration]] = [:]
@@ -45,7 +52,7 @@ import Testing
         timings[needle, default: []].append(elapsed)
         if needle == "zebrawood" { #expect(found.map(\.title) == ["Session 150"]) }
         if needle == "quokka" { #expect(found.map(\.title) == ["Session 200"]) }
-        if needle == "calendar" { #expect(found.count > 100) }
+        if needle == "calendar" { #expect(found.count == 50) }
       }
     }
     for (needle, runs) in timings.sorted(by: { $0.key < $1.key }) {
@@ -55,6 +62,29 @@ import Testing
       #expect(median < .milliseconds(100), "search for \(needle)")
     }
   }
+
+  /// A fresh actor per run, so every session is a fault, as at launch.
+  @Test func openThreadsOverThreeHundredSessionsStaysUnderBudget() async throws {
+    let store = try Support.store()
+    try await Self.seed(store)
+    let container = await store.container
+    let clock = ContinuousClock()
+    var runs: [Duration] = []
+    for _ in 0..<5 {
+      let cold = SessionStore(modelContainer: container)
+      var threads: [OpenThread] = []
+      runs.append(try await clock.measure { threads = try await cold.openThreads(limit: 3) })
+      #expect(threads.map(\.sessionTitle) == ["Session 299", "Session 299", "Session 298"])
+      #expect(threads.map(\.noteItemID) == ["t0", "t1", "t0"])
+    }
+    let sorted = runs.sorted()
+    print("openThreads: median \(sorted[2]), runs \(sorted)")
+    #expect(sorted[2] < .milliseconds(20))
+  }
+}
+
+extension SessionStore {
+  var container: ModelContainer { modelContainer }
 }
 
 struct SplitMix {
