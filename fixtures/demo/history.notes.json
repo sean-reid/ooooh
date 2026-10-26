@@ -1,0 +1,33 @@
+{
+  "title": "Carver Street or the park",
+  "ideas": [],
+  "decisions": [
+    {
+      "id": "make-the-case",
+      "text": "Make the case for the park place tonight with the numbers",
+      "span": { "start": 487, "end": 510 }
+    }
+  ],
+  "questions": [],
+  "insights": [
+    {
+      "id": "six-hundred-not-thousand",
+      "text": "The real gap is six hundred a month, not a thousand",
+      "span": { "start": 245, "end": 256 }
+    }
+  ],
+  "actions": [],
+  "openThreads": [
+    {
+      "id": "time-versus-money",
+      "text": "How Sam and I weight time against money",
+      "span": { "start": 440, "end": 454 }
+    },
+    {
+      "id": "eighteen-month-lease",
+      "text": "Whether the eighteen month lease is a problem",
+      "span": { "start": 389, "end": 415 }
+    }
+  ],
+  "quotes": []
+}
