@@ -1,4 +1,3 @@
-import { requiresAttestation } from "../attest/device";
 import { unauthorized } from "../attest/record";
 import {
   appAccountTokenFor,
@@ -9,12 +8,8 @@ import {
   type TransactionClaim,
 } from "../entitlement";
 import { json, readBody } from "../http";
-import {
-  storeKitSettingsFrom,
-  TransactionError,
-  verifyTransaction,
-  type Transaction,
-} from "../storekit/verify";
+import { settings } from "../settings";
+import { TransactionError, verifyTransaction, type Transaction } from "../storekit/verify";
 import { obj, str } from "../validate";
 
 const body = obj({ transaction: str });
@@ -32,9 +27,10 @@ export async function submitEntitlement(
   now = new Date(),
 ): Promise<Response> {
   const { transaction } = await readBody(request, body);
+  const { requireAttestation, storeKit } = settings(env);
   let verified: Transaction;
   try {
-    verified = await verifyTransaction(transaction, storeKitSettingsFrom(env));
+    verified = await verifyTransaction(transaction, storeKit);
   } catch (e) {
     if (e instanceof TransactionError) throw unauthorized("bad-transaction");
     throw e;
@@ -43,7 +39,7 @@ export async function submitEntitlement(
   if (verified.appAccountToken === undefined) throw unauthorized("no-account-token");
   // Without attestation the device is a label, so there is no key id to derive the token from.
   if (
-    requiresAttestation(env) &&
+    requireAttestation &&
     verified.appAccountToken.toLowerCase() !== (await appAccountTokenFor(device))
   ) {
     throw unauthorized("wrong-device");

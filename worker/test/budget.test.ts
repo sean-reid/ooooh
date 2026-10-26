@@ -1,4 +1,4 @@
-import { createExecutionContext, env, SELF, waitOnExecutionContext } from "cloudflare:test";
+import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   charge,
@@ -10,15 +10,15 @@ import {
 } from "../src/budget";
 import { HttpError } from "../src/http";
 import worker from "../src/index";
-import { startSession } from "../src/routes/session";
 import { checkSession } from "../src/session";
 import { MemoryKV } from "./kv";
+import { jsonRequest, openSession } from "./request";
+import { post, wipeKV } from "./workers";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
 import {
   audioBytes,
   compactBody,
   decideBody,
-  fakeUpstream,
   haikuReply,
   jevReply,
   notesBody,
@@ -26,25 +26,14 @@ import {
   phraseBody,
   sonnetReply,
   speakBody,
+  stubUpstream,
   type FakeUpstream,
   type Reply,
 } from "./upstream";
 
 const today = new Date().toISOString().slice(0, 10);
 
-const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
-  SELF.fetch(`https://ooooh.test${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-
-const request = (path: string, body: unknown) =>
-  new Request(`https://ooooh.test${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-device": "direct" },
-    body: JSON.stringify(body),
-  });
+const request = (path: string, body: unknown) => jsonRequest(path, body, { "x-device": "direct" });
 
 const start = (device: string) => post("/v1/session/start", {}, { "x-device": device });
 const end = (device: string, minutes: number) =>
@@ -60,10 +49,7 @@ beforeAll(async () => {
   chain = await makeStoreChain();
 });
 
-beforeEach(async () => {
-  const keys = await env.BUDGET.list();
-  await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
-});
+beforeEach(wipeKV);
 
 describe("budget", () => {
   it("keeps the default cap when the var is not a positive number", async () => {
@@ -234,8 +220,7 @@ describe("guarded routes", () => {
   });
 
   it("charges Jev input tokens from the response", async () => {
-    upstream = fakeUpstream([{ body: { ...jevReply, usage: { input_tokens: 1211 } } }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: { ...jevReply, usage: { input_tokens: 1211 } } });
     await start("charge");
     const res = await post("/v1/decide", decideBody, { "x-device": "charge" });
     expect(res.status).toBe(200);
@@ -253,8 +238,7 @@ describe("guarded routes", () => {
   });
 
   it("answers before the charge lands and settles it in waitUntil", async () => {
-    upstream = fakeUpstream([{ body: { ...jevReply, usage: { input_tokens: 1211 } } }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: { ...jevReply, usage: { input_tokens: 1211 } } });
     const kv = new MemoryKV();
     let pending = 0;
     kv.put = async (key, value) => {
@@ -272,8 +256,7 @@ describe("guarded routes", () => {
   });
 
   it("logs a rate count the store refuses and keeps the 200", async () => {
-    upstream = fakeUpstream([{ body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply });
     const kv = new MemoryKV();
     kv.put = async (key, value) => {
       if (key.startsWith("rate:")) throw new Error("KV PUT failed: 429 Too Many Requests");
@@ -293,8 +276,7 @@ describe("guarded routes", () => {
   });
 
   it("logs a charge the store refuses and keeps the 200", async () => {
-    upstream = fakeUpstream([{ body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply });
     const kv = new MemoryKV();
     kv.put = async (key, value) => {
       if (key.startsWith("budget:")) throw new Error("KV PUT failed: 429 Too Many Requests");
@@ -313,8 +295,7 @@ describe("guarded routes", () => {
 
   it("refuses before calling upstream once the cap is reached", async () => {
     await charge(env, "jev", 20_000_000);
-    upstream = fakeUpstream([]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream();
     await start("capped");
     const res = await post("/v1/decide", decideBody, { "x-device": "capped" });
     expect(res.status).toBe(503);
@@ -325,8 +306,7 @@ describe("guarded routes", () => {
   it("returns 429 once a device has used its minute", async () => {
     const minute = Math.floor(Date.now() / 60_000);
     await env.BUDGET.put(`rate:busy:${minute}`, "59");
-    upstream = fakeUpstream([{ body: jevReply }]);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream({ body: jevReply });
     await start("busy");
     expect((await post("/v1/decide", decideBody, { "x-device": "busy" })).status).toBe(200);
     const res = await post("/v1/decide", decideBody, { "x-device": "busy" });
@@ -338,8 +318,7 @@ describe("guarded routes", () => {
 describe("session gate", () => {
   let upstream: FakeUpstream;
   const expectUpstream = (...replies: Reply[]) => {
-    upstream = fakeUpstream(replies);
-    vi.stubGlobal("fetch", upstream.fetch);
+    upstream = stubUpstream(...replies);
   };
   const device = { "x-device": "gated" };
   const audioReply = (): Reply => ({ body: audioBytes, headers: { "content-type": "audio/mpeg" } });
@@ -395,8 +374,7 @@ describe("session gate", () => {
   it("stops prompts at the allowance and keeps the whole-session routes running", async () => {
     expectUpstream();
     const opened = new Date("2026-10-25T10:00:00Z");
-    const request = new Request("https://ooooh.test/v1/session/start", { method: "POST" });
-    await startSession(request, env, "gated", opened);
+    await openSession(env, "gated", opened);
     const at = (minutes: number) => new Date(opened.getTime() + minutes * 60_000);
     await expect(checkSession("gated", env, "prompt-minutes", at(19.99))).resolves.toBeUndefined();
     const err = await checkSession("gated", env, "prompt-minutes", at(20)).catch((e) => e);
@@ -406,19 +384,14 @@ describe("session gate", () => {
     await expect(checkSession("gated", env, "whole-session", at(180))).resolves.toBeUndefined();
 
     await buyMonth("paid", chain, env, opened.getTime());
-    await startSession(request, env, "paid", opened);
+    await openSession(env, "paid", opened);
     await expect(checkSession("paid", env, "prompt-minutes", at(180))).resolves.toBeUndefined();
   });
 
   it("answers minutes-used on decide, phrase, and speak, and still serves compact and notes", async () => {
     expectUpstream({ body: haikuReply }, { body: opusReply() });
     const longAgo = new Date("2026-01-01T00:00:00Z");
-    await startSession(
-      new Request("https://ooooh.test/v1/session/start", { method: "POST" }),
-      env,
-      "gated",
-      longAgo,
-    );
+    await openSession(env, "gated", longAgo);
     await refused(await post("/v1/decide", decideBody, device), "minutes-used");
     await refused(await post("/v1/phrase", phraseBody, device), "minutes-used");
     await refused(await post("/v1/speak", speakBody, device), "minutes-used");

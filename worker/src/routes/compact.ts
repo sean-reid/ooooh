@@ -2,13 +2,11 @@ import {
   anthropicClient,
   credential,
   models,
-  refused,
-  textOf,
+  structured,
   upstreamError,
   within,
 } from "../anthropic";
-import { chargeModel } from "../budget";
-import { HttpError, json, readBody } from "../http";
+import { json, readBody } from "../http";
 import { compactState, existingIds, listNames, modes, segment, transcriptLines } from "../schema";
 import { array, obj, oneOf, optional, str, ValidationError } from "../validate";
 
@@ -107,36 +105,12 @@ export const compactWith =
         { signal },
       ),
     ).catch(upstreamError);
-    await chargeModel(env, response.model, response.usage);
-
-    if (response.stop_reason === "max_tokens") {
-      throw new HttpError(502, { error: "anthropic truncated", maxTokens: compactMaxTokens });
-    }
-    if (response.stop_reason === "refusal") throw refused(response);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(textOf(response.content));
-    } catch {
-      throw new HttpError(502, { error: "bad patch", field: "", expected: "json" });
-    }
-    let result: StatePatch;
-    try {
-      result = patch(parsed, "");
+    const { value, usage } = await structured(env, response, compactMaxTokens, "bad patch", (p) => {
+      const result = patch(p, "");
       checkIds(result, ids);
-    } catch (e) {
-      if (e instanceof ValidationError) {
-        throw new HttpError(502, { error: "bad patch", field: e.field, expected: e.expected });
-      }
-      throw e;
-    }
-
-    return json({
-      patch: result,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
+      return result;
     });
+    return json({ patch: value, usage });
   };
 
 export const compact = compactWith(compactDeadlineMs);

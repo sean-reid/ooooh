@@ -1,7 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import worker from "../src/index";
-import type { DeviceRecord } from "../src/attest/record";
 import {
   appAccountTokenFor,
   entitlement,
@@ -9,8 +8,10 @@ import {
   type EntitlementRecord,
   type TransactionClaim,
 } from "../src/entitlement";
-import { endSession, startSession } from "../src/routes/session";
-import { assertionHeaders, makeDevice, makeRoot, type Device, type TestRoot } from "./appattest";
+import { endSession } from "../src/routes/session";
+import { assertionHeaders, makeRoot, type Device, type TestRoot } from "./appattest";
+import { jsonRequest, openSession } from "./request";
+import { attestEnv as attested, seedDevice, wipeKV } from "./workers";
 import {
   day,
   makeStoreChain,
@@ -25,25 +26,16 @@ let chain: StoreChain;
 let device: Device;
 let counter = 0;
 
-const attestEnv = (overrides: Partial<Env> = {}): Env => ({
-  ...env,
-  REQUIRE_ATTESTATION: "true",
-  APP_ATTEST_ENVIRONMENT: "development",
-  APP_ATTEST_ROOT_PEM: authority.rootPem,
-  APPLE_ROOT_PEM: chain.rootPem,
-  ...overrides,
-});
+const attestEnv = (overrides: Partial<Env> = {}) =>
+  attested(authority, { APPLE_ROOT_PEM: chain.rootPem, ...overrides });
 
 const submit = async (body: string, overrides: Partial<Env> = {}, from = device) =>
   worker.fetch(
-    new Request("https://ooooh.test/v1/entitlement", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(await assertionHeaders(from, { path: "/v1/entitlement", body, counter: ++counter })),
-      },
+    jsonRequest(
+      "/v1/entitlement",
       body,
-    }),
+      await assertionHeaders(from, { path: "/v1/entitlement", body, counter: ++counter }),
+    ),
     attestEnv(overrides),
   );
 
@@ -69,20 +61,8 @@ const stored = (keyId = device.keyId) =>
 const claim = (originalTransactionId = "2000000123456000") =>
   env.BUDGET.get<TransactionClaim>(`transaction:${originalTransactionId}`, "json");
 
-const enrol = async () => {
-  const fresh = await makeDevice();
-  const record: DeviceRecord = { publicKey: fresh.jwk, createdAt: new Date().toISOString() };
-  await env.BUDGET.put(`device:${fresh.keyId}`, JSON.stringify(record));
-  return fresh;
-};
-
 const start = (now: Date) =>
-  startSession(
-    new Request("https://ooooh.test/v1/session/start", { method: "POST" }),
-    env,
-    device.keyId,
-    now,
-  ).then((res) => res.json() as Promise<Record<string, unknown>>);
+  openSession(env, device.keyId, now).then((res) => res.json() as Promise<Record<string, unknown>>);
 
 beforeAll(async () => {
   authority = await makeRoot();
@@ -90,10 +70,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  const keys = await env.BUDGET.list();
-  await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
+  await wipeKV();
   counter = 0;
-  device = await enrol();
+  device = await seedDevice();
 });
 
 const unauthorized = async (res: Response, reason = "bad-transaction") => {
@@ -192,7 +171,7 @@ describe("binding a transaction to the device", () => {
   });
 
   it("refuses a token derived from another device's key id", async () => {
-    const other = await enrol();
+    const other = await seedDevice();
     await unauthorized(
       await submitTransaction({ appAccountToken: await appAccountTokenFor(other.keyId) }),
       "wrong-device",
@@ -211,7 +190,7 @@ describe("binding a transaction to the device", () => {
 
   it("refuses a second device for a transaction another device claimed", async () => {
     expect((await submitTransaction()).status).toBe(200);
-    const second = await enrol();
+    const second = await seedDevice();
     const res = await submitTransaction({}, { from: second });
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ error: "unauthorized", reason: "wrong-device" });
@@ -311,11 +290,7 @@ describe("entitlement and the session count", () => {
     expect(await entitlement(device.keyId, env, afterExpiry)).toBe("free");
     expect(await start(beforeExpiry)).toEqual({ allowed: true, free: false });
     await endSession(
-      new Request("https://ooooh.test/v1/session/end", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ minutes: 1 }),
-      }),
+      jsonRequest("/v1/session/end", { minutes: 1 }),
       env,
       device.keyId,
       beforeExpiry,

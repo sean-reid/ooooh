@@ -1,5 +1,6 @@
-import { equalBytes, sha256, type Bytes } from "../bytes";
+import { sha256, type Bytes } from "../bytes";
 import { ecdsaDerToRaw } from "../x509";
+import { counterIn, rpIdMatches } from "./authdata";
 import { decodeCbor, field, isBytes } from "./cbor";
 import type { AttestationSettings } from "./verify";
 
@@ -49,10 +50,8 @@ export async function verifyAssertion(
   );
   if (!valid) throw new AssertionError("bad-assertion");
 
-  const rpIdHash = await sha256(new TextEncoder().encode(settings.appId));
-  if (!equalBytes(authenticatorData.subarray(0, 32), rpIdHash)) {
+  if (!(await rpIdMatches(authenticatorData, settings.appId))) {
     throw new AssertionError("bad-assertion");
   }
-
-  return new DataView(authenticatorData.buffer, authenticatorData.byteOffset + 33, 4).getUint32(0);
+  return counterIn(authenticatorData);
 }

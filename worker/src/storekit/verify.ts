@@ -25,12 +25,6 @@ export interface StoreKitSettings {
   rootPem?: string;
 }
 
-export const storeKitSettingsFrom = (env: Env): StoreKitSettings => ({
-  bundleId: env.APP_BUNDLE_ID ?? "com.seanreid.ooooh",
-  environment: env.APP_STORE_ENVIRONMENT === "Sandbox" ? "Sandbox" : "Production",
-  rootPem: env.APPLE_ROOT_PEM,
-});
-
 /** The fields of `JWSTransactionDecodedPayload` the Worker keeps. Dates are ms since the epoch. */
 export interface Transaction {
   productId: (typeof productIds)[number];

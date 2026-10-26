@@ -1,15 +1,10 @@
 import type { DeviceHandler } from "./attest/device";
 import { deferred } from "./defer";
-import { envNumber, HttpError } from "./http";
+import { HttpError } from "./http";
 import { checkSession, readCount, type Window } from "./session";
+import { settings } from "./settings";
 
 export type Provider = "jev" | "anthropic" | "elevenlabs";
-
-const dailyLimit: Record<Provider, (env: Env) => number> = {
-  jev: (env) => envNumber(env.JEV_DAILY_TOKENS, 20_000_000),
-  anthropic: (env) => envNumber(env.ANTHROPIC_DAILY_TOKENS, 700_000),
-  elevenlabs: (env) => envNumber(env.ELEVENLABS_DAILY_CHARACTERS, 20_000),
-};
 
 const day = (now: Date) => now.toISOString().slice(0, 10);
 
@@ -20,7 +15,7 @@ const secondsToMidnight = (now: Date) => {
 
 /** Refuses when today's spend for the provider has reached its cap. */
 export async function checkBudget(env: Env, provider: Provider, now = new Date()): Promise<void> {
-  const limit = dailyLimit[provider](env);
+  const limit = settings(env).dailyLimit[provider];
   const used = await readCount(env.BUDGET, `budget:${provider}:${day(now)}`);
   if (used >= limit) {
     const retryAfter = secondsToMidnight(now);
@@ -79,7 +74,7 @@ export const chargeModel = (
  * goes on.
  */
 export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {
-  const limit = envNumber(env.DEVICE_MINUTE_REQUESTS, 60);
+  const limit = settings(env).deviceMinuteRequests;
   const minute = Math.floor(now.getTime() / 60_000);
   const key = `rate:${device}:${minute}`;
   const used = await readCount(env.BUDGET, key);
