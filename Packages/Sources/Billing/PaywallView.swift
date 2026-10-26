@@ -45,9 +45,15 @@ public struct PaywallView<Header: View>: View {
       Text("A subscription is unlimited sessions and every prompt.")
         .font(Typography.body)
         .foregroundStyle(Palette.ink)
-      VStack(spacing: 12) {
-        ForEach(store.plans) { plan in
-          PlanButton(plan: plan, disabled: store.isPurchasing) { buy(plan.id) }
+      VStack(alignment: .leading, spacing: 12) {
+        if !store.plans.isEmpty {
+          ForEach(store.plans) { plan in
+            PlanButton(plan: plan, disabled: store.isPurchasing) { buy(plan.id) }
+          }
+        } else if store.hasLoadedPlans {
+          noPlans
+        } else {
+          loadingPlans
         }
       }
       .padding(.top, 8)
@@ -76,6 +82,29 @@ public struct PaywallView<Header: View>: View {
     .padding(.bottom, 48)
   }
 
+  private var noPlans: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("The plans couldn't be loaded.")
+        .font(Typography.body)
+        .foregroundStyle(Palette.ink)
+      Button("Try again") { reload() }
+        .font(Typography.body)
+        .foregroundStyle(Palette.amber)
+        .frame(minHeight: 44)
+    }
+  }
+
+  /// Two cards the size of the plan buttons, so the sheet keeps its height when the plans arrive.
+  private var loadingPlans: some View {
+    VStack(spacing: 12) {
+      PlanButton(plan: Plan(id: .monthly, price: "$0.00"), disabled: true) {}
+      PlanButton(plan: Plan(id: .yearly, price: "$00.00", perMonth: "$0.00"), disabled: true) {}
+    }
+    .redacted(reason: .placeholder)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Loading the plans")
+  }
+
   private var bar: some View {
     HStack {
       Spacer()
@@ -97,6 +126,10 @@ public struct PaywallView<Header: View>: View {
 
   private func restore() {
     Task { await finish { try await store.restore() } }
+  }
+
+  private func reload() {
+    Task { try? await store.load() }
   }
 
   private func finish(_ action: () async throws -> Entitlement) async {

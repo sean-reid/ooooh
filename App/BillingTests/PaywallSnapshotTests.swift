@@ -29,11 +29,27 @@ import UIKit
       named: "402-accessibility3-\(scheme.name)")
   }
 
+  @Test(arguments: [ColorScheme.dark, .light])
+  func paywallWithoutPlans(scheme: ColorScheme) {
+    let image = render(store: BillingStore(plans: []), scheme: scheme)
+    assertSnapshot(
+      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+      named: "402-\(scheme.name)")
+  }
+
+  @Test(arguments: [ColorScheme.dark, .light])
+  func paywallLoading(scheme: ColorScheme) {
+    let image = render(store: BillingStore(plans: [], hasLoadedPlans: false), scheme: scheme)
+    assertSnapshot(
+      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+      named: "402-\(scheme.name)")
+  }
+
   private func render(
-    scheme: ColorScheme, width: CGFloat = 402, height: CGFloat = 874,
+    store: BillingStore? = nil, scheme: ColorScheme, width: CGFloat = 402, height: CGFloat = 874,
     type: DynamicTypeSize = .large
   ) -> UIImage {
-    var view = PaywallView(store: BillingStore(plans: Self.plans)) {}
+    var view = PaywallView(store: store ?? BillingStore(plans: Self.plans)) {}
     view.scrolls = false
     let renderer = ImageRenderer(
       content: view.frame(width: width, height: height).environment(\.colorScheme, scheme)
