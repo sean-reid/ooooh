@@ -408,7 +408,8 @@ import Transcription
     #expect(sessions.map(\.id) == [saved])
     #expect(sessions.first?.title == "Pricing and the free tier")
     #expect(sessions.first?.openThreadCount == 1)
-    #expect(sessions.first?.duration == 87.8)
+    #expect(sessions.first?.duration == controller.elapsed(at: .now))
+    #expect(controller.elapsed(at: .now) < 87.8)
     let stored = try #require(try await store.notes(for: saved))
     #expect(stored.title == CannedNotes.notes.title)
     #expect(stored.decisions == CannedNotes.notes.decisions)
@@ -671,7 +672,53 @@ import Transcription
     let end = try JSONSerialization.jsonObject(with: requests[1].body) as? [String: Double]
     let minutes = try #require(end?["minutes"])
     #expect(minutes > 0)
-    #expect(minutes == (controller.elapsed(at: .now) / 60 * 100).rounded() / 100)
+    #expect(minutes == SessionGate.minutes(controller.elapsed(at: .now)))
+  }
+
+  /// Speech ends at 1.0 s, the session runs on in silence, and End comes about three seconds in.
+  /// The clock brackets Start and End, so the bound is what the test measured, not a guess.
+  @Test func theHistoryRowAndTheWorkerGetTheSameMinutesFromStartToEnd() async throws {
+    let host = "minutes"
+    let store = try SessionStore(configuration: .inMemory)
+    var environment = gated(
+      host, answering: try workerFixture("session-start-free"), deps: deps(firing: .deepen, at: -1))
+    environment.store = store
+    let controller = SessionController(environment: environment)
+    let fixture = try write([
+      Segment(
+        text: "okay so the thing I keep coming back to is pricing", start: 0, end: 1.0,
+        isFinal: true),
+      anHourOut,
+    ])
+
+    let clock = ContinuousClock()
+    let beforeStart = clock.now
+    await controller.start(.fixture(fixture, speed: 1))
+    let afterStart = clock.now
+    try await Task.sleep(for: .seconds(3))
+    let beforeEnd = clock.now
+    await controller.end()
+    let afterEnd = clock.now
+    #expect(controller.stage == .ended)
+    #expect(controller.result?.transcript.map(\.end) == [1.0])
+
+    await wait { controller.savedSessionID != nil }
+    let duration = try #require(try await store.sessions().first?.duration)
+    #expect(duration >= seconds(afterStart.duration(to: beforeEnd)))
+    #expect(duration <= seconds(beforeStart.duration(to: afterEnd)))
+    #expect(duration == controller.elapsed(at: .now))
+
+    await wait { GateProtocol.requests(to: host).contains { $0.path == "/v1/session/end" } }
+    let end = try #require(GateProtocol.requests(to: host).last { $0.path == "/v1/session/end" })
+    let body = try JSONSerialization.jsonObject(with: end.body) as? [String: Double]
+    let minutes = try #require(body?["minutes"])
+    #expect(minutes == SessionGate.minutes(duration))
+    #expect(minutes >= 0.05)
+  }
+
+  func seconds(_ duration: Duration) -> TimeInterval {
+    let (seconds, attoseconds) = duration.components
+    return Double(seconds) + Double(attoseconds) / 1e18
   }
 
   @Test func aRefusedSessionListensWithoutAskingForADecision() async throws {

@@ -21,6 +21,11 @@ struct SessionGate: Sendable {
   /// Answers as the Worker does once the month's free sessions are used.
   static let exhausted = SessionGate(
     start: { .refused(reason: "free-exhausted") }, end: { _ in })
+
+  /// Minutes as the end route reads them, to the hundredth.
+  static func minutes(_ seconds: TimeInterval) -> Double {
+    (seconds / 60 * 100).rounded() / 100
+  }
 }
 
 /// The Worker's say on one session as it stands: the start answer once it arrives, and the
