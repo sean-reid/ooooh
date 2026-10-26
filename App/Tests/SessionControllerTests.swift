@@ -490,6 +490,72 @@ import Transcription
     #expect(controller.quietMode)
   }
 
+  func armed(_ result: SessionResult) -> [ArmedPrompt] {
+    result.records.compactMap {
+      if case .promptArmed(_, let kind) = $0 { kind } else { nil }
+    }
+  }
+
+  @Test func aChallengeArmsNothingWhileTheSwitchIsOff() async throws {
+    var environment = environment(
+      deps(firing: .challenge, at: 14.0), speaker: Recorder(), haptics: Counter())
+    environment.settings = try settings(challenge: false)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    let result = try #require(controller.result)
+    #expect(armed(result).isEmpty)
+    #expect(result.prompts.isEmpty)
+    #expect(controller.lastPrompt == nil)
+    #expect(result.records.contains { if case .check = $0 { true } else { false } })
+
+    var otherKinds = environment
+    otherKinds.dependencies = deps(firing: .deepen, at: 14.0)
+    let deepening = SessionController(environment: otherKinds)
+    await deepening.start(.fixture(shortFixture, speed: .infinity))
+    await wait { deepening.stage == .ended }
+    #expect(armed(try #require(deepening.result)) == [.intervention(.deepen)])
+  }
+
+  @Test func aCueMappedToChallengeArmsNothingWhileTheSwitchIsOff() async throws {
+    var config = GovernorConfig.initial
+    config.cueWeights = ["pushback": 1]
+    config.cueKinds = ["pushback": .challenge]
+    let decisions = ScriptedDecisionProvider { input in
+      var answers = JevAnswers.quiet
+      if input.recentTranscript.last?.end == 14.0 {
+        answers.cues = ["pushback": 0.95]
+        answers.intervention = .init(.deepen, confidence: 0.9)
+      }
+      return answers
+    }
+    var environment = environment(
+      .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
+      speaker: Recorder(), haptics: Counter())
+    environment.config = config
+    environment.settings = try settings(challenge: false)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    #expect(armed(try #require(controller.result)).isEmpty)
+  }
+
+  @Test func aChallengeArmsWhileTheSwitchIsOn() async throws {
+    var environment = environment(
+      deps(firing: .challenge, at: 14.0), speaker: Recorder(), haptics: Counter())
+    environment.settings = try settings(challenge: true)
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.stage == .ended }
+    let result = try #require(controller.result)
+    #expect(armed(result) == [.intervention(.challenge)])
+    #expect(result.prompts.map(\.kind) == [.challenge])
+    #expect(controller.lastPrompt == "What would make that wrong?")
+  }
+
   @Test func aFreeSessionPromptsAndPostsItsMinutesAtTheEnd() async throws {
     let seen = Seen()
     let controller = SessionController(

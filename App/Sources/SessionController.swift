@@ -215,6 +215,9 @@ final class SessionController {
       } else {
         config = await fetchConfig(client)
       }
+      if environment.settings?.challengeEnabled == false {
+        dependencies = ChallengeFilter(config: config).wrap(dependencies)
+      }
 
       let live = LiveSessionLoop(
         config: config, dependencies: dependencies, transcriber: transcriber, levels: levels,
