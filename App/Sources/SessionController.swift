@@ -59,6 +59,8 @@ final class SessionController {
     /// Set to ask it before every source, as the tests and `-free-exhausted 1` do. Every source
     /// otherwise asks the Worker when there is one.
     var gate: SessionGate?
+    /// The Worker's clock as every client in the process learned it. Tests pass their own.
+    var clock: WorkerClock = .shared
   }
 
   private(set) var stage: Stage = .idle
@@ -77,6 +79,9 @@ final class SessionController {
   /// The reason of the first 402 the Worker answered in this session, nil while every call
   /// went through.
   private(set) var cutoff: String?
+  /// True while the Worker refuses the time this phone signs with, even corrected by its own
+  /// clock, so every signed call fails and no prompt comes.
+  private(set) var clockRefused = false
 
   private var measuredLevel: Double?
   private var isHearingSpeech = false
@@ -157,10 +162,12 @@ final class SessionController {
 
       let guardian = OfflineGuard(
         offline: environment.workerURL == nil && environment.dependencies == nil)
+      let clockChanges = environment.clock.changes()
+      clockRefused = environment.clock.isRefused
       let client = environment.workerURL.map {
         ProxyClient(
           baseURL: $0, session: environment.session, attestor: environment.attestor,
-          offline: guardian)
+          offline: guardian, clock: environment.clock)
       }
       // The start and end are bookkeeping; the guard watches the provider calls, as it did before
       // the session routes, so a Worker nobody reaches shows offline at the first prompt check.
@@ -168,7 +175,9 @@ final class SessionController {
         environment.gate
         ?? environment.workerURL.map {
           SessionGate.worker(
-            ProxyClient(baseURL: $0, session: environment.session, attestor: environment.attestor))
+            ProxyClient(
+              baseURL: $0, session: environment.session, attestor: environment.attestor,
+              clock: environment.clock))
         }
       let admission = gate.map { gate in
         Admission(start: Task { await Self.admit(gate) }) { [weak self] reason in
@@ -217,6 +226,7 @@ final class SessionController {
             quietMode = isQuiet(route)
           }
         },
+        Task { for await refused in clockChanges { clockRefused = refused } },
       ]
     } catch {
       stage = .failed(StartFailure.message(for: error))
@@ -383,6 +393,7 @@ final class SessionController {
           if let saved { try? await store?.attachNotes(written, to: saved) }
           notes = .written(written)
         } catch {
+          if case ProxyError.clockSkew = error { clockRefused = true }
           notes = .unavailable
         }
       }

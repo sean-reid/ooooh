@@ -89,8 +89,10 @@ import Transcription
   ) -> SessionController.Environment {
     GateProtocol.answer(host, "/v1/session/start", status, body)
     var environment = environment(deps, speaker: Recorder(), haptics: Counter())
+    environment.clock = WorkerClock()
     let client = ProxyClient(
-      baseURL: URL(string: "http://\(host)")!, session: GateProtocol.session())
+      baseURL: URL(string: "http://\(host)")!, session: GateProtocol.session(),
+      clock: environment.clock)
     environment.gate = .worker(client)
     if deps == nil {
       environment.workerURL = client.baseURL
@@ -501,6 +503,38 @@ import Transcription
     #expect(paths.filter { $0 == "/v1/decide" }.count == 1)
     #expect(paths.contains("/v1/compact"))
     #expect(paths.last == "/v1/session/end")
+  }
+
+  @Test func aClockTheWorkerRefusesShowsItsOwnLineAndPromisesNoNotes() async throws {
+    let host = "skewed"
+    let stale = Data(#"{"error":"unauthorized","reason":"stale"}"#.utf8)
+    for path in ["/v1/decide", "/v1/compact", "/v1/phrase", "/v1/notes", "/v1/session/end"] {
+      GateProtocol.answer(host, path, 401, stale)
+    }
+    var environment = gated(host, answering: stale, status: 401, deps: nil)
+    environment.notesGenerator = nil
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.fixture(shortFixture, speed: .infinity))
+    await wait { controller.clockRefused }
+    #expect(controller.clockRefused)
+    #expect(!controller.isOffline)
+    #expect(!controller.promptsRefused)
+    #expect(SessionView.status(for: controller)?.id == "session.clock")
+    #expect(
+      SessionView.status(for: controller)?.text
+        == "listening only, your phone's clock is off, so your listener can't verify it")
+
+    await wait { controller.stage == .ended }
+    await wait { controller.notes == .unavailable }
+    #expect(controller.result?.prompts.isEmpty == true)
+    #expect(controller.lastPrompt == nil)
+    #expect(PendingNotesView.line(for: controller) == PendingNotesView.clockLine)
+    #expect(PendingNotesView.clockLine.hasSuffix(PendingNotesView.noNotes))
+
+    let paths = GateProtocol.requests(to: host).map(\.path)
+    #expect(paths.filter { $0 == "/v1/session/start" }.count == 2)
+    #expect(paths.filter { $0 == "/v1/notes" }.count == 2)
   }
 
   @Test func theEndIsPostedAfterTheNotes() async throws {
