@@ -62,6 +62,10 @@
     private var isRunning = false
     private var startedAt: ContinuousClock.Instant?
     private var heardResult = false
+    private var pauseFinalize: Task<Void, Never>?
+    /// Seconds without a new volatile result before the dictation module is asked to finalize;
+    /// SpeechTranscriber finalizes on its own, DictationTranscriber only when told.
+    static let dictationPause: TimeInterval = 1
 
     public init(
       module: Module = .speechTranscriber, locale: Locale = .current,
@@ -126,6 +130,7 @@
     public func stop() async {
       guard isRunning else { return }
       isRunning = false
+      pauseFinalize?.cancel()
       configurationWatch?.cancel()
       audioEngine.inputNode.removeTap(onBus: 0)
       audioEngine.stop()
@@ -144,12 +149,35 @@
       for event in activity.events(for: segment) {
         continuation.yield(event)
       }
+      guard module == .dictationTranscriber else { return }
+      pauseFinalize?.cancel()
+      if !segment.isFinal { pauseFinalize = scheduleFinalize() }
+    }
+
+    /// Finalizes everything heard so far once no result has followed for `dictationPause`.
+    private func scheduleFinalize() -> Task<Void, Never> {
+      Task { [weak self] in
+        try? await Task.sleep(for: .seconds(Self.dictationPause))
+        guard !Task.isCancelled else { return }
+        await self?.finalizePause()
+      }
+    }
+
+    private func finalizePause() async {
+      guard isRunning, let analyzer else { return }
+      do {
+        try await analyzer.finalize(through: nil)
+        log("finalized on pause")
+      } catch {
+        log("finalize on pause failed error=\(String(describing: error))", error: true)
+      }
     }
 
     private func fail(_ error: any Error) {
       log("results failed error=\(String(describing: error))", error: true)
       guard isRunning else { return }
       isRunning = false
+      pauseFinalize?.cancel()
       configurationWatch?.cancel()
       audioEngine.inputNode.removeTap(onBus: 0)
       audioEngine.stop()
