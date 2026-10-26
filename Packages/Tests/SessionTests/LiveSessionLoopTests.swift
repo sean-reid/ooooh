@@ -59,8 +59,7 @@ import Transcription
 
   @Test func timerFiresPauseChecksWhileNoSpeechArrives() async throws {
     var config = GovernorConfig.initial
-    config.checkPause = 0.5
-    config.minCheckInterval = 0.25
+    config.silenceChecks = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.5]
     let clock = TestClock()
     let (events, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
     let open = OpenTranscriber(stream: events)

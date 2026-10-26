@@ -179,7 +179,7 @@ import Transcription
     #expect(result.records.last == .ended(at: 3.0, byUser: true))
   }
 
-  @Test func theFloorAndTheCheckIntervalStillApply() async throws {
+  @Test func theFloorAndTheScheduleStillApply() async throws {
     var h = await Harness(firing(.deepen, at: [0.5, 3.5]))
     _ = await h.say("one", from: 0, to: 0.5)
     h.advance(to: 2.0)
@@ -196,7 +196,7 @@ import Transcription
     let checks = result.records.compactMap {
       if case .check(let at, _, _, _) = $0 { at } else { nil }
     }
-    #expect(checks == [0.5, 3.5, 8.5, 11.5])
+    #expect(checks == [0.5, 3.5, 8.5])
   }
 
   @Test func armingCutsCollisionsOnTheShortFixture() async throws {
