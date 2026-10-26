@@ -398,6 +398,16 @@ import Transcription
       StartFailure.message(for: CaptureError.speechDenied)
         == "Allow the microphone in Settings to start.")
     #expect(!StartFailure.message(for: SpeechAnalyzerError.noMicrophoneInput).contains("en_US"))
+    let english = Locale(identifier: "en_US")
+    let unsupported = StartFailure.message(for: NoTranscriptionEngine(locale: english))
+    #expect(unsupported == "This phone can't transcribe English on its own.")
+    #expect(unsupported != StartFailure.unavailable)
+  }
+
+  @Test func theSettingsLineNamesTheEngineOrTheLanguage() async {
+    let line = await SettingsSheet.transcriptionLine(for: Locale(identifier: "en_US"))
+    let engines = TranscriptionEngine.allCases.map(\.title)
+    #expect(engines.contains(line) || line == "Not available for English")
   }
 
   @Test func aFreeSessionPromptsAndPostsItsMinutesAtTheEnd() async throws {
