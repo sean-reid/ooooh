@@ -7,10 +7,13 @@
     <link rel="stylesheet" href="../store.css" />
     <link rel="stylesheet" href="../art.css" />
     <style>
-      /* The 2168 by 1030 safe area of the 3840 by 2560 search result, as a share of the width. */
+      /* The 2168 by 1030 safe area of the 3840 by 2560 search result, as a share of the width.
+         The phone shows only the top 2.12 to 1 slice of this card, so the pair sits at 39
+         percent of the height; the tablet shows the whole card. */
       .safe {
         --safe-w: 56.458vw;
         --safe-h: 26.823vw;
+        transform: translateY(-11vh);
       }
     </style>
   </head>

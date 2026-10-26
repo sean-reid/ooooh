@@ -38,4 +38,6 @@ body.art {
     serif;
   letter-spacing: -0.02em;
   color: var(--ink);
+  /* Puts the o's x-height centre, not the line box, on the orb's centre line. */
+  transform: translateY(-0.092em);
 }
