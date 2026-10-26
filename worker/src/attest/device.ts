@@ -16,11 +16,15 @@ export const requiresAttestation = (env: Env) => (env.REQUIRE_ATTESTATION ?? "tr
 /** Key ids are 44 characters of base64; KV refuses keys past 512, so longer labels are not labels. */
 export const maxLabelLength = 128;
 
+/** The client's address as Cloudflare saw it; only `wrangler dev` and the tests leave it unset. */
+export const addressFrom = (request: Request) =>
+  request.headers.get("cf-connecting-ip") ?? "unknown";
+
 /** Who is calling when nothing is verified: the client's own label, else its address. */
-export const callerFrom = (request: Request) => {
+const callerFrom = (request: Request) => {
   const label = request.headers.get("x-device");
   if (label && label.length <= maxLabelLength) return label;
-  return request.headers.get("cf-connecting-ip") ?? "unknown";
+  return addressFrom(request);
 };
 
 /**

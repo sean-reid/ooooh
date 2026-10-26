@@ -515,10 +515,9 @@ describe("POST /v1/phrase", () => {
 
 describe("labels", () => {
   it("falls back to the address when x-device is too long for a KV key", async () => {
-    const res = await SELF.fetch("https://ooooh.test/v1/challenge", {
-      headers: { "x-device": "d".repeat(600) },
-    });
+    const res = await post("/v1/session/start", {}, { "x-device": "d".repeat(600) });
     expect(res.status).toBe(200);
+    expect(await env.BUDGET.get("session:unknown")).not.toBeNull();
   });
 
   it("refuses a challenge of the wrong length before looking it up", async () => {

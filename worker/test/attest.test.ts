@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import type { DeviceRecord } from "../src/attest/record";
 import { appleAppAttestRootPem } from "../src/attest/root";
@@ -280,5 +280,65 @@ describe("POST /v1/attest", () => {
       crypto.getRandomValues(new Uint8Array(40)),
     );
     expect(await reason(garbage)).toBe("bad-format");
+  });
+});
+
+describe("the address limit on challenge and attest", () => {
+  const address = "203.0.113.9";
+  const pinned = new Date("2026-10-25T10:00:05Z");
+  const minute = Math.floor(pinned.getTime() / 60_000);
+  const headersFor = (label: string, ip: string) => ({ "x-device": label, "cf-connecting-ip": ip });
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(pinned);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const challengeAs = (label: string, ip = address) =>
+    fetchWorker("/v1/challenge", { headers: headersFor(label, ip) });
+  const attestAs = (label: string, ip = address) =>
+    fetchWorker("/v1/attest", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headersFor(label, ip) },
+      body: JSON.stringify({ keyId: "k", attestation: "AAAA", challenge: "A".repeat(600) }),
+    });
+  const seventy = async (send: (i: number) => Promise<Response>) => {
+    const responses: Response[] = [];
+    for (let i = 0; i < 70; i++) responses.push(await send(i));
+    return responses;
+  };
+  const statuses = (responses: Response[]) => responses.map((r) => r.status);
+
+  it("counts challenges per address, whatever label the client sends", async () => {
+    const responses = await seventy((i) => challengeAs(`label-${i}`));
+    expect(statuses(responses.slice(0, 10))).toEqual(Array(10).fill(200));
+    expect(statuses(responses.slice(10))).toEqual(Array(60).fill(429));
+    const refused = responses[10];
+    expect(refused.headers.get("retry-after")).toBe("55");
+    expect(await refused.json()).toEqual({ error: "rate", limit: 10, retryAfter: 55 });
+    expect(await env.BUDGET.get(`attest-rate:${address}:${minute}`)).toBe("10");
+  });
+
+  it("lets 70 addresses each have a challenge", async () => {
+    const responses = await seventy((i) => challengeAs(`label-${i}`, `198.51.100.${i}`));
+    expect(statuses(responses)).toEqual(Array(70).fill(200));
+  });
+
+  it("counts attestations the same way", async () => {
+    const responses = await seventy((i) => attestAs(`label-${i}`));
+    expect(statuses(responses.slice(0, 10))).toEqual(Array(10).fill(401));
+    expect(statuses(responses.slice(10))).toEqual(Array(60).fill(429));
+    expect(statuses(await seventy((i) => attestAs(`label-${i}`, `198.51.100.${i}`)))).toEqual(
+      Array(70).fill(401),
+    );
+  });
+
+  it("never touches a verified device's provider rate key", async () => {
+    const device = await enrol();
+    for (let i = 0; i < 3; i++) expect((await challengeAs(device.keyId)).status).toBe(200);
+    expect(await env.BUDGET.get(`rate:${device.keyId}:${minute}`)).toBeNull();
+    expect(await env.BUDGET.get(`rate:${address}:${minute}`)).toBeNull();
+    expect(await env.BUDGET.get(`attest-rate:${address}:${minute}`)).toBe("3");
   });
 });
