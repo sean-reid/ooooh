@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.3.0](https://github.com/sean-reid/ooooh/compare/v0.2.0...v0.3.0) (2026-10-26)
+
+
+### Features
+
+* **app:** attest in production from development builds ([#114](https://github.com/sean-reid/ooooh/issues/114)) ([9211082](https://github.com/sean-reid/ooooh/commit/9211082cc2a509b423f0485d44315240ec8cd481))
+* **app:** session gating through the Worker and the paywall after the last free session ([#72](https://github.com/sean-reid/ooooh/issues/72)) ([be69b64](https://github.com/sean-reid/ooooh/commit/be69b64d88e150ac015e1380d4f7c2e560b75cee))
+* **app:** settings from the home screen, signed purchases, and refused sessions off the Worker ([#81](https://github.com/sean-reid/ooooh/issues/81)) ([c41a668](https://github.com/sean-reid/ooooh/commit/c41a6684b972c132206e3a6d1eb338cc32d98c51))
+* **billing:** post each verified transaction to the Worker ([#151](https://github.com/sean-reid/ooooh/issues/151)) ([0e4a918](https://github.com/sean-reid/ooooh/commit/0e4a918dbda2c88abcf9713a972ddf0ac4808e5d))
+* **store:** render the product-page header and search artwork ([#110](https://github.com/sean-reid/ooooh/issues/110)) ([504475e](https://github.com/sean-reid/ooooh/commit/504475e05f819956c75421326a8af8b0e747e251))
+* **tools:** render the App Store screenshots and cut the preview ([#89](https://github.com/sean-reid/ooooh/issues/89)) ([cb1d202](https://github.com/sean-reid/ooooh/commit/cb1d202891c78cfc9458c1ed6dbb20821c4e5b77))
+* **tools:** seed the store stand-in from one real run ([#102](https://github.com/sean-reid/ooooh/issues/102)) ([928b4c7](https://github.com/sean-reid/ooooh/commit/928b4c7962cf8834aec4ad4c46c870ecf2fbf223))
+* transcribe on phones that lack SpeechTranscriber ([#153](https://github.com/sean-reid/ooooh/issues/153)) ([121751c](https://github.com/sean-reid/ooooh/commit/121751c703da638745746b8cb81801b722de0dcb))
+* **transcription:** log the engine probe, the tap, and the first result ([#178](https://github.com/sean-reid/ooooh/issues/178)) ([25c87ad](https://github.com/sean-reid/ooooh/commit/25c87adf3c4e70193a7ebbbaa7ef68b3d9ffbe6f))
+* **worker:** gate provider routes on an open session and weight the Anthropic cap ([#77](https://github.com/sean-reid/ooooh/issues/77)) ([82b3b6d](https://github.com/sean-reid/ooooh/commit/82b3b6d836ecd4565ddf10e679ee221f063b9e0e))
+
+
+### Bug Fixes
+
+* 44 pt tap targets, 3:1 component edges, VoiceOver prompts, one amber style ([#165](https://github.com/sean-reid/ooooh/issues/165)) ([e286b76](https://github.com/sean-reid/ooooh/commit/e286b76b3fce6a0a7c8e93bb76041a32b4811f51))
+* accent token for the paywall text and the history tint ([#112](https://github.com/sean-reid/ooooh/issues/112)) ([95e210e](https://github.com/sean-reid/ooooh/commit/95e210e7d364a97ab3d56822c3893fd25b235d01))
+* **app:** bill and show the same session minutes, wall clock from start to End ([#184](https://github.com/sean-reid/ooooh/issues/184)) ([69705bf](https://github.com/sean-reid/ooooh/commit/69705bffd09400881337b11842d15d20aadc9c00))
+* **app:** bundle the one decision fixture from the eval corpus ([#162](https://github.com/sean-reid/ooooh/issues/162)) ([c4d0312](https://github.com/sean-reid/ooooh/commit/c4d0312281910301a8148ed683c927a5960a0e72))
+* **app:** declare local network use so a Debug build can reach a Mac Worker ([#175](https://github.com/sean-reid/ooooh/issues/175)) ([e8d17eb](https://github.com/sean-reid/ooooh/commit/e8d17eb3aee3807bbd362cd2d3b11a230eb38c61))
+* **app:** draw the pending notes Done label in ink on amber ([#116](https://github.com/sean-reid/ooooh/issues/116)) ([01af27a](https://github.com/sean-reid/ooooh/commit/01af27a285476a892b6a755c93200769e4a98b47))
+* **app:** no audio engine at session start, and UI tests that wait on conditions ([#159](https://github.com/sean-reid/ooooh/issues/159)) ([a55640e](https://github.com/sean-reid/ooooh/commit/a55640e3acbb0af80351d47ef51f5288f6bf2ce2))
+* **app:** one cancellation path for End, barge-in, and a cancelled arm ([#181](https://github.com/sean-reid/ooooh/issues/181)) ([4213b89](https://github.com/sean-reid/ooooh/commit/4213b894db345d704bbb508f969cafe7c1591ed7))
+* **app:** open a Worker session for the demo too ([#94](https://github.com/sean-reid/ooooh/issues/94)) ([b03af8a](https://github.com/sean-reid/ooooh/commit/b03af8ab27643eb5167663f7103964d5b6bdb84e))
+* **app:** read phone microphone levels and log why the Worker went offline ([#182](https://github.com/sean-reid/ooooh/issues/182)) ([b5cf7f1](https://github.com/sean-reid/ooooh/commit/b5cf7f13393eab337047bff7846cf2f4b65b4107))
+* bind a StoreKit transaction to the install that posts it ([#69](https://github.com/sean-reid/ooooh/issues/69)) ([0adc822](https://github.com/sean-reid/ooooh/commit/0adc82271e2d9303ea7a2d22aa9326a64bce3bd2))
+* bind assertions to the route and time, and keep the counter on re-attest ([#68](https://github.com/sean-reid/ooooh/issues/68)) ([4d31bbe](https://github.com/sean-reid/ooooh/commit/4d31bbe97575c735c9358cea6c5764c123000520))
+* **eval:** open a session and honor the rate limit in live recording ([#113](https://github.com/sean-reid/ooooh/issues/113)) ([32090e0](https://github.com/sean-reid/ooooh/commit/32090e099add6ba0c83851afb4b2524a944af819))
+* learn the Worker's clock from a stale 401 and stop promising notes ([#173](https://github.com/sean-reid/ooooh/issues/173)) ([28d5023](https://github.com/sean-reid/ooooh/commit/28d5023f8ee0b6031b1623de1b7cf93f5221c637))
+* paywall empty state and the in-app policy's server records ([#105](https://github.com/sean-reid/ooooh/issues/105)) ([eb5c9c6](https://github.com/sean-reid/ooooh/commit/eb5c9c6bfa0d951df66691f822f1479cd9bbfe10))
+* **proxy:** check the attest key id write and fetch the challenge before the key ([#172](https://github.com/sean-reid/ooooh/issues/172)) ([18db971](https://github.com/sean-reid/ooooh/commit/18db971516c81defdd4631f082876d8582d55fc4))
+* seed the demo history from one bundled notes JSON ([#171](https://github.com/sean-reid/ooooh/issues/171)) ([744e405](https://github.com/sean-reid/ooooh/commit/744e405684370cccee55c5e2831592f676528827))
+* **session:** keep the last sentence on End, compact once, and check with recent words ([#179](https://github.com/sean-reid/ooooh/issues/179)) ([95a605a](https://github.com/sean-reid/ooooh/commit/95a605a542d1fa4d74754689872190957c582ebf))
+* **settings:** wire the Challenge prompts and Quiet mode switches ([#180](https://github.com/sean-reid/ooooh/issues/180)) ([1be44af](https://github.com/sean-reid/ooooh/commit/1be44af277d2fd3c133cb116cf16953c46d9200d))
+* **site:** set each section on a centred 48ch measure ([#96](https://github.com/sean-reid/ooooh/issues/96)) ([dff9514](https://github.com/sean-reid/ooooh/commit/dff9514b6903d5e58092831c99a14cd28dba1ec9))
+* **worker:** Anthropic body deadlines and fixed 502 detail ([#97](https://github.com/sean-reid/ooooh/issues/97)) ([dbb33eb](https://github.com/sean-reid/ooooh/commit/dbb33eb6b9ff38b888b3a79e0c2f0b41d4ed7a6a))
+* **worker:** count free sessions once the phone starts and move the counters into Durable Objects ([#169](https://github.com/sean-reid/ooooh/issues/169)) ([952b44e](https://github.com/sean-reid/ooooh/commit/952b44ee483b97cf41a8252b7ab277b71bd7cb3e))
+* **worker:** move a subscription claim to the key that posts it after the old key goes quiet ([#183](https://github.com/sean-reid/ooooh/issues/183)) ([f186e0d](https://github.com/sean-reid/ooooh/commit/f186e0d2e237682131145220df9c501414c84284))
+* **worker:** rate-limit challenge and attest per client address ([#79](https://github.com/sean-reid/ooooh/issues/79)) ([2c822d3](https://github.com/sean-reid/ooooh/commit/2c822d34b60647682d3885bf4943d91115794bfb))
+* **worker:** run charges on one budget key in order ([#111](https://github.com/sean-reid/ooooh/issues/111)) ([5d137b5](https://github.com/sean-reid/ooooh/commit/5d137b50da1174d3f998a395583ffbf5c00c5a0e))
+* **worker:** take Jev's legend as the object it sends ([#90](https://github.com/sean-reid/ooooh/issues/90)) ([0fdd7f5](https://github.com/sean-reid/ooooh/commit/0fdd7f503c24fabbc3fdbc7a05c35be8e07b69c4))
+* **worker:** the audit's quick wins, and a README a third the size ([#66](https://github.com/sean-reid/ooooh/issues/66)) ([284fca7](https://github.com/sean-reid/ooooh/commit/284fca7d8a7d3c997c8b8511e797fc789cf2d079))
+* **worker:** validate the whole Jev reply before it reaches the phone ([#73](https://github.com/sean-reid/ooooh/issues/73)) ([ae7d630](https://github.com/sean-reid/ooooh/commit/ae7d63020c61dfe0be86dd3b034429554d436601))
+
+
+### Performance
+
+* **design:** pause the orb timeline once it rests ([#166](https://github.com/sean-reid/ooooh/issues/166)) ([733f9fb](https://github.com/sean-reid/ooooh/commit/733f9fbe2cc1b5d61329142f86190892f4c27008))
+* **governor:** check on a silence schedule instead of every 3 s ([#160](https://github.com/sean-reid/ooooh/issues/160)) ([90182a3](https://github.com/sean-reid/ooooh/commit/90182a3c19d1a94a66d0e8f223c1b1554bbd2acd))
+* **history:** bound the history queries and surface a failed delete ([#163](https://github.com/sean-reid/ooooh/issues/163)) ([65fe68b](https://github.com/sean-reid/ooooh/commit/65fe68b36fc0e748d884b59a7a7d0ce24e6b6c09))
+* **site:** pause the orb out of view, shrink the screenshot, fix link rows ([#164](https://github.com/sean-reid/ooooh/issues/164)) ([3029f1b](https://github.com/sean-reid/ooooh/commit/3029f1bf7487c801e40b116e8d6034cd2a88fef3))
+* **worker:** call ElevenLabs with fetch and put a deadline on the audio body ([#75](https://github.com/sean-reid/ooooh/issues/75)) ([bad5d81](https://github.com/sean-reid/ooooh/commit/bad5d81fcc0c5a1b7b0539ccd6ca88fcf9fe655f))
+* **worker:** take KV writes off the hot path and move the assertion counter into a Durable Object ([#100](https://github.com/sean-reid/ooooh/issues/100)) ([7833bbc](https://github.com/sean-reid/ooooh/commit/7833bbcfb22b07406e0e6bcff2bc64e352b5bc15))
+
 ## [0.2.0](https://github.com/sean-reid/ooooh/compare/v0.1.0...v0.2.0) (2026-10-25)
 
 
