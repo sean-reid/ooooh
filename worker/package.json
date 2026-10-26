@@ -13,7 +13,7 @@
     "format": "prettier --write . ../tools",
     "format:check": "prettier --check . ../tools",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run && node --test test/rotate.test.mjs",
+    "test": "node --test test/rotate.test.mjs && vitest run",
     "types": "wrangler types"
   },
   "devDependencies": {
