@@ -305,7 +305,8 @@ describe("entitlement fixtures", () => {
     );
   });
 
-  it("entitlement-refused.json is a second device posting a claimed transaction", async () => {
+  it("entitlement-refused.json is a second device posting a transaction an active device claimed", async () => {
+    await testEnv.DEVICE_COUNTER.getByName("fixture-entitled").advance(1);
     const res = await postEntitlement("fixture-second-phone", paid, chain);
     expect(res.status).toBe(401);
     compare(
