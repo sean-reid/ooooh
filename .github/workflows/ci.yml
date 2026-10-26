@@ -47,6 +47,16 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: node --test ../site/site.test.mjs ../tools/synth/*.test.mjs ../tools/labeler/*.test.mjs
+      - run: npm run coverage
+      - name: coverage totals
+        run: >
+          jq -r '.total | "lines \(.lines.pct)% (\(.lines.covered)/\(.lines.total)), branches \(.branches.pct)% (\(.branches.covered)/\(.branches.total))"'
+          dist/coverage/coverage-summary.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: worker-coverage
+          path: worker/dist/coverage/coverage-summary.json
+          retention-days: 30
       - run: npm run deploy:dry
       - run: npm audit --audit-level=high
 

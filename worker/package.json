@@ -14,12 +14,14 @@
     "format:check": "prettier --check . ../tools",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/rotate.test.mjs && vitest run",
+    "coverage": "vitest run --project workers --coverage",
     "types": "wrangler types"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.7",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.5",
+    "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.13.0",
     "prettier": "^3.9.10",
     "typescript": "^5.9.3",

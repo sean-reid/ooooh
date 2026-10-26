@@ -14,6 +14,13 @@ const testSecrets = {
 
 export default defineConfig({
   test: {
+    coverage: {
+      provider: "v8",
+      include: ["src/**"],
+      reporter: ["text", "json-summary"],
+      // dist/ is already gitignored.
+      reportsDirectory: "dist/coverage",
+    },
     projects: [
       {
         plugins: [
