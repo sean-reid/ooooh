@@ -88,6 +88,11 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
 
   public nonisolated func events() -> AsyncStream<TranscriptEvent> { stream }
 
+  /// The recognizer's model ships with iOS, so nothing downloads.
+  public nonisolated func downloadProgress() -> AsyncStream<Double> {
+    AsyncStream { $0.finish() }
+  }
+
   public func start() async throws {
     guard !isRunning else { return }
     do {

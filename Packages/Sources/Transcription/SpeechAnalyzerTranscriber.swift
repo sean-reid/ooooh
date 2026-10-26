@@ -6,6 +6,7 @@
   public enum SpeechAnalyzerError: Error, Equatable, LocalizedError {
     case unsupportedLocale(Locale)
     case assetsNotInstalled(Locale)
+    case downloadFailed(Locale)
     case noCompatibleAudioFormat
     case noMicrophoneInput
     case audioConversionUnavailable
@@ -16,6 +17,8 @@
         return "On-device transcription does not support \(locale.identifier)."
       case .assetsNotInstalled(let locale):
         return "The speech model for \(locale.identifier) is not installed on this phone."
+      case .downloadFailed(let locale):
+        return "The speech model for \(locale.identifier) did not download."
       case .noCompatibleAudioFormat:
         return "The transcriber offered no audio format this phone can produce."
       case .noMicrophoneInput:
@@ -48,6 +51,8 @@
     private let audioSink: (any AudioBufferSink)?
     private let stream: AsyncStream<TranscriptEvent>
     private let continuation: AsyncStream<TranscriptEvent>.Continuation
+    private let downloads: AsyncStream<Double>
+    private let download: AsyncStream<Double>.Continuation
     private let audioEngine = AVAudioEngine()
     private var analyzer: SpeechAnalyzer?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
@@ -67,12 +72,16 @@
       self.locale = locale
       self.audioSink = audioSink
       (stream, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
+      (downloads, download) = AsyncStream.makeStream(of: Double.self)
     }
 
     public nonisolated func events() -> AsyncStream<TranscriptEvent> { stream }
 
+    public nonisolated func downloadProgress() -> AsyncStream<Double> { downloads }
+
     public func start() async throws {
       guard !isRunning else { return }
+      defer { download.finish() }
       do {
         try await begin()
       } catch {
@@ -83,7 +92,8 @@
 
     private func begin() async throws {
       let module = try await Self.makeModule(self.module, locale: locale)
-      try await Self.ensureAssets(for: module.speechModule, locale: locale, engine: engine)
+      try await Self.ensureAssets(
+        for: module.speechModule, locale: locale, engine: engine, reportingTo: download)
       guard
         let format = await SpeechAnalyzer.bestAvailableAudioFormat(
           compatibleWith: [module.speechModule])
@@ -234,14 +244,25 @@
     }
 
     private static func ensureAssets(
-      for module: any SpeechModule, locale: Locale, engine: TranscriptionEngine
+      for module: any SpeechModule, locale: Locale, engine: TranscriptionEngine,
+      reportingTo download: AsyncStream<Double>.Continuation
     ) async throws {
       let status = await AssetInventory.status(forModules: [module])
       log("assets before=\(String(describing: status))", engine: engine)
       if status == .installed { return }
       if status == .unsupported { throw SpeechAnalyzerError.unsupportedLocale(locale) }
       if let request = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
-        try await request.downloadAndInstall()
+        let observation = request.progress.observe(\.fractionCompleted, options: [.initial, .new]) {
+          progress, _ in
+          download.yield(progress.fractionCompleted)
+        }
+        defer { observation.invalidate() }
+        do {
+          try await request.downloadAndInstall()
+        } catch {
+          log("download failed error=\(String(describing: error))", engine: engine, error: true)
+          throw SpeechAnalyzerError.downloadFailed(locale)
+        }
       }
       let after = await AssetInventory.status(forModules: [module])
       log("assets after=\(String(describing: after))", engine: engine)

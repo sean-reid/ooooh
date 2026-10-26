@@ -66,6 +66,16 @@ import Testing
     #expect(transcriber.engine == .speechRecognizer)
   }
 
+  @Test func downloadsNoModel() async {
+    let transcriber = SpeechRecognizerTranscriber(
+      recognizer: FakeRecognizer(), locale: Locale(identifier: "en_US"))
+    var fractions: [Double] = []
+    for await fraction in transcriber.downloadProgress() {
+      fractions.append(fraction)
+    }
+    #expect(fractions.isEmpty)
+  }
+
   @Test func mapsPartialsAndFinalsToSegmentsWithSpeechBoundaries() async throws {
     let recognizer = FakeRecognizer()
     let transcriber = SpeechRecognizerTranscriber(
