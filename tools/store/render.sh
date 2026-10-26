@@ -8,7 +8,7 @@ set -eu
 serve "$1"
 out=$2
 # Apple's names for the display classes, then the pixel size rendered for each.
-sizes="6.9:1320x2868 6.5:1284x2778 6.3:1206x2622"
+sizes="6.3:1206x2622 6.9:1320x2868 6.5:1284x2778"
 
 mkdir -p "$out"
 for template in "$here"/shots/*.html; do
