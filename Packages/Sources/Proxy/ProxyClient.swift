@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import Governor
+import OSLog
 import Session
 
 #if os(iOS)
@@ -52,7 +53,7 @@ public struct ProxyClient: Sendable {
   }
 
   public func config() async throws -> GovernorConfig {
-    let (data, response) = try await transport {
+    let (data, response) = try await transport("v1/config") {
       try await session.data(from: baseURL.appending(path: "v1/config"))
     }
     try ProxyError.check(response, data: data)
@@ -78,6 +79,9 @@ public struct ProxyClient: Sendable {
       do {
         assertion = try await attestor.assertion(clientDataHash: clientData.hash)
       } catch {
+        proxyLog.error(
+          "assertion failed path=\(path, privacy: .public) error=\(String(describing: error), privacy: .public)"
+        )
         offline?.recordFailure(error)
         throw error
       }
@@ -114,7 +118,7 @@ public struct ProxyClient: Sendable {
 
   private func exchange(_ path: String, body: some Encodable) async throws -> Data {
     let request = try await request(path, body: body)
-    let (data, response) = try await transport { try await session.data(for: request) }
+    let (data, response) = try await transport(path) { try await session.data(for: request) }
     do {
       try ProxyError.check(response, data: data)
     } catch ProxyError.unauthorized(reason: "stale") {
@@ -130,12 +134,15 @@ public struct ProxyClient: Sendable {
   }
 
   /// Reports the outcome of one round trip to the guard. An HTTP error is still a reachable Worker.
-  func transport<T>(_ send: () async throws -> T) async throws -> T {
+  func transport<T>(_ path: String, _ send: () async throws -> T) async throws -> T {
     do {
       let value = try await send()
       offline?.recordSuccess()
       return value
     } catch {
+      proxyLog.error(
+        "request failed path=\(path, privacy: .public) error=\(String(describing: error), privacy: .public)"
+      )
       offline?.recordFailure(error)
       throw error
     }
@@ -159,7 +166,13 @@ public enum ProxyError: Error, Equatable, Sendable {
 
   static func check(_ response: URLResponse, data: Data) throws {
     guard let http = response as? HTTPURLResponse else { throw ProxyError.notHTTP }
-    guard (200..<300).contains(http.statusCode) else { throw failure(http.statusCode, data) }
+    guard (200..<300).contains(http.statusCode) else {
+      let refused = failure(http.statusCode, data)
+      proxyLog.error(
+        "refused path=\(http.url?.path() ?? "", privacy: .public) status=\(http.statusCode, privacy: .public) error=\(String(describing: refused), privacy: .public)"
+      )
+      throw refused
+    }
   }
 
   static func failure(_ status: Int, _ body: Data) -> ProxyError {

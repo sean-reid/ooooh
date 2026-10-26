@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Synchronization
 
 /// Reachability of the Worker as the client experiences it: offline after
@@ -46,7 +47,10 @@ public final class OfflineGuard: Sendable {
       state.isOffline = false
       return true
     }
-    if cameBack { broadcast.publish(false) }
+    if cameBack {
+      proxyLog.info("worker back")
+      broadcast.publish(false)
+    }
   }
 
   public func recordFailure(_ error: any Error) {
@@ -57,6 +61,9 @@ public final class OfflineGuard: Sendable {
       state.isOffline = true
       return true
     }
-    if tripped { broadcast.publish(true) }
+    if tripped {
+      proxyLog.error("worker offline after \(self.failuresToTrip, privacy: .public) failures")
+      broadcast.publish(true)
+    }
   }
 }
