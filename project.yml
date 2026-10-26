@@ -90,7 +90,8 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - App/Tests
+      - path: App/Tests
+        excludes: [__Snapshots__]
       - path: Packages/Tests/SessionTests/Fixtures/short.json
         buildPhase: resources
       - path: Packages/Tests/ProxyTests/Fixtures/session-start-free.json
@@ -107,6 +108,8 @@ targets:
         buildPhase: resources
     dependencies:
       - target: ooooh
+      - package: SnapshotTesting
+        product: SnapshotTesting
     settings:
       base:
         GENERATE_INFOPLIST_FILE: true

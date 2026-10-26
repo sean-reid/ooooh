@@ -68,6 +68,9 @@ public struct NoTranscriptionEngine: Error, Equatable {
 /// A transcriber on the microphone that reports which engine it runs.
 public protocol LiveTranscriber: Transcriber {
   var engine: TranscriptionEngine { get }
+  /// The fraction of the speech model downloaded while `start()` installs it. Finishes with
+  /// `start()`, and yields nothing when the model is on the phone.
+  func downloadProgress() -> AsyncStream<Double>
   func start() async throws
 }
 
