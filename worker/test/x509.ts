@@ -97,10 +97,10 @@ interface CertificateOptions {
   notAfter?: Date;
 }
 
-/** Tests pin `now` to fixed dates, so a default certificate is valid at any of them, not around today. */
+/** Tests pin `now` to fixed dates, so a default certificate is valid at any of them; UTCTime ends in 2049. */
 const alwaysValid = {
   notBefore: new Date("2020-01-01T00:00:00Z"),
-  notAfter: new Date("2099-01-01T00:00:00Z"),
+  notAfter: new Date("2049-12-31T00:00:00Z"),
 };
 
 export async function certificate(options: CertificateOptions): Promise<Bytes> {
