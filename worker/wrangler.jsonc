@@ -29,11 +29,19 @@
     "FREE_SESSIONS_PER_MONTH": "3",
     "FREE_PROMPT_MINUTES": "20",
   },
-  // Counters for the caps above, attested device keys, challenges, free-session counts, and verified entitlements. Local runs count in a Miniflare namespace, so this id is a label.
+  // Attested device keys, challenges, enrolment counts per address, open sessions, session minutes, and verified entitlements. Local runs count in a Miniflare namespace, so this id is a label.
   "kv_namespaces": [{ "binding": "BUDGET", "id": "local" }],
-  // One DeviceCounter per attested key id holds its assertion counter, so a replay check and its write are one step.
-  "durable_objects": { "bindings": [{ "name": "DEVICE_COUNTER", "class_name": "DeviceCounter" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DeviceCounter"] }],
+  // One DeviceCounter per attested key id holds its assertion counter and its requests this minute; one ProviderBudget per provider holds each day's spend against the caps above. A check and the write behind it are one step in either.
+  "durable_objects": {
+    "bindings": [
+      { "name": "DEVICE_COUNTER", "class_name": "DeviceCounter" },
+      { "name": "PROVIDER_BUDGET", "class_name": "ProviderBudget" },
+    ],
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DeviceCounter"] },
+    { "tag": "v2", "new_sqlite_classes": ["ProviderBudget"] },
+  ],
   // /health reports the running version id so a deploy can wait for its own upload to answer.
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Secrets, set with `wrangler secret put <NAME> --env production` and read locally from .dev.vars:
@@ -65,7 +73,10 @@
       // `wrangler kv namespace create BUDGET --env production` prints the id to paste here.
       "kv_namespaces": [{ "binding": "BUDGET", "id": "f2d21eda63ed44c5a0350e9d94ccf8c4" }],
       "durable_objects": {
-        "bindings": [{ "name": "DEVICE_COUNTER", "class_name": "DeviceCounter" }],
+        "bindings": [
+          { "name": "DEVICE_COUNTER", "class_name": "DeviceCounter" },
+          { "name": "PROVIDER_BUDGET", "class_name": "ProviderBudget" },
+        ],
       },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
     },

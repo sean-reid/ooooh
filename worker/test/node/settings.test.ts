@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { defaults, settings } from "../../src/settings";
-import { memoryKV, noCounter } from "../kv";
+import { memoryKV } from "../kv";
+import { memoryObjects } from "../objects";
 import { wrangler } from "./env";
 
 const env = (vars: Record<string, string> = {}) =>
-  ({ BUDGET: memoryKV(), DEVICE_COUNTER: noCounter, ...vars }) as Env;
+  ({ BUDGET: memoryKV(), ...memoryObjects(), ...vars }) as Env;
 
 describe("settings", () => {
   it("reads every var wrangler.jsonc names, with the same default in both places", () => {

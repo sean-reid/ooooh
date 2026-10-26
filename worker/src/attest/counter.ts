@@ -1,29 +1,66 @@
 import { DurableObject } from "cloudflare:workers";
 
-const key = "counter";
+const counterKey = "counter";
+const rateKey = "rate";
+const countedKey = "session-counted";
+const sessionsPrefix = "sessions:";
+const sessionsKey = (month: string) => `${sessionsPrefix}${month}`;
+
+type Rate = { minute: number; count: number };
 
 /**
- * One per key id, holding the last assertion counter it accepted. The storage calls are
- * synchronous, so a check and the write behind it run with nothing in between.
+ * One per key id, holding the last assertion counter it accepted, its requests this minute, and
+ * its free sessions by month. The storage calls are synchronous, so a check and the write behind
+ * it run with nothing in between.
  */
 export class DeviceCounter extends DurableObject<Env> {
   private stored(): number {
-    return this.ctx.storage.kv.get<number>(key) ?? 0;
+    return this.ctx.storage.kv.get<number>(counterKey) ?? 0;
   }
 
   /** Accepts `counter` when it moves past the stored value and `floor`; false means a replay. */
   advance(counter: number, floor = 0): boolean {
     if (counter <= Math.max(this.stored(), floor)) return false;
-    this.ctx.storage.kv.put(key, counter);
+    this.ctx.storage.kv.put(counterKey, counter);
     return true;
   }
 
   /** Lifts the stored value to `floor` when it sits below it. */
   raise(floor: number): void {
-    if (floor > this.stored()) this.ctx.storage.kv.put(key, floor);
+    if (floor > this.stored()) this.ctx.storage.kv.put(counterKey, floor);
   }
 
   current(): number {
     return this.stored();
+  }
+
+  /** Counts one request in `minute` and admits it while the minute has fewer than `limit`. */
+  hit(minute: number, limit: number): boolean {
+    const rate = this.ctx.storage.kv.get<Rate>(rateKey);
+    const count = rate?.minute === minute ? rate.count : 0;
+    if (count >= limit) return false;
+    this.ctx.storage.kv.put(rateKey, { minute, count: count + 1 });
+    return true;
+  }
+
+  /** Free sessions counted toward `month`, a UTC year and month. */
+  sessions(month: string): number {
+    return this.ctx.storage.kv.get<number>(sessionsKey(month)) ?? 0;
+  }
+
+  /**
+   * Counts the free session `id` toward `month` and returns the month's total; a session already
+   * counted changes nothing, and the months before are dropped.
+   */
+  countSession(month: string, id: string): number {
+    if (this.ctx.storage.kv.get<string>(countedKey) === id) return this.sessions(month);
+    const total = this.sessions(month) + 1;
+    this.ctx.storage.kv.put(countedKey, id);
+    this.ctx.storage.kv.put(sessionsKey(month), total);
+    const stale = [
+      ...this.ctx.storage.kv.list({ prefix: sessionsPrefix, end: sessionsKey(month) }),
+    ];
+    for (const [key] of stale) this.ctx.storage.kv.delete(key);
+    return total;
   }
 }

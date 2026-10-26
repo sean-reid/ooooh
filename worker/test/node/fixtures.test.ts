@@ -7,7 +7,8 @@ import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
 import { sha256, toBase64, toHex } from "../../src/bytes";
-import { memoryKV, noCounter } from "../kv";
+import { memoryKV } from "../kv";
+import { memoryObjects } from "../objects";
 import { makeStoreChain, signTransaction, transactionPayload, type StoreChain } from "../storekit";
 import {
   audioBytes,
@@ -38,7 +39,7 @@ const requestFixture = (route: string) =>
 
 export const testEnv = {
   BUDGET: memoryKV(),
-  DEVICE_COUNTER: noCounter,
+  ...memoryObjects(),
   TYPESAFE_API_KEY: "test-jev",
   ANTHROPIC_API_KEY: "test-anthropic",
   ELEVENLABS_API_KEY: "test-elevenlabs",
