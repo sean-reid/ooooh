@@ -106,6 +106,8 @@ targets:
         buildPhase: resources
       - path: Packages/Tests/ProxyTests/Fixtures/entitlement-refused.json
         buildPhase: resources
+      - path: Packages/Tests/AudioTests/Fixtures/line.mp3
+        buildPhase: resources
     dependencies:
       - target: ooooh
       - package: SnapshotTesting

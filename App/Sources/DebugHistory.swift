@@ -1,6 +1,7 @@
 #if DEBUG
   import Foundation
   import Notes
+  import OSLog
   import Persistence
   import Session
   import Transcription
@@ -9,11 +10,27 @@
   /// the notes in fixtures/demo/history.notes.json, two open threads among them, so the UI tests
   /// see history and the carryover card without the Worker.
   enum DebugHistory {
-    static var notes: SessionNotes? {
-      guard let url = Bundle.main.url(forResource: "history.notes", withExtension: "json"),
-        let data = try? Data(contentsOf: url)
-      else { return nil }
-      return try? JSONDecoder().decode(SessionNotes.self, from: data)
+    private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "debug-history")
+
+    static var notes: SessionNotes? { try? bundledNotes() }
+
+    static func bundledNotes() throws -> SessionNotes {
+      try JSONDecoder().decode(SessionNotes.self, from: Data(contentsOf: bundled("history.notes")))
+    }
+
+    /// The fixture Demo replays and the seed runs through the loop.
+    static func demoFixtureURL() throws -> URL { try bundled("decision.fixture") }
+
+    static func demoFixture() throws -> FixtureTranscriber.Fixture {
+      try JSONDecoder().decode(
+        FixtureTranscriber.Fixture.self, from: Data(contentsOf: demoFixtureURL()))
+    }
+
+    private static func bundled(_ name: String) throws -> URL {
+      guard let url = Bundle.main.url(forResource: name, withExtension: "json") else {
+        throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: "\(name).json"])
+      }
+      return url
     }
 
     static func apply(to store: SessionStore) async {
@@ -27,19 +44,19 @@
     }
 
     private static func seed(_ store: SessionStore) async {
-      guard let notes,
-        let url = Bundle.main.url(forResource: "decision.fixture", withExtension: "json"),
-        let data = try? Data(contentsOf: url),
-        let fixture = try? JSONDecoder().decode(FixtureTranscriber.Fixture.self, from: data)
-      else { return }
-      let result = await FixtureDriver.run(
-        fixture: fixture, config: .initial,
-        dependencies: .init(
-          decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
-          phraser: TemplatePhraser()))
-      try? await store.save(
-        result: result, notes: notes, title: notes.title,
-        startedAt: .now.addingTimeInterval(-86_400))
+      do {
+        let notes = try bundledNotes()
+        let result = await FixtureDriver.run(
+          fixture: try demoFixture(), config: .initial,
+          dependencies: .init(
+            decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
+            phraser: TemplatePhraser()))
+        try await store.save(
+          result: result, notes: notes, title: notes.title,
+          startedAt: .now.addingTimeInterval(-86_400))
+      } catch {
+        log.error("Seeding history failed: \(String(describing: error), privacy: .public)")
+      }
     }
   }
 #endif
