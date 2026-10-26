@@ -155,15 +155,21 @@ struct RootView: View {
           Spacer().frame(height: 24)
         } else {
           HStack(spacing: 24) {
-            Button("Demo") { startDemo() }
-              .font(.footnote)
-              .foregroundStyle(Palette.inkDim)
-              .frame(minWidth: 44, minHeight: 44)
-              .accessibilityIdentifier("home.demo")
-            Button("Record a fixture") { isRecordingFixture = true }
-              .font(.footnote)
-              .foregroundStyle(Palette.inkDim)
-              .frame(minHeight: 44)
+            Button {
+              startDemo()
+            } label: {
+              Text("Demo").tapTarget()
+            }
+            .font(.footnote)
+            .foregroundStyle(Palette.inkDim)
+            .accessibilityIdentifier("home.demo")
+            Button {
+              isRecordingFixture = true
+            } label: {
+              Text("Record a fixture").tapTarget()
+            }
+            .font(.footnote)
+            .foregroundStyle(Palette.inkDim)
             OrbGalleryButton()
           }
           .padding(.bottom, 8)
@@ -207,7 +213,7 @@ struct RootView: View {
       Image(systemName: symbol)
         .font(.body.weight(.medium))
         .foregroundStyle(Palette.inkDim)
-        .frame(minWidth: 44, minHeight: 44)
+        .tapTarget()
     }
     .accessibilityLabel(label)
     .accessibilityIdentifier(id)

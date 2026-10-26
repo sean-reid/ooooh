@@ -34,10 +34,13 @@
           .font(.system(.title2, design: .serif))
           .foregroundStyle(Palette.ink)
         Spacer()
-        Button("Close") { dismiss() }
-          .font(.body)
-          .foregroundStyle(Palette.inkDim)
-          .frame(minHeight: 44)
+        Button {
+          dismiss()
+        } label: {
+          Text("Close").tapTarget()
+        }
+        .font(.body)
+        .foregroundStyle(Palette.inkDim)
       }
     }
 
