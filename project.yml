@@ -67,6 +67,8 @@ targets:
           NSAllowsLocalNetworking: true
     entitlements:
       path: App/Resources/ooooh.entitlements
+      properties:
+        com.apple.developer.devicecheck.appattest-environment: production
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh
