@@ -306,7 +306,7 @@ describe("POST /v1/compact", () => {
     const res = await post("/v1/compact", compactBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "anthropic refused" });
-    expect(await spent()).toBe(before + 27.5);
+    await expect.poll(spent).toBe(before + 27.5);
   });
 
   it("answers 503 inside the deadline when the reply body stalls", async () => {
