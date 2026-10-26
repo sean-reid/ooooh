@@ -1,9 +1,11 @@
 import CryptoKit
 import DeviceCheck
 import Foundation
+import OSLog
 
 /// App Attest for one install: a key made once and attested through the Worker, then one
-/// assertion per request. The key id lives in the keychain so a relaunch reuses it.
+/// assertion per request. The key id lives in the keychain so a relaunch reuses it; a stored key
+/// the service refuses, as after a change of App Attest environment, is replaced once.
 public actor DeviceAttestation: Attestor {
   let baseURL: URL
   let session: URLSession
@@ -33,7 +35,9 @@ public actor DeviceAttestation: Attestor {
       return Assertion(
         keyId: keyId,
         assertion: try await service.generateAssertion(keyId, clientDataHash: clientDataHash))
-    } catch let error as DCError where error.code == .invalidKey {
+    } catch let error as DCError where error.code == .invalidKey || error.code == .invalidInput {
+      proxyLog.error(
+        "stored key refused code=\(error.code.rawValue, privacy: .public) enrolling again")
       forget()
       let fresh = try await attestedKeyId()
       return Assertion(

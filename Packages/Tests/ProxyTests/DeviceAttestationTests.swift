@@ -175,6 +175,41 @@ extension StubbedTransportTests {
         ])
     }
 
+    @Test func aStoredKeyFromAnotherEnvironmentIsReplacedOnce() async throws {
+      let service = FakeAppAttestService(
+        failing: ["generateAssertion": [DCError(.invalidInput)]])
+      let store = MemoryKeyIdStore("key-development")
+      workerAnswers()
+
+      let assertion = try await attestor(service, store).assertion(clientDataHash: hash)
+
+      #expect(assertion?.keyId == "key-1")
+      #expect(store.stored.withLock { $0 } == "key-1")
+      #expect(requested == ["/v1/challenge", "/v1/attest"])
+      #expect(
+        service.calls.withLock { $0.map { String($0.prefix { $0 != "," }) } } == [
+          "generateAssertion(key-development)", "generateKey", "attestKey(key-1",
+          "generateAssertion(key-1)",
+        ])
+    }
+
+    @Test func aFreshKeyRefusedTheSameWayStopsAttestingUntilRelaunch() async throws {
+      let service = FakeAppAttestService(
+        failing: ["generateAssertion": [DCError(.invalidInput), DCError(.invalidInput)]])
+      let store = MemoryKeyIdStore("key-development")
+      workerAnswers()
+      let attestor = attestor(service, store)
+
+      await #expect(throws: ProxyError.cannotAttest("invalid-input")) {
+        try await attestor.assertion(clientDataHash: hash)
+      }
+      let calls = service.calls.withLock { $0.count }
+      await #expect(throws: ProxyError.cannotAttest("invalid-input")) {
+        try await attestor.assertion(clientDataHash: hash)
+      }
+      #expect(service.calls.withLock { $0.count } == calls)
+    }
+
     @Test(arguments: [
       (DCError.serverUnavailable, ProxyError.attestation("server-unavailable")),
       (DCError.unknownSystemFailure, ProxyError.attestation("system-failure")),
