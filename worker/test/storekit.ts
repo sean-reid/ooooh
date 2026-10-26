@@ -39,22 +39,16 @@ export async function makeStoreChain(options: ChainOptions = {}): Promise<StoreC
     keys: await generate("P-384"),
   };
   const leaf = await generate("P-256");
-  const authorityYears = {
-    notBefore: new Date(Date.now() - 5 * 365 * day),
-    notAfter: new Date(Date.now() + 5 * 365 * day),
-  };
   const rootDer = await certificate({
     subject: root.name,
     publicKey: root.keys.publicKey,
     issuer: root,
-    ...authorityYears,
   });
   const intermediateDer = await certificate({
     subject: intermediate.name,
     publicKey: intermediate.keys.publicKey,
     issuer: root,
     extensions: [marker(options.intermediateMarker ?? intermediateMarker)],
-    ...authorityYears,
   });
   const leafDer = await certificate({
     subject: "Test Receipt Signing",

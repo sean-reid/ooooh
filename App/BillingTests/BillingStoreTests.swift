@@ -12,6 +12,10 @@
     private var store: BillingStore!
 
     override func setUp() async throws {
+      if ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil {
+        throw XCTSkip(
+          "SKTestSession hangs inside Product.products on the simulator, Apple's FB22774836.")
+      }
       session = try TestSession.make()
       store = BillingStore()
       try await store.load()

@@ -41,6 +41,10 @@
     }
 
     func testPurchaseAsksTheAttestorForTheKeyIdAndStampsTheDerivedToken() async throws {
+      if ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil {
+        throw XCTSkip(
+          "SKTestSession hangs inside Product.products on the simulator, Apple's FB22774836.")
+      }
       let session = try TestSession.make()
       defer { session.clearTransactions() }
       let attestor = FakeAttestor(key: "key-1")
