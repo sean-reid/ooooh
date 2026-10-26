@@ -24,18 +24,31 @@ public struct PrivacyView: View {
           + "decides whether the app should speak. Anthropic runs Claude, which keeps the summary, "
           + "phrases each question, and writes the notes at the end. ElevenLabs turns each "
           + "question into speech.",
-        "My server stores none of it. It passes the request through, adds one to a counter, and "
-          + "forgets it. Each provider handles the text under its own terms.",
+        "My server stores none of it. It passes the request through and forgets it. The one "
+          + "thing it writes is what the call cost, added to a counter per provider per day that "
+          + "names no device and is gone after three days. Each provider handles the text under "
+          + "its own terms.",
       ]
     ),
     (
       "What my server keeps",
       [
-        "There are no accounts, so no name, email address, or password. The server keeps "
-          + "counters: requests served, minutes, prompts, and provider failures. It also keeps a "
-          + "monthly count of free sessions per device and a count of each device's requests in "
-          + "the last minute, which expires within minutes. The device is a random id Apple "
-          + "issues to your copy of the app. I can't turn it back into you."
+        "There are no accounts, so no name, email address, or password. The device is the "
+          + "identity: Apple's App Attest proves a request comes from a real copy of the app, and "
+          + "my server keeps a few records per device, each keyed on the App Attest key id and "
+          + "nothing else. The key id is a random value Apple issues to your copy of the app. I "
+          + "can't turn it back into you. The records are:",
+        "The public key your phone attested, with a counter that moves forward on every signed "
+          + "request. No expiry.",
+        "The month's count of free sessions and the minutes they ran. 62 days.",
+        "The open session, so a second start while one is running counts nothing. Four hours.",
+        "The subscription record, with an account token derived from the key id, so it names an "
+          + "install and not a person. 30 days past the subscription's expiry.",
+        "A count of signed requests in the current minute. Two minutes.",
+        "A one-time challenge for enrolling a key. Five minutes, or until it's used.",
+        "None of it holds a name, an email address, an Apple ID, audio, or a transcript. Every "
+          + "signed request carries the time it was signed; my server checks that against its "
+          + "clock and doesn't store it.",
       ]
     ),
     (
@@ -57,15 +70,17 @@ public struct PrivacyView: View {
       "Your controls",
       [
         "From Settings you can delete one session, delete everything, or export everything as "
-          + "Markdown. Deleting removes the data from your phone and your iCloud. My server has "
-          + "nothing to delete except counters that aren't linked to a person."
+          + "Markdown. Deleting removes the data from your phone and your iCloud. The records on "
+          + "my server age out on the schedule above, the attested public key excepted, and none "
+          + "of them is linked to you."
       ]
     ),
     (
       "Analytics",
       [
-        "There is no analytics SDK in the app. Crash reports reach me only through Apple, under "
-          + "the analytics settings on your iPhone."
+        "There is no analytics SDK in the app. Crash reports and performance data reach me only "
+          + "through Apple, and only if sharing with app developers is on in your iPhone's "
+          + "analytics settings."
       ]
     ),
   ]
