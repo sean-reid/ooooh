@@ -149,8 +149,11 @@ import Transcription
     #expect(result.state.currentThread.contains("done for now"))
     #expect(result.state.lastIntervention?.text == "What sits underneath that?")
     #expect(controller.lastPrompt == "What sits underneath that?")
-    #expect(controller.elapsed(at: .now) >= 0)
-    #expect(controller.elapsed(at: .now) < 5)
+    let startedAt = try #require(controller.startedAt)
+    let endedAt = try #require(controller.endedAt)
+    #expect(endedAt >= startedAt)
+    #expect(controller.elapsed(at: startedAt) == endedAt.timeIntervalSince(startedAt))
+    #expect(controller.elapsed(at: startedAt + 3600) == endedAt.timeIntervalSince(startedAt))
   }
 
   @Test func quietModeSpeaksThroughTheOrbAndOneHaptic() async throws {
@@ -298,6 +301,11 @@ import Transcription
     await controller.start(.fixture(shortFixture, speed: 1))
     await wait { controller.result == nil && controller.level > 0 }
     #expect(controller.level == 0.65)
+    let startedAt = try #require(controller.startedAt)
+    #expect(controller.endedAt == nil)
+    #expect(controller.elapsed(at: startedAt) == 0)
+    #expect(controller.elapsed(at: startedAt + 90) == 90)
+    #expect(controller.elapsed(at: startedAt + 61) == 61)
     await controller.end()
     #expect(controller.stage == .ended)
     let result = try #require(controller.result)
@@ -671,8 +679,18 @@ import Transcription
     #expect(requests.map(\.path) == ["/v1/session/start", "/v1/session/end"])
     let end = try JSONSerialization.jsonObject(with: requests[1].body) as? [String: Double]
     let minutes = try #require(end?["minutes"])
+    let ran = try #require(controller.endedAt).timeIntervalSince(try #require(controller.startedAt))
     #expect(minutes > 0)
     #expect(minutes == SessionGate.minutes(controller.elapsed(at: .now)))
+    #expect(abs(minutes * 60 - ran) <= 0.3, "minutes \(minutes) for \(ran) s")
+  }
+
+  @Test func theMinutesPostedRoundToHundredths() {
+    #expect(SessionGate.minutes(0) == 0)
+    #expect(SessionGate.minutes(3) == 0.05)
+    #expect(SessionGate.minutes(61) == 1.02)
+    #expect(SessionGate.minutes(90) == 1.5)
+    #expect(SessionGate.minutes(3600) == 60)
   }
 
   /// Speech ends at 1.0 s, the session runs on in silence, and End comes about three seconds in.
