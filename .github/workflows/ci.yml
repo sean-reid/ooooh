@@ -112,7 +112,9 @@ jobs:
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath design.xcresult
-          -only-testing:oooohTests -only-testing:DesignTests -only-testing:NotesSnapshotTests test
+          -only-testing:oooohTests -only-testing:DesignTests -only-testing:NotesSnapshotTests
+          -only-testing:BillingTests -only-testing:SettingsSnapshotTests
+          -skip-testing:BillingTests/BillingStoreTests -skip-testing:BillingTests/PurchaseTokenTests test
         env:
           SIMCTL_CHILD_SNAPSHOT_ARTIFACTS: ${{ github.workspace }}/snapshot-failures
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
