@@ -56,6 +56,23 @@ extension StubbedTransportTests {
       #expect(body == ["minutes": 12.5])
     }
 
+    @Test func aNoSessionAnswerIsItsOwnError() async throws {
+      StubProtocol.reply = .init(
+        status: 402, chunks: [Data(#"{"error":"no-session","reason":"minutes-used"}"#.utf8)])
+      StubProtocol.seen.withLock { $0 = [] }
+      await #expect(throws: ProxyError.noSession(reason: "minutes-used")) {
+        try await client.endSession(minutes: 1)
+      }
+    }
+
+    @Test func anotherPaymentRequiredBodyKeepsItsStatus() async throws {
+      StubProtocol.reply = .init(status: 402, chunks: [Data(#"{"error":"other"}"#.utf8)])
+      StubProtocol.seen.withLock { $0 = [] }
+      await #expect(throws: ProxyError.status(402, body: #"{"error":"other"}"#)) {
+        try await client.endSession(minutes: 1)
+      }
+    }
+
     @Test func surfacesAWorkerError() async throws {
       StubProtocol.reply = .init(
         status: 422, chunks: [Data(#"{"error":"invalid","reason":"minutes"}"#.utf8)])

@@ -99,7 +99,11 @@ struct RootView: View {
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("notes.view")
     case .unavailable:
-      PendingNotesView(state: controller.result?.state ?? .empty, transcript: transcript) {
+      PendingNotesView(
+        state: controller.result?.state ?? .empty, transcript: transcript,
+        line: controller.startRefused
+          ? PendingNotesView.refusedLine : PendingNotesView.offlineLine
+      ) {
         reset()
       }
     case .empty:

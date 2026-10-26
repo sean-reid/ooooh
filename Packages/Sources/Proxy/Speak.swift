@@ -36,7 +36,7 @@ extension ProxyError {
     guard (200..<300).contains(http.statusCode) else {
       var body = Data()
       for try await byte in bytes { body.append(byte) }
-      throw ProxyError.status(http.statusCode, body: String(decoding: body, as: UTF8.self))
+      throw failure(http.statusCode, body)
     }
   }
 }
