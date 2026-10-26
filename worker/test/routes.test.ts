@@ -237,6 +237,27 @@ describe("POST /v1/decide", () => {
   });
 });
 
+describe("POST /v1/decide with Jev's current legend shape", () => {
+  it("accepts a legend keyed by score, and one with no legend at all", async () => {
+    const keyed = {
+      ...jevReply,
+      answers: {
+        ...jevReply.answers,
+        articulationDifficulty: {
+          type: "score",
+          score: 0.43,
+          confidence: 0.65,
+          legend: { "0": "Fluent: ideas arrive in full sentences.", "1": "Mostly fluent." },
+        },
+        momentum: { type: "score", score: 1.3, confidence: 0.57 },
+      },
+    };
+    expectUpstream({ body: keyed });
+    const res = await post("/v1/decide", decideBody);
+    expect(res.status, await res.clone().text()).toBe(200);
+  });
+});
+
 describe("POST /v1/compact", () => {
   it("returns the validated patch and usage", async () => {
     expectUpstream({ body: haikuReply });
