@@ -50,6 +50,10 @@ actor VoiceSpeaker: PromptSpeaking {
     self.audio = audio
   }
 
+  var hasEngine: Bool {
+    get async { await player.hasEngine }
+  }
+
   nonisolated func speak(text: String) -> AsyncStream<SpeechEvent> {
     AsyncStream { continuation in
       Task { await self.play(text, into: continuation) }

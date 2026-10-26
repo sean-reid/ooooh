@@ -15,14 +15,15 @@
     public private(set) var text: String?
     /// Frames of the current prompt the player has rendered, on the engine's clock. Nil while nothing plays.
     public var rendered: AVAudioFramePosition? {
-      guard let now = player.lastRenderTime else { return nil }
+      guard let player, let now = player.lastRenderTime else { return nil }
       return player.playerTime(forNodeTime: now)?.sampleTime
     }
 
     private let emit: AsyncStream<Event>.Continuation
-    private let engine = AVAudioEngine()
-    private let player = AVAudioPlayerNode()
     private let output: AVAudioFormat
+    /// Built by the first line, so a session that never speaks never opens the audio server.
+    private var engine: AVAudioEngine?
+    private var player: AVAudioPlayerNode?
     private var generation = 0
     private var scheduled = 0
     private var ended = false
@@ -34,10 +35,10 @@
         preconditionFailure("mono 44.1 kHz float is always available")
       }
       output = format
-      engine.attach(player)
-      engine.connect(player, to: engine.mainMixerNode, format: output)
-      engine.prepare()
     }
+
+    /// True once a line has built the engine graph.
+    public var hasEngine: Bool { engine != nil }
 
     /// Decodes and plays `audio`. Returns once the last buffer has played or `stop()` cut it off.
     public func speak(_ text: String, audio: AsyncThrowingStream<Data, Error>) async throws {
@@ -49,12 +50,13 @@
       ended = false
       let parser = try AudioStreamParser()
       let decoder = SpeechDecoder(output: output)
+      let (engine, player) = graph()
       do {
         for try await chunk in audio {
           guard mine == generation else { return }
           for packets in try parser.parse(chunk) {
             guard let pcm = try decoder.decode(packets) else { continue }
-            schedule(pcm, generation: mine)
+            schedule(pcm, on: player, generation: mine)
             if scheduled == 1 {
               try engine.start()
               player.play()
@@ -80,7 +82,21 @@
       if text != nil { finish() }
     }
 
-    private func schedule(_ pcm: AVAudioPCMBuffer, generation mine: Int) {
+    private func graph() -> (AVAudioEngine, AVAudioPlayerNode) {
+      if let engine, let player { return (engine, player) }
+      let engine = AVAudioEngine()
+      let player = AVAudioPlayerNode()
+      engine.attach(player)
+      engine.connect(player, to: engine.mainMixerNode, format: output)
+      engine.prepare()
+      self.engine = engine
+      self.player = player
+      return (engine, player)
+    }
+
+    private func schedule(
+      _ pcm: AVAudioPCMBuffer, on player: AVAudioPlayerNode, generation mine: Int
+    ) {
       scheduled += 1
       player.scheduleBuffer(pcm, completionCallbackType: .dataPlayedBack) { _ in
         Task { await self.played(generation: mine) }
@@ -96,8 +112,8 @@
     private func finish() {
       generation += 1
       let rendered = rendered ?? 0
-      player.stop()
-      engine.stop()
+      player?.stop()
+      engine?.stop()
       text = nil
       emit.yield(.finished(at: Date(), rendered: rendered))
       done?.resume()

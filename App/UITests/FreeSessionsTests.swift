@@ -1,9 +1,9 @@
 import XCTest
 
-/// The demo with `-free-exhausted 1`: the session runs under one line and without prompts, and
-/// End, once something was said, brings up the paywall over a notes screen that says why
+/// The demo with `-free-exhausted 1` at 16x: the session runs under one line and without
+/// prompts, and when the fixture runs out the paywall comes up over a notes screen that says why
 /// there are none.
-final class FreeSessionsTests: XCTestCase {
+final class FreeSessionsTests: UITestCase {
   @MainActor
   func testExhaustedSessionDark() {
     runExhausted(named: "exhausted-dark", arguments: ["-ui-color-scheme", "dark"])
@@ -18,38 +18,33 @@ final class FreeSessionsTests: XCTestCase {
   private func runExhausted(named name: String, arguments: [String]) {
     let app = XCUIApplication()
     app.launchArguments +=
-      ["-onboardingComplete", "1", "-free-exhausted", "1"] + Worker.launchArguments + arguments
+      ["-onboardingComplete", "1", "-free-exhausted", "1", "-demo-speed", "16"]
+      + Worker.launchArguments + arguments
     app.launch()
 
     let demo = app.buttons["home.demo"]
-    XCTAssertTrue(demo.waitForExistence(timeout: 15))
+    waitUntilHittable(demo)
     demo.tap()
 
     let line = app.staticTexts["session.quota"]
-    XCTAssertTrue(line.waitForExistence(timeout: 15))
+    XCTAssertTrue(line.appears())
     XCTAssertEqual(line.label, "listening only, this month's free sessions are used up")
     XCTAssertTrue(app.staticTexts["session.elapsed"].exists)
     XCTAssertEqual(app.staticTexts["session.prompt"].label, "")
-    attach(app.screenshot(), named: "\(name)-session")
+    XCTAssertTrue(app.buttons["session.end"].exists)
+    attach(app, named: "\(name)-session")
 
-    let elapsed = app.staticTexts["session.elapsed"]
-    let spoken = expectation(
-      for: NSPredicate(
-        format: "label MATCHES %@", "Elapsed (0:(1[4-9]|[2-5][0-9])|[1-9]:[0-5][0-9])"),
-      evaluatedWith: elapsed)
-    XCTAssertEqual(XCTWaiter().wait(for: [spoken], timeout: 30), .completed)
-    app.buttons["session.end"].tap()
     let paywall = app.staticTexts["Keep talking."]
-    XCTAssertTrue(paywall.waitForExistence(timeout: 15))
+    XCTAssertTrue(paywall.appears())
     XCTAssertTrue(app.buttons["Restore purchases"].exists)
-    attach(app.screenshot(), named: "\(name)-paywall")
+    attach(app, named: "\(name)-paywall")
 
     app.buttons["Close"].tap()
-    XCTAssertTrue(app.buttons["notes.done"].waitForExistence(timeout: 15))
+    XCTAssertTrue(paywall.disappears())
+    waitUntilHittable(app.buttons["notes.done"])
     XCTAssertEqual(
       app.staticTexts["notes.pending.line"].label,
       "This month's free sessions are used up, so there are no notes for this one.")
-    XCTAssertFalse(paywall.exists)
-    attach(app.screenshot(), named: "\(name)-notes")
+    attach(app, named: "\(name)-notes")
   }
 }
