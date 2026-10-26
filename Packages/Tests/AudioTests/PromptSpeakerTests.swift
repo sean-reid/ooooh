@@ -16,9 +16,10 @@
     let lateness: AVAudioFramePosition = 48_000
 
     /// Yields the fixture 1 KiB at a time with a short gap, the way bytes land from the Worker.
-    func network(firstByte: @escaping @Sendable (Date) -> Void) throws -> AsyncThrowingStream<
-      Data, Error
-    > {
+    /// `ended` is told how the stream ended: `cancelled` when the player dropped it.
+    func network(
+      firstByte: @escaping @Sendable (Date) -> Void, ended: Ended? = nil
+    ) throws -> AsyncThrowingStream<Data, Error> {
       let chunks = Fixture.chunks(try Fixture.line(), size: 1024)
       return AsyncThrowingStream { continuation in
         let task = Task {
@@ -29,7 +30,39 @@
           }
           continuation.finish()
         }
-        continuation.onTermination = { _ in task.cancel() }
+        continuation.onTermination = { reason in
+          task.cancel()
+          ended?.record(reason)
+        }
+      }
+    }
+
+    /// A request the Worker never answers. `ended` is told how the stream ended.
+    func silence(ended: Ended) -> AsyncThrowingStream<Data, Error> {
+      AsyncThrowingStream { continuation in
+        continuation.onTermination = { reason in ended.record(reason) }
+      }
+    }
+
+    final class Ended: Sendable {
+      private let reasons = Mutex<[String]>([])
+
+      func record(_ reason: AsyncThrowingStream<Data, Error>.Continuation.Termination) {
+        if case .cancelled = reason {
+          reasons.withLock { $0.append("cancelled") }
+        } else {
+          reasons.withLock { $0.append("finished") }
+        }
+      }
+
+      var all: [String] { reasons.withLock { $0 } }
+    }
+
+    /// Polls until `condition` holds, two seconds at most.
+    func wait(for condition: () async -> Bool) async {
+      let deadline = ContinuousClock.now + .seconds(2)
+      while await !condition(), ContinuousClock.now < deadline {
+        try? await Task.sleep(for: .milliseconds(5))
       }
     }
 
@@ -111,6 +144,64 @@
       try await Task.sleep(for: .milliseconds(100))
       #expect(await speaker.rendered == nil)
       #expect(await speaker.text == nil)
+    }
+
+    @Test func stopWhileTheBytesNeverComeCancelsTheRequest() async throws {
+      let speaker = PromptSpeaker()
+      var events = speaker.events.makeAsyncIterator()
+      let ended = Ended()
+      let speaking = Task { try await speaker.speak(text, audio: silence(ended: ended)) }
+      await wait { await speaker.text == text }
+      #expect(ended.all.isEmpty)
+      await speaker.stop()
+      try await speaking.value
+      await wait { !ended.all.isEmpty }
+      #expect(ended.all == ["cancelled"])
+      #expect(await speaker.text == nil)
+      #expect(await speaker.rendered == nil)
+      guard case .finished = await events.next() else {
+        Issue.record("expected finished with no started")
+        return
+      }
+    }
+
+    @Test func cancellingTheCallerCancelsTheRequest() async throws {
+      let speaker = PromptSpeaker()
+      var events = speaker.events.makeAsyncIterator()
+      let ended = Ended()
+      let speaking = Task { try await speaker.speak(text, audio: silence(ended: ended)) }
+      await wait { await speaker.text == text }
+      speaking.cancel()
+      try await speaking.value
+      await wait { !ended.all.isEmpty }
+      #expect(ended.all == ["cancelled"])
+      #expect(await speaker.text == nil)
+      guard case .finished = await events.next() else {
+        Issue.record("expected finished with no started")
+        return
+      }
+    }
+
+    @Test func stopDuringTheFirstChunksLeavesNothingDangling() async throws {
+      let speaker = PromptSpeaker()
+      var events = speaker.events.makeAsyncIterator()
+      let ended = Ended()
+      let audio = try network(firstByte: { _ in }, ended: ended)
+      let speaking = Task { try await speaker.speak(text, audio: audio) }
+      await wait { await speaker.text == text }
+      await speaker.stop()
+      try await speaking.value
+      await wait { !ended.all.isEmpty }
+      #expect(ended.all == ["cancelled"])
+      #expect(await speaker.text == nil)
+      #expect(await speaker.rendered == nil)
+      var first = await events.next()
+      if case .started = first { first = await events.next() }
+      guard case .finished = first else {
+        Issue.record(
+          "expected finished, or started then finished, got \(String(describing: first))")
+        return
+      }
     }
 
     @Test func renderedFollowsThePlayerClock() async throws {
