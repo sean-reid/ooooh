@@ -71,7 +71,14 @@ public struct ProxyClient: Sendable {
       let clientData = ClientData(
         method: "POST", path: url.path(percentEncoded: true),
         time: Int(Date().timeIntervalSince1970), bodyHash: Data(SHA256.hash(data: bytes)))
-      if let assertion = try await attestor.assertion(clientDataHash: clientData.hash) {
+      let assertion: Assertion?
+      do {
+        assertion = try await attestor.assertion(clientDataHash: clientData.hash)
+      } catch {
+        offline?.recordFailure(error)
+        throw error
+      }
+      if let assertion {
         request.setValue(assertion.keyId, forHTTPHeaderField: "x-device")
         request.setValue(String(clientData.time), forHTTPHeaderField: ClientData.timeHeader)
         request.setValue(
