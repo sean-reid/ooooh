@@ -18,6 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sudo xcode-select -s /Applications/Xcode_26.4.app
+      - uses: actions/cache@v4
+        with:
+          path: Packages/.build
+          key: spm-build-${{ runner.os }}-${{ hashFiles('Packages/Package.swift', 'Packages/Package.resolved') }}
+          restore-keys: spm-build-${{ runner.os }}-
       - run: swift format lint --strict --recursive Packages App
       - run: swift build --package-path Packages
       - run: swift test --package-path Packages
@@ -48,31 +53,53 @@ jobs:
   app:
     if: github.event_name == 'pull_request'
     runs-on: macos-26
-    needs: packages
     steps:
       - uses: actions/checkout@v7
       - run: sudo xcode-select -s /Applications/Xcode_26.4.app
+      - uses: actions/cache@v4
+        with:
+          path: DerivedData/SourcePackages
+          key: spm-xcode-${{ runner.os }}-${{ hashFiles('Packages/Package.swift', 'Packages/Package.resolved', 'project.yml') }}
+          restore-keys: spm-xcode-${{ runner.os }}-
       - run: brew install xcodegen
       - run: xcodegen generate
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath ui.xcresult
-          -only-testing:oooohUITests -only-testing:oooohTests test
+          -only-testing:oooohUITests test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ui-results
+          path: ui.xcresult
+          retention-days: 7
+
+  snapshots:
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo xcode-select -s /Applications/Xcode_26.4.app
+      - uses: actions/cache@v4
+        with:
+          path: DerivedData/SourcePackages
+          key: spm-xcode-${{ runner.os }}-${{ hashFiles('Packages/Package.swift', 'Packages/Package.resolved', 'project.yml') }}
+          restore-keys: spm-xcode-${{ runner.os }}-
+      - run: brew install xcodegen
+      - run: xcodegen generate
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
           -derivedDataPath DerivedData -resultBundlePath design.xcresult
-          -only-testing:DesignTests -only-testing:NotesSnapshotTests -only-testing:AudioTests test
+          -only-testing:oooohTests -only-testing:DesignTests -only-testing:NotesSnapshotTests -only-testing:AudioTests test
         env:
           SIMCTL_CHILD_SNAPSHOT_ARTIFACTS: ${{ github.workspace }}/snapshot-failures
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: ui-results
-          path: |
-            ui.xcresult
-            design.xcresult
+          name: snapshot-results
+          path: design.xcresult
           retention-days: 7
       - uses: actions/upload-artifact@v7
         if: failure()
