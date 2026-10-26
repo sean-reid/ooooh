@@ -30,7 +30,16 @@ enum AppAttestor {
 /// The one billing store the app opens, reading the free count from the sessions it runs.
 @MainActor enum AppBilling {
   static let freeSessions = FreeSessions()
-  static let store = BillingStore(freeSessions: freeSessions, attestor: AppAttestor.shared)
+  static let store = BillingStore(
+    freeSessions: freeSessions, attestor: AppAttestor.shared, poster: poster)
+
+  /// Posts each transaction to the Worker, signed. The simulator cannot attest, so it posts none.
+  static let poster: EntitlementPoster? = {
+    guard let url = WorkerURL.fromBundle, let attestor = AppAttestor.shared,
+      !(attestor is SimulatorAttestor)
+    else { return nil }
+    return .worker(ProxyClient(baseURL: url, attestor: attestor))
+  }()
 }
 
 /// The one store the app opens. Nil when the local database cannot be opened, and that run keeps no history.

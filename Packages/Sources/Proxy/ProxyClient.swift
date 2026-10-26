@@ -107,6 +107,8 @@ public enum ProxyError: Error, Equatable, Sendable {
   case status(Int, body: String)
   /// 402 `no-session`: the device has no open session, or its free prompt minutes are spent.
   case noSession(reason: String)
+  /// 401 `unauthorized` with the check that failed as `reason`.
+  case unauthorized(reason: String)
   case notHTTP
   case stream(String)
   case attestation(String)
@@ -121,11 +123,11 @@ public enum ProxyError: Error, Equatable, Sendable {
       var error: String
       var reason: String
     }
-    if status == 402, let refusal = try? JSONDecoder().decode(Refusal.self, from: body),
-      refusal.error == "no-session"
-    {
-      return .noSession(reason: refusal.reason)
+    let refusal = try? JSONDecoder().decode(Refusal.self, from: body)
+    switch (status, refusal?.error) {
+    case (402, "no-session"): return .noSession(reason: refusal!.reason)
+    case (401, "unauthorized"): return .unauthorized(reason: refusal!.reason)
+    default: return .status(status, body: String(decoding: body, as: UTF8.self))
     }
-    return .status(status, body: String(decoding: body, as: UTF8.self))
   }
 }

@@ -45,6 +45,15 @@ import UIKit
       named: "402-\(scheme.name)")
   }
 
+  @Test(arguments: [ColorScheme.dark, .light])
+  func paywallUnconfirmed(scheme: ColorScheme) {
+    let store = BillingStore(plans: Self.plans, confirmation: .refused(reason: "wrong-device"))
+    let image = render(store: store, scheme: scheme)
+    assertSnapshot(
+      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+      named: "402-\(scheme.name)")
+  }
+
   private func render(
     store: BillingStore? = nil, scheme: ColorScheme, width: CGFloat = 402, height: CGFloat = 874,
     type: DynamicTypeSize = .large
