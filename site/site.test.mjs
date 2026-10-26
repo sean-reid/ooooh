@@ -13,7 +13,7 @@ const here = import.meta.dirname;
 const pages = ["index.html", "privacy.html", "terms.html"];
 const read = (name) => readFileSync(join(here, name), "utf8");
 const count = (html, re) => (html.match(re) ?? []).length;
-const leftovers = ["lorem", "TODO", String.fromCodePoint(0x2014)];
+const leftovers = ["lorem", "TODO", "iCloud", String.fromCodePoint(0x2014)];
 
 for (const name of pages) {
   test(`${name} exists with one h1 and no leftovers`, () => {
@@ -37,6 +37,29 @@ test("the privacy page names each provider", () => {
   const html = read("privacy.html");
   for (const provider of ["TypeSafe", "Anthropic", "ElevenLabs"])
     assert.ok(html.includes(provider), provider);
+});
+
+test("the privacy page lists each server record with its lifetime", () => {
+  const html = read("privacy.html");
+  const records = html.slice(html.indexOf("The records are:"), html.indexOf("None of this holds"));
+  assert.equal(count(records, /<li>/g), 6);
+  for (const life of [
+    "no expiry",
+    "62 days",
+    "four hours",
+    "30 days",
+    "two minutes",
+    "five minutes",
+  ])
+    assert.ok(records.includes(life), life);
+  assert.match(html, /export\s+your notes as Markdown/);
+  assert.ok(html.includes("screen locked"));
+});
+
+test("the terms carry the free prompt cap and the age line", () => {
+  const html = read("terms.html");
+  assert.match(html, /stops asking\s+questions after 20 minutes/);
+  assert.match(html, /13 or older/);
 });
 
 test("the landing page links the documents from the footer and carries the store constant", () => {
