@@ -9,8 +9,10 @@ import {
   type EntitlementRecord,
   type TransactionClaim,
 } from "../src/entitlement";
-import { endSession, startSession } from "../src/routes/session";
+import { endSession } from "../src/routes/session";
 import { assertionHeaders, makeDevice, makeRoot, type Device, type TestRoot } from "./appattest";
+import { jsonRequest, openSession } from "./request";
+import { wipeKV } from "./workers";
 import {
   day,
   makeStoreChain,
@@ -36,14 +38,11 @@ const attestEnv = (overrides: Partial<Env> = {}): Env => ({
 
 const submit = async (body: string, overrides: Partial<Env> = {}, from = device) =>
   worker.fetch(
-    new Request("https://ooooh.test/v1/entitlement", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(await assertionHeaders(from, { path: "/v1/entitlement", body, counter: ++counter })),
-      },
+    jsonRequest(
+      "/v1/entitlement",
       body,
-    }),
+      await assertionHeaders(from, { path: "/v1/entitlement", body, counter: ++counter }),
+    ),
     attestEnv(overrides),
   );
 
@@ -77,12 +76,7 @@ const enrol = async () => {
 };
 
 const start = (now: Date) =>
-  startSession(
-    new Request("https://ooooh.test/v1/session/start", { method: "POST" }),
-    env,
-    device.keyId,
-    now,
-  ).then((res) => res.json() as Promise<Record<string, unknown>>);
+  openSession(env, device.keyId, now).then((res) => res.json() as Promise<Record<string, unknown>>);
 
 beforeAll(async () => {
   authority = await makeRoot();
@@ -90,8 +84,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  const keys = await env.BUDGET.list();
-  await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
+  await wipeKV();
   counter = 0;
   device = await enrol();
 });
@@ -311,11 +304,7 @@ describe("entitlement and the session count", () => {
     expect(await entitlement(device.keyId, env, afterExpiry)).toBe("free");
     expect(await start(beforeExpiry)).toEqual({ allowed: true, free: false });
     await endSession(
-      new Request("https://ooooh.test/v1/session/end", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ minutes: 1 }),
-      }),
+      jsonRequest("/v1/session/end", { minutes: 1 }),
       env,
       device.keyId,
       beforeExpiry,

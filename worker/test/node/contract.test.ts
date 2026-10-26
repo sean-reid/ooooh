@@ -8,6 +8,7 @@ import { cueQuestions, questions, questionsVersion } from "../../src/jev/questio
 import type { StatePatch } from "../../src/routes/compact";
 import { sectionNames } from "../../src/routes/notes";
 import { compactState, existingIds, listNames } from "../../src/schema";
+import { jsonRequest } from "../request";
 import { compactBody, decideBody, opusNotes, phraseBody, speakBody, state } from "../upstream";
 import { secret } from "./env";
 
@@ -30,15 +31,7 @@ const env = {
 } as Env;
 const anthropic = env.ANTHROPIC_AUTH_TOKEN ?? env.ANTHROPIC_API_KEY;
 
-const post = (path: string, body: unknown) =>
-  worker.fetch(
-    new Request(`https://ooooh.test${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    }),
-    env,
-  );
+const post = (path: string, body: unknown) => worker.fetch(jsonRequest(path, body), env);
 
 describe("provider contracts", () => {
   beforeAll(async () => {

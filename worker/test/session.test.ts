@@ -1,31 +1,21 @@
-import { env, SELF } from "cloudflare:test";
+import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { HttpError } from "../src/http";
-import { endSession, startSession } from "../src/routes/session";
+import { endSession } from "../src/routes/session";
 import { sessionTtlSeconds, type SessionRecord } from "../src/session";
+import { jsonRequest, openSession } from "./request";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
+import { post, wipeKV } from "./workers";
 
 let chain: StoreChain;
 
 const start = (device: string, now: Date, overrides: Partial<Env> = {}) =>
-  startSession(
-    new Request("https://ooooh.test/v1/session/start", { method: "POST" }),
-    { ...env, ...overrides },
-    device,
-    now,
-  ).then((res) => res.json() as Promise<Record<string, unknown>>);
+  openSession({ ...env, ...overrides }, device, now).then(
+    (res) => res.json() as Promise<Record<string, unknown>>,
+  );
 
 const end = (device: string, minutes: number, now: Date) =>
-  endSession(
-    new Request("https://ooooh.test/v1/session/end", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ minutes }),
-    }),
-    env,
-    device,
-    now,
-  );
+  endSession(jsonRequest("/v1/session/end", { minutes }), env, device, now);
 
 const session = (device: string) => env.BUDGET.get<SessionRecord>(`session:${device}`, "json");
 
@@ -35,10 +25,7 @@ beforeAll(async () => {
   chain = await makeStoreChain();
 });
 
-beforeEach(async () => {
-  const keys = await env.BUDGET.list();
-  await Promise.all(keys.keys.map((k) => env.BUDGET.delete(k.name)));
-});
+beforeEach(wipeKV);
 
 describe("free sessions", () => {
   const october = new Date("2026-10-25T10:00:00Z");
@@ -145,30 +132,20 @@ describe("free sessions", () => {
   });
 
   it("rejects an end without minutes", async () => {
-    const err = await endSession(
-      new Request("https://ooooh.test/v1/session/end", { method: "POST", body: "{}" }),
-      env,
-      "a",
-      october,
-    ).catch((e) => e);
+    const err = await endSession(jsonRequest("/v1/session/end", "{}"), env, "a", october).catch(
+      (e) => e,
+    );
     expect(err).toBeInstanceOf(HttpError);
     expect(err.status).toBe(422);
   });
 
   it("answers over the route with the caller's label when attestation is off", async () => {
-    const res = await SELF.fetch("https://ooooh.test/v1/session/start", {
-      method: "POST",
-      headers: { "x-device": "sim" },
-    });
+    const res = await post("/v1/session/start", {}, { "x-device": "sim" });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ allowed: true, remainingFree: 2 });
     expect(await env.BUDGET.get(`sessions:sim:${new Date().toISOString().slice(0, 7)}`)).toBe("1");
     expect((await session("sim"))?.free).toBe(true);
-    const ended = await SELF.fetch("https://ooooh.test/v1/session/end", {
-      method: "POST",
-      headers: { "x-device": "sim", "content-type": "application/json" },
-      body: JSON.stringify({ minutes: 0.5 }),
-    });
+    const ended = await post("/v1/session/end", { minutes: 0.5 }, { "x-device": "sim" });
     expect(ended.status).toBe(204);
     expect(await session("sim")).toBeNull();
   });

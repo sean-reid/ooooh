@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { jsonRequest, startRequest } from "../request";
 import { appAccountTokenFor } from "../../src/entitlement";
 import worker from "../../src/index";
 import { canonicalClientData, clientDataHash } from "../../src/attest/clientdata";
@@ -11,7 +12,6 @@ import { makeStoreChain, signTransaction, transactionPayload, type StoreChain } 
 import {
   compactBody,
   decideBody,
-  fakeUpstream,
   haikuReply,
   jevReply,
   notesBody,
@@ -20,6 +20,7 @@ import {
   shortSentence,
   sonnetReply,
   sonnetStream,
+  stubUpstream,
   type Reply,
 } from "../upstream";
 
@@ -45,13 +46,8 @@ const call = async (
   accept = "application/json",
   device?: string,
 ) => {
-  const upstream = fakeUpstream(replies);
-  vi.stubGlobal("fetch", upstream.fetch);
-  const request = new Request(`https://ooooh.test${path}`, {
-    method: "POST",
-    headers: { "content-type": "application/json", accept, ...(device && { "x-device": device }) },
-    body: JSON.stringify(body),
-  });
+  const upstream = stubUpstream(...replies);
+  const request = jsonRequest(path, body, { accept, ...(device && { "x-device": device }) });
   const response = await worker.fetch(request, testEnv);
   expect(response.status).toBe(200);
   const text = await response.text();
@@ -91,8 +87,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("ProxyTests fixtures", () => {
   beforeAll(async () => {
-    const request = new Request("https://ooooh.test/v1/session/start", { method: "POST" });
-    expect((await worker.fetch(request, testEnv)).status).toBe(200);
+    expect((await worker.fetch(startRequest(), testEnv)).status).toBe(200);
   });
 
   for (const { name, path, body, replies } of cases) {
@@ -131,11 +126,7 @@ describe("ProxyTests fixtures", () => {
     call("/v1/session/start", {}, [], "application/json", device).then(JSON.parse);
 
   const endSession = async (device: string) => {
-    const request = new Request("https://ooooh.test/v1/session/end", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-device": device },
-      body: JSON.stringify({ minutes: 1 }),
-    });
+    const request = jsonRequest("/v1/session/end", { minutes: 1 }, { "x-device": device });
     expect((await worker.fetch(request, testEnv)).status).toBe(204);
   };
 
@@ -182,14 +173,10 @@ describe("ProxyTests fixtures", () => {
 });
 
 const postEntitlement = (device: string, transaction: string, chain: StoreChain) =>
-  worker.fetch(
-    new Request("https://ooooh.test/v1/entitlement", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-device": device },
-      body: JSON.stringify({ transaction }),
-    }),
-    { ...testEnv, APPLE_ROOT_PEM: chain.rootPem },
-  );
+  worker.fetch(jsonRequest("/v1/entitlement", { transaction }, { "x-device": device }), {
+    ...testEnv,
+    APPLE_ROOT_PEM: chain.rootPem,
+  });
 
 // Fixed dates, so the signed transactions and the answers come out the same on every run.
 describe("entitlement fixtures", () => {

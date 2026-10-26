@@ -3,6 +3,7 @@
 import worker from "../src/index";
 import { appAccountTokenFor } from "../src/entitlement";
 import { toBase64, type Bytes } from "../src/bytes";
+import { jsonRequest } from "./request";
 import { certificate, generate, octets, oid, pem, seq, tlv, type Authority } from "./x509";
 
 export interface StoreChain {
@@ -124,12 +125,9 @@ export async function signTransaction(
 export async function buyMonth(device: string, chain: StoreChain, env: Env, now = Date.now()) {
   const payload = transactionPayload(now, { appAccountToken: await appAccountTokenFor(device) });
   const transaction = await signTransaction(chain, payload);
-  return worker.fetch(
-    new Request("https://ooooh.test/v1/entitlement", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-device": device },
-      body: JSON.stringify({ transaction }),
-    }),
-    { ...env, REQUIRE_ATTESTATION: "false", APPLE_ROOT_PEM: chain.rootPem },
-  );
+  return worker.fetch(jsonRequest("/v1/entitlement", { transaction }, { "x-device": device }), {
+    ...env,
+    REQUIRE_ATTESTATION: "false",
+    APPLE_ROOT_PEM: chain.rootPem,
+  });
 }
