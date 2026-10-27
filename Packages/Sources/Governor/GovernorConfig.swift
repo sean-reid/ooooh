@@ -5,6 +5,8 @@ import State
 public struct GovernorConfig: Codable, Equatable, Sendable {
   public var version: Int
   public var floor: FloorRange
+  /// Seconds into the session before the first prompt; the finished question and commands are not held.
+  public var warmUp: TimeInterval
   public var speak: Thresholds
   public var finished: Thresholds
   public var command: Thresholds
@@ -24,6 +26,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   public init(
     version: Int,
     floor: FloorRange,
+    warmUp: TimeInterval = 45,
     speak: Thresholds,
     finished: Thresholds,
     command: Thresholds,
@@ -37,6 +40,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
   ) {
     self.version = version
     self.floor = floor
+    self.warmUp = warmUp
     self.speak = speak
     self.finished = finished
     self.command = command
@@ -53,6 +57,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     version = try c.decode(Int.self, forKey: .version)
     floor = try c.decode(FloorRange.self, forKey: .floor)
+    warmUp = try c.decodeIfPresent(TimeInterval.self, forKey: .warmUp) ?? 45
     speak = try c.decode(Thresholds.self, forKey: .speak)
     finished = try c.decode(Thresholds.self, forKey: .finished)
     command = try c.decode(Thresholds.self, forKey: .command)
@@ -91,6 +96,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     GovernorConfig(
       version: 5,
       floor: FloorRange(min: 30, max: 120),
+      warmUp: 45,
       speak: Thresholds(probability: 0.9, confidence: 0),
       finished: Thresholds(probability: 0.6, confidence: 0.7),
       command: Thresholds(probability: 0.9, confidence: 0.7),

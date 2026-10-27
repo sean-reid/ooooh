@@ -29,12 +29,12 @@ import Testing
     a.cues = ["trailsOff": 0.7]
     #expect(abs(g.momentScore(a) - 0.966) < 0.001)
     #expect(g.kind(for: a) == .deepen)
-    #expect(g.decide(a, signals: signals(at: 10)) == .prompt(.deepen))
+    #expect(g.decide(a, signals: signals(at: 45)) == .prompt(.deepen))
     var unknown = answers(good: 0.2)
     unknown.cues = ["somethingNew": 0.99]
     #expect(g.momentScore(unknown) == 0.2)
     var g2 = Governor(config: .initial)
-    #expect(g2.decide(unknown, signals: signals(at: 10)) == .wait)
+    #expect(g2.decide(unknown, signals: signals(at: 45)) == .wait)
   }
 
   @Test func decodesAnswersWithoutCues() throws {
@@ -55,9 +55,30 @@ import Testing
   @Test func promptsOnGoodMomentThenHonoursFloor() {
     var g = Governor(config: .initial)
     let a = answers(good: 0.9, kind: .deepen)
-    #expect(g.decide(a, signals: signals(at: 10)) == .prompt(.deepen))
-    #expect(g.decide(a, signals: signals(at: 40)) == .wait)
-    #expect(g.decide(a, signals: signals(at: 10 + 121)) == .prompt(.deepen))
+    #expect(g.decide(a, signals: signals(at: 45)) == .prompt(.deepen))
+    #expect(g.decide(a, signals: signals(at: 75)) == .wait)
+    #expect(g.decide(a, signals: signals(at: 45 + 121)) == .prompt(.deepen))
+  }
+
+  @Test func theWarmUpHoldsPromptsForTheFirst45Seconds() {
+    var g = Governor(config: .initial)
+    let strong = answers(good: 0.9, kind: .deepen)
+    #expect(g.decide(strong, signals: signals(at: 30)) == .wait)
+    #expect(g.decide(strong, signals: signals(at: 44.9)) == .wait)
+    #expect(g.decide(strong, signals: signals(at: 46)) == .prompt(.deepen))
+    var config = GovernorConfig.initial
+    config.warmUp = 10
+    var short = Governor(config: config)
+    #expect(short.decide(strong, signals: signals(at: 10)) == .prompt(.deepen))
+  }
+
+  @Test func theWarmUpDoesNotHoldTheFinishedQuestionOrCommands() {
+    var g = Governor(config: .initial)
+    let done = answers(finished: 0.95)
+    #expect(g.decide(done, signals: signals(at: 30, pause: 20)) == .askIfFinished)
+    var fresh = Governor(config: .initial)
+    let command = answers(good: 0.95, command: .wrapUp, commandConfidence: 0.95)
+    #expect(fresh.decide(command, signals: signals(at: 30)) == .command(.wrapUp))
   }
 
   @Test func floorSlidesWithStruggle() {
@@ -82,8 +103,8 @@ import Testing
   @Test func struggleShortensTheGap() {
     var g = Governor(config: .initial)
     let stuck = answers(good: 0.9, struggle: 5, momentum: 1)
-    #expect(g.decide(stuck, signals: signals(at: 0, density: 0)) == .prompt(.clarify))
-    #expect(g.decide(stuck, signals: signals(at: 31, density: 0)) == .prompt(.clarify))
+    #expect(g.decide(stuck, signals: signals(at: 45, density: 0)) == .prompt(.clarify))
+    #expect(g.decide(stuck, signals: signals(at: 76, density: 0)) == .prompt(.clarify))
   }
 
   @Test func silenceAloneNeverPrompts() {
@@ -204,13 +225,14 @@ import Testing
     #expect(g.nextCheck(speechEnd: 0) == nil)
   }
 
-  @Test func decodesAConfigWithoutTheScheduleToTheDefault() throws {
+  @Test func decodesAnOlderConfigToTheDefaults() throws {
     let json = """
       {"version":4,"floor":{"min":30,"max":120},"speak":{"probability":0.9,"confidence":0},
        "finished":{"probability":0.6,"confidence":0.7},"command":{"probability":0.9,"confidence":0.7},
        "densityWindow":120,"endSilence":30,"checkPause":2,"minCheckInterval":3}
       """
     let config = try JSONDecoder().decode(GovernorConfig.self, from: Data(json.utf8))
+    #expect(config.warmUp == 45)
     #expect(config.silenceChecks == [5, 11, 20])
   }
 }

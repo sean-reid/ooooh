@@ -78,8 +78,15 @@ import Transcription
     environment.offlineDelay = .zero
     environment.aboutToSpeakHold = .milliseconds(200)
     environment.dependencies = deps
-    environment.config = .initial
+    environment.config = warmedUp
     return environment
+  }
+
+  /// The shipped numbers past the warm-up, so a scripted moment at 14.0 arms.
+  var warmedUp: GovernorConfig {
+    var config = GovernorConfig.initial
+    config.warmUp = 0
+    return config
   }
 
   final class Counter { var count = 0 }
@@ -598,7 +605,7 @@ import Transcription
   }
 
   @Test func aCueMappedToChallengeArmsNothingWhileTheSwitchIsOff() async throws {
-    var config = GovernorConfig.initial
+    var config = warmedUp
     config.cueWeights = ["pushback": 1]
     config.cueKinds = ["pushback": .challenge]
     let decisions = ScriptedDecisionProvider { input in

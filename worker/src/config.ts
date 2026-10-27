@@ -2,6 +2,8 @@
 export const governorConfig = {
   version: 5,
   floor: { min: 30, max: 120 },
+  // Seconds into the session before the first prompt; the finished question and commands are not held.
+  warmUp: 45,
   speak: { probability: 0.9, confidence: 0 },
   finished: { probability: 0.6, confidence: 0.7 },
   command: { probability: 0.9, confidence: 0.7 },

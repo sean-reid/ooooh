@@ -21,7 +21,7 @@ import Transcription
       let (stream, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
       input = continuation
       live = LiveSessionLoop(
-        config: .initial,
+        config: .warmedUp,
         dependencies: .init(
           decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
         transcriber: OpenTranscriber(stream: stream, input: continuation), clock: clock)
@@ -204,8 +204,7 @@ import Transcription
     let fixture = try base.fixture()
     let labels = Labels(fixture: "short", labels: [])
     func collisions(delay: TimeInterval) async -> (collisions: Int, cancelled: Int, prompts: Int) {
-      var config = GovernorConfig.initial
-      config.floor = .init(min: 0, max: 0)
+      var config = GovernorConfig.initial.floorsOff
       config.armingDelay = delay
       let every = ScriptedDecisionProvider { input in
         var answers = JevAnswers.quiet

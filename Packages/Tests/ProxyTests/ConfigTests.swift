@@ -23,6 +23,7 @@ extension StubbedTransportTests {
       #expect(request.httpMethod == "GET")
       #expect(config.version == 5)
       #expect(config.floor == .init(min: 30, max: 120))
+      #expect(config.warmUp == 45)
       #expect(config.speak == .init(probability: 0.9, confidence: 0))
       #expect(config.finished == .init(probability: 0.6, confidence: 0.7))
       #expect(config.command == .init(probability: 0.9, confidence: 0.7))

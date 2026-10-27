@@ -11,7 +11,7 @@ import Transcription
   @Test func checksCarryTheWordsAndPromptsSoFar() async throws {
     let decisions = CapturingDecisions(firingAt: 11)
     let loop = SessionLoop(
-      config: .initial,
+      config: .warmedUp,
       dependencies: .init(
         decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()))
     await loop.handle(.segment(Segment(text: "one two three", start: 0, end: 1, isFinal: true)))
@@ -30,7 +30,7 @@ import Transcription
   @Test func aCancelledArmCountsNoPrompt() async throws {
     let decisions = CapturingDecisions(firingAt: 11)
     let loop = SessionLoop(
-      config: .initial,
+      config: .warmedUp,
       dependencies: .init(
         decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()))
     await loop.handle(.segment(Segment(text: "one", start: 10, end: 11, isFinal: true)))
