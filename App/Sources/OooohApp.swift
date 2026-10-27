@@ -3,6 +3,8 @@ import SwiftUI
 
 @main
 struct OooohApp: App {
+  init() { LaunchTiming.mark("app init") }
+
   var body: some Scene {
     WindowGroup {
       RootView()
