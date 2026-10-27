@@ -3,7 +3,7 @@ import { json, readBody, requireSecret } from "../http";
 import { askJev, type JevResponse } from "../jev/client";
 import { cueQuestions, questionsVersion } from "../jev/questions";
 import { transcriptLines } from "../phrasing";
-import { compactState, intervention, segment } from "../schema";
+import { compactState, intervention, segment, windows } from "../schema";
 import { array, bool, num, obj, optional } from "../validate";
 
 /// Jev reads the last few utterances verbatim; everything older lives in the compact state.
@@ -11,7 +11,7 @@ const recentWindow = 6;
 
 const body = obj({
   state: compactState,
-  recentTranscript: array(segment),
+  recentTranscript: array(segment, windows.recent),
   signals: obj({
     pauseLength: num,
     speechDensity: num,

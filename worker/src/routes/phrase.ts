@@ -20,7 +20,7 @@ import {
   wordCount,
   wordLimit,
 } from "../phrasing";
-import { compactState, intervention, interventionKinds, segment } from "../schema";
+import { compactState, intervention, interventionKinds, segment, windows } from "../schema";
 import { array, obj, oneOf, optional, withDefault } from "../validate";
 
 export type Deadlines = { callMs: number; stallMs: number };
@@ -31,9 +31,9 @@ export const deadlines: Deadlines = { callMs: 5_000, stallMs: 3_000 };
 const body = obj({
   kind: oneOf(interventionKinds),
   state: compactState,
-  recent: array(segment),
+  recent: array(segment, windows.recent),
   lastIntervention: optional(intervention),
-  said: withDefault(array(intervention), []),
+  said: withDefault(array(intervention, windows.said), []),
 });
 type Input = ReturnType<typeof body> & {
   cred: Credential;

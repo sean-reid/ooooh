@@ -18,6 +18,7 @@ import {
   sonnetReply,
   sonnetStream,
   speakBody,
+  state,
   stubUpstream,
   type FakeUpstream,
   type Reply,
@@ -28,7 +29,7 @@ import { phraseWith } from "../src/routes/phrase";
 import { deadlines, speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
 import { jsonRequest, startRequest } from "./request";
-import { post as postJson, settled, spent as spentOn } from "./workers";
+import { post as postJson, settled, spent as spentOn, wipeStorage } from "./workers";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   postJson(path, body, { "x-device": "routes", ...headers });
@@ -43,6 +44,7 @@ const sseEvents = (text: string) =>
     });
 
 beforeEach(async () => {
+  await wipeStorage();
   expect((await post("/v1/session/start", {})).status).toBe(200);
 });
 
@@ -240,6 +242,106 @@ describe("POST /v1/decide", () => {
     const res = await post("/v1/decide", decideBody);
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "jev", status: 200, detail: "not json" });
+  });
+});
+
+describe("input caps", () => {
+  const segmentAt = (i: number) => ({ text: `line ${i}`, start: i, end: i + 1 });
+  const lines = (count: number) => Array.from({ length: count }, (_, i) => segmentAt(i));
+  const invalid = async (res: Response, field: string, expected: string) => {
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: "invalid", field, expected });
+  };
+
+  it("takes 12 recent finals on decide and phrase and refuses 13", async () => {
+    expectUpstream({ body: jevReply }, { body: sonnetReply(shortSentence) });
+    expect((await post("/v1/decide", { ...decideBody, recentTranscript: lines(12) })).status).toBe(
+      200,
+    );
+    expect((await post("/v1/phrase", { ...phraseBody, recent: lines(12) })).status).toBe(200);
+    await invalid(
+      await post("/v1/decide", { ...decideBody, recentTranscript: lines(13) }),
+      "recentTranscript",
+      "at most 12 items",
+    );
+    await invalid(
+      await post("/v1/phrase", { ...phraseBody, recent: lines(13) }),
+      "recent",
+      "at most 12 items",
+    );
+  });
+
+  it("takes 12 lines said on phrase and refuses 13", async () => {
+    expectUpstream();
+    const said = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({ ...saidLines[0], at: i }));
+    await invalid(
+      await post("/v1/phrase", { ...phraseBody, said: said(13) }),
+      "said",
+      "at most 12 items",
+    );
+  });
+
+  it("takes a compaction batch of 60 finals and refuses 61", async () => {
+    expectUpstream({ body: haikuReply });
+    expect((await post("/v1/compact", { ...compactBody, transcript: lines(60) })).status).toBe(200);
+    await invalid(
+      await post("/v1/compact", { ...compactBody, transcript: lines(61) }),
+      "transcript",
+      "at most 60 items",
+    );
+  });
+
+  it("refuses a final over 1,000 characters on every transcript route", async () => {
+    expectUpstream();
+    const long = [{ text: "a".repeat(1_001), start: 0, end: 60 }];
+    await invalid(
+      await post("/v1/decide", { ...decideBody, recentTranscript: long }),
+      "recentTranscript[0].text",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/compact", { ...compactBody, transcript: long }),
+      "transcript[0].text",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/phrase", { ...phraseBody, recent: long }),
+      "recent[0].text",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/notes", { ...notesBody, transcript: long }),
+      "transcript[0].text",
+      "at most 1000 characters",
+    );
+  });
+
+  it("refuses a state with 25 items in a list, a 1,001 character thread, or 13 topics", async () => {
+    expectUpstream();
+    const item = (i: number) => ({ id: `idea-${i}`, text: "An idea.", resolved: false });
+    const ideas = Array.from({ length: 25 }, (_, i) => item(i));
+    await invalid(
+      await post("/v1/decide", { ...decideBody, state: { ...state, mainIdeas: ideas } }),
+      "state.mainIdeas",
+      "at most 24 items",
+    );
+    await invalid(
+      await post("/v1/compact", {
+        ...compactBody,
+        state: { ...state, currentThread: "t".repeat(1_001) },
+      }),
+      "state.currentThread",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/phrase", {
+        ...phraseBody,
+        state: { ...state, recentTopics: Array.from({ length: 13 }, (_, i) => `topic ${i}`) },
+      }),
+      "state.recentTopics",
+      "at most 12 items",
+    );
   });
 });
 
