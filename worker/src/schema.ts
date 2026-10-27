@@ -38,9 +38,6 @@ export const compactState = obj({
 });
 export type CompactState = ReturnType<typeof compactState>;
 
-export const transcriptLines = (segments: Segment[]) =>
-  segments.map((s) => `[${s.start.toFixed(0)}s] ${s.text}`).join("\n");
-
 export const existingIds = (state: CompactState) =>
   [...state.mainIdeas, ...state.openQuestions, ...state.uncertainties, ...state.decisions].map(
     (i) => i.id,

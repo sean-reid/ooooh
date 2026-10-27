@@ -12,10 +12,16 @@ import {
 } from "../anthropic";
 import { chargeModel } from "../budget";
 import { HttpError, json, readBody } from "../http";
-import { compactState, intervention, interventionKinds, segment, transcriptLines } from "../schema";
+import {
+  phraseEffort,
+  phraseSystem,
+  phraseUserMessage,
+  truncateToLimit,
+  wordCount,
+  wordLimit,
+} from "../phrasing";
+import { compactState, intervention, interventionKinds, segment } from "../schema";
 import { array, obj, oneOf, optional } from "../validate";
-
-export const wordLimit = 15;
 
 export type Deadlines = { callMs: number; stallMs: number };
 
@@ -33,49 +39,6 @@ type Input = ReturnType<typeof body> & { cred: Credential; env: Env; deadlines: 
 const spent = (input: Input, message: Anthropic.Beta.BetaMessage) =>
   chargeModel(input.env, message.model, message.usage);
 
-const system = `You write the one sentence a quiet thinking companion says to someone thinking aloud. They are not talking to you. They are working something out and you occasionally hand them a question.
-
-Rules, all of them hard:
-- One sentence, under ${wordLimit} words.
-- A question, or a reflection of the speaker's own words back to them.
-- Never advice. Never praise. Never the word "I".
-- Plain words the speaker used, not new vocabulary.
-- No preamble, no quotes, no markdown. Output the sentence and nothing else.
-
-Kinds:
-- clarify: ask which part of the unclear thing they mean.
-- deepen: ask what sits under the thing they just said.
-- reflect: hand back the phrase they keep returning to.
-- decide: ask whether the thing they are weighing is settled.
-- summarize: name the two or three threads they have open, as one sentence.
-- challenge: ask what would make their claim wrong.`;
-
-export const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
-
-export function truncateToLimit(text: string, limit = wordLimit): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  const head = words.slice(0, limit);
-  for (let i = head.length - 1; i >= 0; i--) {
-    if (/[.?!]["')]?$/.test(head[i])) return head.slice(0, i + 1).join(" ");
-  }
-  return head.join(" ").replace(/[,;:\s]+$/, "") + ".";
-}
-
-const userMessage = (input: Input) => {
-  const last = input.lastIntervention ?? input.state.lastIntervention;
-  const lines = [
-    `Kind: ${input.kind}`,
-    `Mode: ${input.state.mode}`,
-    `Current thread: ${input.state.currentThread || "(none yet)"}`,
-    `Open questions: ${input.state.openQuestions.map((q) => q.text).join(" | ") || "none"}`,
-    `Main ideas: ${input.state.mainIdeas.map((q) => q.text).join(" | ") || "none"}`,
-    `Uncertainties: ${input.state.uncertainties.map((q) => q.text).join(" | ") || "none"}`,
-    last ? `Last thing said to them (${last.kind}): ${last.text}` : "Nothing said to them yet.",
-    `Recent words:\n${transcriptLines(input.recent)}`,
-  ];
-  return lines.join("\n");
-};
-
 const params = (
   input: Input,
   messages: Anthropic.Beta.BetaMessageParam[],
@@ -84,8 +47,8 @@ const params = (
   max_tokens: 1024,
   betas: ["server-side-fallback-2026-07-01", ...input.cred.betas],
   fallbacks: "default",
-  system,
-  output_config: { effort: "low" },
+  system: phraseSystem,
+  output_config: { effort: phraseEffort },
   messages,
 });
 
@@ -94,7 +57,7 @@ async function retryShorter(client: Anthropic, input: Input, first: string): Pro
   const response = await within(input.deadlines.callMs, (signal) =>
     client.beta.messages.create(
       params(input, [
-        { role: "user", content: userMessage(input) },
+        { role: "user", content: phraseUserMessage(input) },
         { role: "assistant", content: first },
         {
           role: "user",
@@ -115,9 +78,12 @@ const finalText = (client: Anthropic, input: Input, first: string) =>
 
 async function phraseOnce(client: Anthropic, input: Input): Promise<string> {
   const response = await within(input.deadlines.callMs, (signal) =>
-    client.beta.messages.create(params(input, [{ role: "user", content: userMessage(input) }]), {
-      signal,
-    }),
+    client.beta.messages.create(
+      params(input, [{ role: "user", content: phraseUserMessage(input) }]),
+      {
+        signal,
+      },
+    ),
   ).catch(upstreamError);
   await spent(input, response);
   if (response.stop_reason === "refusal") throw refused(response);
@@ -134,7 +100,7 @@ function phraseStream(client: Anthropic, input: Input): Response {
         controller.enqueue(encoder.encode(sse(event, data)));
       try {
         const upstream = client.beta.messages.stream(
-          params(input, [{ role: "user", content: userMessage(input) }]),
+          params(input, [{ role: "user", content: phraseUserMessage(input) }]),
         );
         let text = "";
         let forwarding = true;

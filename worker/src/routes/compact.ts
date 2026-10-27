@@ -7,7 +7,8 @@ import {
   within,
 } from "../anthropic";
 import { json, readBody } from "../http";
-import { compactState, existingIds, listNames, modes, segment, transcriptLines } from "../schema";
+import { transcriptLines } from "../phrasing";
+import { compactState, existingIds, listNames, modes, segment } from "../schema";
 import { array, obj, oneOf, optional, str, ValidationError } from "../validate";
 
 const body = obj({ state: compactState, transcript: array(segment) });
