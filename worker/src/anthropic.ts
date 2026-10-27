@@ -3,11 +3,7 @@ import { chargeModel } from "./budget";
 import { HttpError, missingSecret, unavailable, upstreamFailure } from "./http";
 import { ValidationError } from "./validate";
 
-export const models = {
-  compact: "claude-haiku-5-5",
-  phrase: "claude-sonnet-5-5",
-  notes: "claude-opus-5-5",
-} as const;
+export { models } from "./models";
 
 const oauthBeta = "oauth-2025-04-20";
 
