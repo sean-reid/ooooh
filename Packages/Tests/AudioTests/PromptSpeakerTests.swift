@@ -102,9 +102,10 @@
       let first = try #require(firstByte.withLock { $0 })
       let lead = startedAt.timeIntervalSince(first)
       let played = finishedAt.timeIntervalSince(startedAt)
+      let gain = await speaker.lineGainDB
       print(
         "playback started \(Int(lead * 1000)) ms after the first byte, played \(played) s,"
-          + " rendered \(rendered) of \(frames) frames")
+          + " rendered \(rendered) of \(frames) frames, line gain \(gain) dB")
       #expect(spoken == text)
       #expect(events.count == 2)
       #expect(lead > 0)
@@ -114,6 +115,7 @@
       #expect(await speaker.rendered == nil)
       #expect(await speaker.text == nil)
       #expect(await speaker.hasEngine)
+      #expect(gain > 3 && gain < 5)
     }
 
     @Test func stopCutsPlaybackAndDropsTheRest() async throws {

@@ -25,6 +25,7 @@
     /// Built by the first line, so a session that never speaks never opens the audio server.
     private var engine: AVAudioEngine?
     private var player: AVAudioPlayerNode?
+    private var normalizer = LoudnessNormalizer()
     private var generation = 0
     private var scheduled = 0
     private var ended = false
@@ -45,6 +46,9 @@
     private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "audio")
     private var bytes = 0
 
+    /// The gain the current or most recent line settled on, in dB.
+    public var lineGainDB: Float { normalizer.gainDB }
+
     /// Decodes and plays `audio`. Returns once the last buffer has played, `stop()` cut it off, or the calling task was cancelled.
     public func speak(_ text: String, audio: AsyncThrowingStream<Data, Error>) async throws {
       stop()
@@ -57,6 +61,7 @@
       Self.log.info("speak begins chars=\(text.count, privacy: .public)")
       let parser = try AudioStreamParser()
       let decoder = SpeechDecoder(output: output)
+      normalizer = LoudnessNormalizer()
       let (engine, player) = graph()
       let feed = Task {
         var bytes = audio.makeAsyncIterator()
@@ -69,6 +74,7 @@
           self.bytes += chunk.count
           for packets in try parser.parse(chunk) {
             guard let pcm = try decoder.decode(packets) else { continue }
+            normalizer.apply(to: pcm)
             schedule(pcm, on: player, generation: mine)
             if scheduled == 1 {
               try engine.start()
@@ -151,7 +157,9 @@
       player?.stop()
       engine?.stop()
       text = nil
-      Self.log.info("speak finished rendered=\(rendered, privacy: .public)")
+      Self.log.info(
+        "speak finished rendered=\(rendered, privacy: .public) gain=\(self.normalizer.gainDB, format: .fixed(precision: 1), privacy: .public)dB"
+      )
       emit.yield(.finished(at: Date(), rendered: rendered))
       done?.resume()
       done = nil
