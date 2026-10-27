@@ -89,8 +89,8 @@ public actor SessionStore {
       modelContext.delete(item)
     }
     var order = 0
-    for (section, items) in Self.sections(of: notes) {
-      for item in items {
+    for section in NoteSection.allCases {
+      for item in notes[section] {
         order += 1
         if let keep = kept.first(where: { $0.section == section.rawValue && $0.slug == item.id }) {
           keep.order = order
@@ -149,13 +149,5 @@ public actor SessionStore {
       if case .ended(let at, _) = record { return at }
     }
     return result.transcript.last?.end ?? 0
-  }
-
-  static func sections(of notes: SessionNotes) -> [(NoteSection, [NoteItem])] {
-    [
-      (.ideas, notes.ideas), (.decisions, notes.decisions), (.questions, notes.questions),
-      (.insights, notes.insights), (.actions, notes.actions), (.openThreads, notes.openThreads),
-      (.quotes, notes.quotes),
-    ]
   }
 }
