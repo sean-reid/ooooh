@@ -55,14 +55,21 @@ public actor SessionStore {
     try modelContext.save()
   }
 
+  /// Deletes object by object, not in a batch, so the CloudKit mirror sees every deletion.
   public func deleteEverything() throws {
     for session in try modelContext.fetch(FetchDescriptor<StoredSession>()) {
       removeAudio(at: session.audioPath)
+      modelContext.delete(session)
     }
-    try modelContext.delete(model: StoredThread.self)
-    try modelContext.delete(model: StoredNoteItem.self)
-    try modelContext.delete(model: StoredSegment.self)
-    try modelContext.delete(model: StoredSession.self)
+    for thread in try modelContext.fetch(FetchDescriptor<StoredThread>()) {
+      modelContext.delete(thread)
+    }
+    for item in try modelContext.fetch(FetchDescriptor<StoredNoteItem>()) {
+      modelContext.delete(item)
+    }
+    for segment in try modelContext.fetch(FetchDescriptor<StoredSegment>()) {
+      modelContext.delete(segment)
+    }
     try modelContext.save()
   }
 
@@ -82,8 +89,8 @@ public actor SessionStore {
       modelContext.delete(item)
     }
     var order = 0
-    for (section, items) in Self.sections(of: notes) {
-      for item in items {
+    for section in NoteSection.allCases {
+      for item in notes[section] {
         order += 1
         if let keep = kept.first(where: { $0.section == section.rawValue && $0.slug == item.id }) {
           keep.order = order
@@ -142,13 +149,5 @@ public actor SessionStore {
       if case .ended(let at, _) = record { return at }
     }
     return result.transcript.last?.end ?? 0
-  }
-
-  static func sections(of notes: SessionNotes) -> [(NoteSection, [NoteItem])] {
-    [
-      (.ideas, notes.ideas), (.decisions, notes.decisions), (.questions, notes.questions),
-      (.insights, notes.insights), (.actions, notes.actions), (.openThreads, notes.openThreads),
-      (.quotes, notes.quotes),
-    ]
   }
 }

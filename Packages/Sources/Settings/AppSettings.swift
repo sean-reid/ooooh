@@ -19,6 +19,7 @@ public final class AppSettings {
   enum Key {
     static let challengeEnabled = "settings.challengeEnabled"
     static let quietModeOverride = "settings.quietModeOverride"
+    static let cloudSyncEnabled = "settings.cloudSyncEnabled"
   }
 
   @ObservationIgnored private let defaults: UserDefaults
@@ -52,5 +53,24 @@ public final class AppSettings {
         defaults.set(newValue.rawValue, forKey: Key.quietModeOverride)
       }
     }
+  }
+
+  /// Mirrors the store to the private CloudKit database while the phone has an iCloud account. On
+  /// by default.
+  public var cloudSyncEnabled: Bool {
+    get {
+      access(keyPath: \.cloudSyncEnabled)
+      return Self.cloudSyncEnabled(in: defaults)
+    }
+    set {
+      withMutation(keyPath: \.cloudSyncEnabled) {
+        defaults.set(newValue, forKey: Key.cloudSyncEnabled)
+      }
+    }
+  }
+
+  /// The switch as the launch path reads it, off the main actor before any view exists.
+  public nonisolated static func cloudSyncEnabled(in defaults: UserDefaults) -> Bool {
+    defaults.object(forKey: Key.cloudSyncEnabled) as? Bool ?? true
   }
 }

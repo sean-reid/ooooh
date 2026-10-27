@@ -1,4 +1,5 @@
 import Foundation
+import Governor
 import TestSupport
 import Testing
 import Transcription
@@ -11,7 +12,7 @@ import Transcription
     let labels = try Bundle.module.fixture("short.labels.json", as: Labels.self)
 
     let result = await FixtureDriver.run(
-      fixture: fixture, config: .initial,
+      fixture: fixture, config: GovernorConfig.initial.floorsOff,
       dependencies: .init(
         decisions: OracleDecisionProvider(labels: labels), compactor: PassthroughCompactor(),
         phraser: TemplatePhraser()))

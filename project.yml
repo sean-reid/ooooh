@@ -64,7 +64,7 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        UIBackgroundModes: [audio]
+        UIBackgroundModes: [audio, remote-notification]
         NSMicrophoneUsageDescription: ooooh listens while you think aloud. Audio is transcribed on this phone.
         NSSpeechRecognitionUsageDescription: Speech is turned into text on this phone so your listener can follow along.
         ITSAppUsesNonExemptEncryption: false
@@ -78,11 +78,13 @@ targets:
       path: App/Resources/ooooh.entitlements
       properties:
         com.apple.developer.devicecheck.appattest-environment: production
+        com.apple.developer.icloud-services: [CloudKit]
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.seanreid.ooooh]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        MARKETING_VERSION: "0.3.0" # x-release-please-version
+        MARKETING_VERSION: "0.4.0" # x-release-please-version
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: false
       configs:

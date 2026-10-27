@@ -4,6 +4,7 @@
     "min": 30,
     "max": 120
   },
+  "warmUp": 45,
   "speak": {
     "probability": 0.9,
     "confidence": 0
@@ -24,7 +25,7 @@
     11,
     20
   ],
-  "armingDelay": 1.5,
+  "armingDelay": 2.5,
   "cueWeights": {
     "hangingQuestion": 1,
     "trailsOff": 1.38,

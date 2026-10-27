@@ -112,15 +112,7 @@ extension SessionStore {
     guard !items.isEmpty || session.summary != nil else { return nil }
     var notes = SessionNotes(title: session.title, summary: session.summary)
     for entry in items {
-      switch entry.section {
-      case .ideas: notes.ideas.append(entry.item)
-      case .decisions: notes.decisions.append(entry.item)
-      case .questions: notes.questions.append(entry.item)
-      case .insights: notes.insights.append(entry.item)
-      case .actions: notes.actions.append(entry.item)
-      case .openThreads: notes.openThreads.append(entry.item)
-      case .quotes: notes.quotes.append(entry.item)
-      }
+      notes[entry.section].append(entry.item)
     }
     return notes
   }

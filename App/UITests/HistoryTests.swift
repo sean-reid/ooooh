@@ -59,8 +59,15 @@ final class HistoryTests: UITestCase {
     XCTAssertTrue(notes.staticTexts["Carver Street or the park"].exists)
     XCTAssertTrue(notes.staticTexts["Open threads"].exists)
     attach(app, named: "\(name)-stored-notes")
+    if searchesAndDeletes {
+      editNotes(notes, in: app, named: name)
+    }
     app.buttons["notes.done"].tap()
     waitUntilHittable(list)
+    if searchesAndDeletes {
+      XCTAssertTrue(row.appears())
+      XCTAssertTrue(row.label.contains("1 open thread"))
+    }
 
     if searchesAndDeletes {
       let search = app.textFields["history.search"]
@@ -85,5 +92,41 @@ final class HistoryTests: UITestCase {
     app.buttons["history.done"].tap()
     waitUntilHittable(history)
     XCTAssertTrue(searchesAndDeletes ? card.disappears() : card.appears())
+  }
+
+  /// Edit, resolve the first thread, tap the decision, type onto its end, Done: the thread
+  /// reads as resolved and the new text shows. The resolve comes first, before the keyboard
+  /// covers the thread rows. Both taps scroll their row into view on their own, so they wait
+  /// for existence, not hittability.
+  @MainActor
+  private func editNotes(_ notes: XCUIElement, in app: XCUIApplication, named name: String) {
+    let decision = "Make the case for the park place tonight with the numbers"
+    app.buttons["notes.edit"].tap()
+    let resolved = notes.descendants(matching: .any).matching(
+      NSPredicate(format: "label == 'Resolved'")
+    ).firstMatch
+    XCTAssertTrue(resolved.appears())
+    resolved.tap()
+    let text = notes.buttons[decision]
+    XCTAssertTrue(text.appears())
+    text.tap()
+    let field = notes.descendants(matching: .any)["notes.field"]
+    XCTAssertTrue(field.appears())
+    wait(
+      until: { (field.value(forKey: "hasKeyboardFocus") as? Bool) == true },
+      "the note field never took keyboard focus")
+    field.typeText(", with the commute times")
+    attach(app, named: "\(name)-editing-notes")
+    app.buttons["notes.editing.done"].tap()
+
+    let edited = notes.descendants(matching: .any).matching(
+      NSPredicate(format: "label == %@", decision + ", with the commute times")
+    ).firstMatch
+    XCTAssertTrue(edited.appears())
+    let thread = notes.descendants(matching: .any).matching(
+      NSPredicate(format: "label == %@", "How Sam and I weight time against money, resolved")
+    ).firstMatch
+    XCTAssertTrue(thread.exists)
+    attach(app, named: "\(name)-edited-notes")
   }
 }

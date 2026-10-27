@@ -85,6 +85,8 @@ final class SessionController {
   /// Nil until the session ends.
   private(set) var notes: NotesState?
   private(set) var savedSessionID: UUID?
+  /// The saved notes as the screen edits them. Nil without a store or before the notes land.
+  private(set) var editor: NotesEditor?
   private(set) var compactions = 0
   /// The Worker's answer for this session. Nil until it answers, and when the start failed.
   private(set) var admission: SessionStart?
@@ -416,7 +418,12 @@ final class SessionController {
         do {
           let written = try await generator.generate(
             state: result.state, transcript: result.transcript)
-          if let saved { try? await store?.attachNotes(written, to: saved) }
+          if let store, let saved {
+            try? await store.attachNotes(written, to: saved)
+            if let detail = try? await store.detail(saved) {
+              editor = NotesEditor(store: store, detail: detail)
+            }
+          }
           notes = .written(written)
         } catch {
           if case ProxyError.clockSkew = error { clockRefused = true }

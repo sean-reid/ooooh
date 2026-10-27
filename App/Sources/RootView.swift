@@ -22,7 +22,7 @@ struct RootView: View {
     @State private var isRecordingFixture = false
   #endif
 
-  private let store = AppStore.shared
+  private var store: SessionStore? { AppStore.shared.current }
   private var billing: BillingStore { AppBilling.store }
   private let launch: LaunchWork
 
@@ -100,11 +100,15 @@ struct RootView: View {
     let transcript = controller.result?.transcript ?? []
     switch controller.notes {
     case .written(let notes):
-      NotesView(notes: notes, transcript: transcript, date: controller.startedAt ?? .now) {
-        reset()
+      if let editor = controller.editor {
+        EditableNotesView(editor: editor) { reset() }
+      } else {
+        NotesView(notes: notes, transcript: transcript, date: controller.startedAt ?? .now) {
+          reset()
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("notes.view")
       }
-      .accessibilityElement(children: .contain)
-      .accessibilityIdentifier("notes.view")
     case .unavailable:
       PendingNotesView(
         state: controller.result?.state ?? .empty, transcript: transcript,

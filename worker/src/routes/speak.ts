@@ -87,7 +87,7 @@ const watched = (audio: ReadableStream<Uint8Array>, stallMs: number) => {
 
 export const speakWith =
   ({ fetchMs, stallMs }: Deadlines) =>
-  async (request: Request, env: Env): Promise<Response> => {
+  async (request: Request, env: Env, device: string): Promise<Response> => {
     const { text } = await readBody(request, body);
     const apiKey = requireSecret(env.ELEVENLABS_API_KEY, "ELEVENLABS_API_KEY");
     const { voiceId: voice } = settings(env);
@@ -104,7 +104,7 @@ export const speakWith =
     if (!res.ok) return upstreamError(res);
 
     const characters = Number(res.headers.get("x-character-count")) || text.length;
-    await charge(env, "elevenlabs", characters);
+    await charge(env, device, "elevenlabs", characters);
     const headers: Record<string, string> = {
       "content-type": speech.contentType,
       "cache-control": "no-store",

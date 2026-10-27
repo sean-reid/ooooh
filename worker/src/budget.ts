@@ -30,11 +30,41 @@ export async function checkBudget(env: Env, provider: Provider, now = new Date()
   }
 }
 
-/** Adds what a response cost without holding the response on the write. */
-export function charge(env: Env, provider: Provider, amount: number, now = new Date()) {
+/** Refuses when the device's spend on the provider today has reached its cap, until midnight UTC. */
+export async function checkDeviceBudget(
+  device: string,
+  env: Env,
+  provider: Provider,
+  now = new Date(),
+): Promise<void> {
+  const limit = settings(env).deviceDailyLimit[provider];
+  const used = await counterFor(env, device).spent(provider, day(now));
+  if (used >= limit) {
+    const retryAfter = secondsToMidnight(now);
+    throw new HttpError(
+      429,
+      { error: "device-budget", provider, used, limit, retryAfter },
+      { "retry-after": String(retryAfter) },
+    );
+  }
+}
+
+/** Adds what a response cost to the provider's day and the device's, without holding the response on the writes. */
+export function charge(
+  env: Env,
+  device: string,
+  provider: Provider,
+  amount: number,
+  now = new Date(),
+) {
   if (!(amount > 0)) return Promise.resolve();
   const today = day(now);
-  return deferred(`charge ${provider} ${today}`, () => budgetFor(env, provider).add(today, amount));
+  return deferred(`charge ${provider} ${today}`, () =>
+    Promise.all([
+      budgetFor(env, provider).add(today, amount),
+      counterFor(env, device).spend(provider, today, amount),
+    ]),
+  );
 }
 
 /** Each family's list price over Opus's, so the Anthropic cap counts Opus-equivalent tokens. */
@@ -50,10 +80,18 @@ export const modelWeight = (model: string) =>
 
 export const chargeModel = (
   env: Env,
+  device: string,
   model: string,
   usage: { input_tokens: number; output_tokens: number },
   now = new Date(),
-) => charge(env, "anthropic", modelWeight(model) * (usage.input_tokens + usage.output_tokens), now);
+) =>
+  charge(
+    env,
+    device,
+    "anthropic",
+    modelWeight(model) * (usage.input_tokens + usage.output_tokens),
+    now,
+  );
 
 /** One device may make this many provider-backed requests a minute, counted in its DeviceCounter. */
 export async function checkDeviceRate(device: string, env: Env, now = new Date()): Promise<void> {
@@ -68,15 +106,15 @@ export async function checkDeviceRate(device: string, env: Env, now = new Date()
   );
 }
 
-/** Wraps a route so the session, device, and budget checks run before any upstream call. */
+/** Wraps a route so the session, device rate, and both budget checks run before any upstream call. */
 export const guarded =
-  (
-    provider: Provider,
-    handler: (request: Request, env: Env) => Promise<Response> | Response,
-    window: Window = "prompt-minutes",
-  ): DeviceHandler =>
+  (provider: Provider, handler: DeviceHandler, window: Window = "prompt-minutes"): DeviceHandler =>
   async (request, env, device) => {
     await checkSession(device, env, window);
-    await Promise.all([checkDeviceRate(device, env), checkBudget(env, provider)]);
-    return handler(request, env);
+    await Promise.all([
+      checkDeviceRate(device, env),
+      checkDeviceBudget(device, env, provider),
+      checkBudget(env, provider),
+    ]);
+    return handler(request, env, device);
   };

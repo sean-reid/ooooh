@@ -20,7 +20,7 @@ extension SessionController.Environment {
       var environment = Self(workerURL: WorkerURL.fromBundle)
       environment.haptic = { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
       environment.announce = { AccessibilityNotification.Announcement($0).post() }
-      environment.store = AppStore.shared
+      environment.store = AppStore.shared.current
       environment.attestor = environment.workerURL.map { _ in DeferredAttestor() }
       environment.settings = AppSettings()
       environment.freeSessions = AppBilling.freeSessions
@@ -46,12 +46,13 @@ final class LaunchWork {
 
   /// Opens the store while UIKit brings the scene up.
   nonisolated static func openStore() {
-    Task.detached(priority: .userInitiated) { _ = AppStore.shared }
+    Task.detached(priority: .userInitiated) { _ = AppStore.opened }
   }
 
   func run() {
     guard !started else { return }
     started = true
+    Task { await AppStore.shared.watchAccount() }
     Task.detached(priority: .utility) {
       _ = AppAttestor.shared
       await MainActor.run {
@@ -113,13 +114,4 @@ enum AppAttestor {
     else { return nil }
     return .worker(ProxyClient(baseURL: url, attestor: attestor))
   }()
-}
-
-/// The one store the app opens. Nil when the local database cannot be opened, and that run keeps no history.
-enum AppStore {
-  static let shared: SessionStore? = LaunchTiming.measure("store") {
-    try? FileManager.default.createDirectory(
-      at: .applicationSupportDirectory, withIntermediateDirectories: true)
-    return try? SessionStore(configuration: .local)
-  }
 }

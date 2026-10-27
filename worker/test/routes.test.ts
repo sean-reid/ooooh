@@ -18,6 +18,7 @@ import {
   sonnetReply,
   sonnetStream,
   speakBody,
+  state,
   stubUpstream,
   type FakeUpstream,
   type Reply,
@@ -28,7 +29,7 @@ import { phraseWith } from "../src/routes/phrase";
 import { deadlines, speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
 import { jsonRequest, startRequest } from "./request";
-import { post as postJson, settled, spent as spentOn } from "./workers";
+import { post as postJson, settled, spent as spentOn, wipeStorage } from "./workers";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   postJson(path, body, { "x-device": "routes", ...headers });
@@ -43,6 +44,7 @@ const sseEvents = (text: string) =>
     });
 
 beforeEach(async () => {
+  await wipeStorage();
   expect((await post("/v1/session/start", {})).status).toBe(200);
 });
 
@@ -243,6 +245,106 @@ describe("POST /v1/decide", () => {
   });
 });
 
+describe("input caps", () => {
+  const segmentAt = (i: number) => ({ text: `line ${i}`, start: i, end: i + 1 });
+  const lines = (count: number) => Array.from({ length: count }, (_, i) => segmentAt(i));
+  const invalid = async (res: Response, field: string, expected: string) => {
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({ error: "invalid", field, expected });
+  };
+
+  it("takes 12 recent finals on decide and phrase and refuses 13", async () => {
+    expectUpstream({ body: jevReply }, { body: sonnetReply(shortSentence) });
+    expect((await post("/v1/decide", { ...decideBody, recentTranscript: lines(12) })).status).toBe(
+      200,
+    );
+    expect((await post("/v1/phrase", { ...phraseBody, recent: lines(12) })).status).toBe(200);
+    await invalid(
+      await post("/v1/decide", { ...decideBody, recentTranscript: lines(13) }),
+      "recentTranscript",
+      "at most 12 items",
+    );
+    await invalid(
+      await post("/v1/phrase", { ...phraseBody, recent: lines(13) }),
+      "recent",
+      "at most 12 items",
+    );
+  });
+
+  it("takes 12 lines said on phrase and refuses 13", async () => {
+    expectUpstream();
+    const said = (count: number) =>
+      Array.from({ length: count }, (_, i) => ({ ...saidLines[0], at: i }));
+    await invalid(
+      await post("/v1/phrase", { ...phraseBody, said: said(13) }),
+      "said",
+      "at most 12 items",
+    );
+  });
+
+  it("takes a compaction batch of 60 finals and refuses 61", async () => {
+    expectUpstream({ body: haikuReply });
+    expect((await post("/v1/compact", { ...compactBody, transcript: lines(60) })).status).toBe(200);
+    await invalid(
+      await post("/v1/compact", { ...compactBody, transcript: lines(61) }),
+      "transcript",
+      "at most 60 items",
+    );
+  });
+
+  it("refuses a final over 1,000 characters on every transcript route", async () => {
+    expectUpstream();
+    const long = [{ text: "a".repeat(1_001), start: 0, end: 60 }];
+    await invalid(
+      await post("/v1/decide", { ...decideBody, recentTranscript: long }),
+      "recentTranscript[0].text",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/compact", { ...compactBody, transcript: long }),
+      "transcript[0].text",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/phrase", { ...phraseBody, recent: long }),
+      "recent[0].text",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/notes", { ...notesBody, transcript: long }),
+      "transcript[0].text",
+      "at most 1000 characters",
+    );
+  });
+
+  it("refuses a state with 25 items in a list, a 1,001 character thread, or 13 topics", async () => {
+    expectUpstream();
+    const item = (i: number) => ({ id: `idea-${i}`, text: "An idea.", resolved: false });
+    const ideas = Array.from({ length: 25 }, (_, i) => item(i));
+    await invalid(
+      await post("/v1/decide", { ...decideBody, state: { ...state, mainIdeas: ideas } }),
+      "state.mainIdeas",
+      "at most 24 items",
+    );
+    await invalid(
+      await post("/v1/compact", {
+        ...compactBody,
+        state: { ...state, currentThread: "t".repeat(1_001) },
+      }),
+      "state.currentThread",
+      "at most 1000 characters",
+    );
+    await invalid(
+      await post("/v1/phrase", {
+        ...phraseBody,
+        state: { ...state, recentTopics: Array.from({ length: 13 }, (_, i) => `topic ${i}`) },
+      }),
+      "state.recentTopics",
+      "at most 12 items",
+    );
+  });
+});
+
 describe("POST /v1/decide with Jev's current legend shape", () => {
   it("accepts a legend keyed by score, and one with no legend at all", async () => {
     const keyed = {
@@ -329,7 +431,7 @@ describe("POST /v1/compact", () => {
     expectUpstream({ body: new ReadableStream<Uint8Array>() });
     const started = Date.now();
     await expect(
-      compactWith(100)(jsonRequest("/v1/compact", compactBody), env),
+      compactWith(100)(jsonRequest("/v1/compact", compactBody), env, "direct"),
     ).rejects.toMatchObject({
       status: 503,
       body: { error: "anthropic unavailable", retryAfter: 1 },
@@ -699,6 +801,7 @@ describe("POST /v1/phrase", () => {
     const res = await phraseWith({ callMs: 5000, stallMs: 100 })(
       jsonRequest("/v1/phrase", phraseBody, { accept: "text/event-stream" }),
       env,
+      "direct",
     );
     expect(res.status).toBe(200);
     const started = Date.now();
@@ -831,7 +934,11 @@ describe("POST /v1/speak", () => {
   it("answers a missing secret with 500 misconfigured and no name", async () => {
     expectUpstream();
     await expect(
-      speakWith(deadlines)(jsonRequest("/v1/speak", speakBody), { ...env, ELEVENLABS_API_KEY: "" }),
+      speakWith(deadlines)(
+        jsonRequest("/v1/speak", speakBody),
+        { ...env, ELEVENLABS_API_KEY: "" },
+        "direct",
+      ),
     ).rejects.toMatchObject({ status: 500, body: { error: "misconfigured" } });
   });
 
@@ -841,7 +948,7 @@ describe("POST /v1/speak", () => {
     expectUpstream({ hangs: true });
     const started = Date.now();
     await expect(
-      speakWith({ fetchMs: 100, stallMs: 1000 })(speakRequest(), env),
+      speakWith({ fetchMs: 100, stallMs: 1000 })(speakRequest(), env, "direct"),
     ).rejects.toMatchObject({
       status: 503,
       body: { error: "elevenlabs unavailable", retryAfter: 1 },
@@ -857,7 +964,7 @@ describe("POST /v1/speak", () => {
       },
     });
     expectUpstream({ body: silent, headers: { "content-type": "audio/mpeg" } });
-    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env);
+    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env, "direct");
     expect(res.status).toBe(200);
     const started = Date.now();
     await expect(res.arrayBuffer()).rejects.toMatchObject({ name: "TimeoutError" });
@@ -877,7 +984,7 @@ describe("POST /v1/speak", () => {
       },
     });
     expectUpstream({ body: paced, headers: { "content-type": "audio/mpeg" } });
-    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env);
+    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env, "direct");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(audioBytes);
   });
 });

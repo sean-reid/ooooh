@@ -17,6 +17,15 @@ export const str: Validator<string> = (v, p) => {
   return v;
 };
 
+/** A string of at most `max` characters. */
+export const text =
+  (max: number): Validator<string> =>
+  (v, p) => {
+    const value = str(v, p);
+    if (value.length > max) throw new ValidationError(p, `at most ${max} characters`);
+    return value;
+  };
+
 export const num: Validator<number> = (v, p) => {
   if (typeof v !== "number" || !Number.isFinite(v)) throw new ValidationError(p, "number");
   return v;
@@ -42,9 +51,10 @@ export const optional =
     v === undefined || v === null ? undefined : inner(v, p);
 
 export const array =
-  <T>(inner: Validator<T>): Validator<T[]> =>
+  <T>(inner: Validator<T>, max = Infinity): Validator<T[]> =>
   (v, p) => {
     if (!Array.isArray(v)) throw new ValidationError(p, "array");
+    if (v.length > max) throw new ValidationError(p, `at most ${max} items`);
     return v.map((item, i) => inner(item, join(p, i)));
   };
 

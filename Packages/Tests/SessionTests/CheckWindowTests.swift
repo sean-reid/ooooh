@@ -41,7 +41,7 @@ import Transcription
   @Test func theWindowIsBoundedAndEndsAtTheLatestUtterance() async throws {
     let decisions = CapturingDecisions(firingAt: nil)
     let loop = SessionLoop(
-      config: .initial, policy: .init(everySeconds: 10_000, everyWords: 10_000),
+      config: .warmedUp, policy: .init(everySeconds: 10_000, everyWords: 10_000),
       dependencies: .init(
         decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()))
     let texts = (0..<10).map { "u\($0)" }
@@ -66,7 +66,7 @@ import Transcription
     }
     let phraser = CapturingPhraser()
     let loop = SessionLoop(
-      config: .initial, policy: .init(everySeconds: 10_000, everyWords: 10_000),
+      config: .warmedUp, policy: .init(everySeconds: 10_000, everyWords: 10_000),
       dependencies: .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: phraser)
     )
     for index in 0..<5 {

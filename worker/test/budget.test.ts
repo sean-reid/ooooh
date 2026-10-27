@@ -4,6 +4,7 @@ import {
   charge,
   chargeModel,
   checkBudget,
+  checkDeviceBudget,
   checkDeviceRate,
   modelWeight,
   type Provider,
@@ -12,7 +13,7 @@ import { HttpError } from "../src/http";
 import worker from "../src/index";
 import { checkSession } from "../src/session";
 import { jsonRequest, openSession } from "./request";
-import { post, sessionsOf, settled, spent, wipeStorage } from "./workers";
+import { post, sessionsOf, settled, spent, spentBy, wipeStorage } from "./workers";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
 import {
   audioBytes,
@@ -80,7 +81,7 @@ afterEach(settled);
 
 describe("budget", () => {
   it("keeps the default cap when the var is not a positive number", async () => {
-    await charge(env, "jev", 20_000_000);
+    await charge(env, "ledger", "jev", 20_000_000);
     for (const bad of ["abc", "", "-5", "NaN"]) {
       const err = await checkBudget({ ...env, JEV_DAILY_TOKENS: bad }, "jev").catch((e) => e);
       expect(err, bad).toBeInstanceOf(HttpError);
@@ -92,12 +93,12 @@ describe("budget", () => {
   });
 
   it("adds charges and refuses at the daily cap with a retry time", async () => {
-    await charge(env, "jev", 1200);
-    await charge(env, "jev", 800);
+    await charge(env, "ledger", "jev", 1200);
+    await charge(env, "ledger", "jev", 800);
     expect(await spent("jev")).toBe(2000);
     await expect(checkBudget(env, "jev")).resolves.toBeUndefined();
 
-    await charge(env, "jev", 20_000_000);
+    await charge(env, "ledger", "jev", 20_000_000);
     const err = await checkBudget(env, "jev").catch((e) => e);
     expect(err).toBeInstanceOf(HttpError);
     expect(err.status).toBe(503);
@@ -107,9 +108,12 @@ describe("budget", () => {
   });
 
   it("keeps every charge when many land at once", async () => {
-    await Promise.all([charge(env, "anthropic", 100), charge(env, "anthropic", 200)]);
+    await Promise.all([
+      charge(env, "ledger", "anthropic", 100),
+      charge(env, "ledger", "anthropic", 200),
+    ]);
     expect(await spent("anthropic")).toBe(300);
-    await Promise.all(Array.from({ length: 20 }, () => charge(env, "elevenlabs", 1)));
+    await Promise.all(Array.from({ length: 20 }, () => charge(env, "ledger", "elevenlabs", 1)));
     expect(await spent("elevenlabs")).toBe(20);
   });
 
@@ -121,18 +125,18 @@ describe("budget", () => {
     expect(modelWeight("something-new")).toBe(1);
 
     const usage = { input_tokens: 3000, output_tokens: 1000 };
-    await chargeModel(env, "claude-haiku-5-5", usage);
+    await chargeModel(env, "ledger", "claude-haiku-5-5", usage);
     expect(await spent("anthropic")).toBe(100);
-    await chargeModel(env, "claude-sonnet-5-5", usage);
+    await chargeModel(env, "ledger", "claude-sonnet-5-5", usage);
     expect(await spent("anthropic")).toBe(2100);
-    await chargeModel(env, "claude-opus-5-5", usage);
+    await chargeModel(env, "ledger", "claude-opus-5-5", usage);
     expect(await spent("anthropic")).toBe(6100);
 
-    await charge(env, "anthropic", 700_000 - 6100 - 1);
+    await charge(env, "ledger", "anthropic", 700_000 - 6100 - 1);
     await expect(
       checkBudget({ ...env, ANTHROPIC_DAILY_TOKENS: "" }, "anthropic"),
     ).resolves.toBeUndefined();
-    await chargeModel(env, "claude-haiku-5-5", { input_tokens: 40, output_tokens: 0 });
+    await chargeModel(env, "ledger", "claude-haiku-5-5", { input_tokens: 40, output_tokens: 0 });
     const err = await checkBudget({ ...env, ANTHROPIC_DAILY_TOKENS: "" }, "anthropic").catch(
       (e) => e,
     );
@@ -141,8 +145,8 @@ describe("budget", () => {
   });
 
   it("ignores non-positive charges", async () => {
-    await charge(env, "anthropic", 0);
-    await charge(env, "anthropic", -5);
+    await charge(env, "ledger", "anthropic", 0);
+    await charge(env, "ledger", "anthropic", -5);
     expect(await spent("anthropic")).toBe(0);
   });
 
@@ -169,23 +173,23 @@ describe("budget", () => {
   it("counts the seconds to midnight: 1 at 23:59:59, 86400 at 00:00:00", async () => {
     const lastSecond = new Date("2026-10-25T23:59:59Z");
     const midnight = new Date("2026-10-26T00:00:00Z");
-    await charge(env, "jev", 20_000_000, lastSecond);
+    await charge(env, "ledger", "jev", 20_000_000, lastSecond);
     const late = await checkBudget(env, "jev", lastSecond).catch((e) => e);
     expect(late.status).toBe(503);
     expect(late.body.retryAfter).toBe(1);
     expect(late.headers).toEqual({ "retry-after": "1" });
 
     await expect(checkBudget(env, "jev", midnight)).resolves.toBeUndefined();
-    await charge(env, "jev", 20_000_000, midnight);
+    await charge(env, "ledger", "jev", 20_000_000, midnight);
     const early = await checkBudget(env, "jev", midnight).catch((e) => e);
     expect(early.body.retryAfter).toBe(86_400);
     expect(early.headers).toEqual({ "retry-after": "86400" });
   });
 
   it("passes one under the cap and refuses at exactly the cap", async () => {
-    await charge(env, "elevenlabs", 19_999);
+    await charge(env, "ledger", "elevenlabs", 19_999);
     await expect(checkBudget(env, "elevenlabs")).resolves.toBeUndefined();
-    await charge(env, "elevenlabs", 1);
+    await charge(env, "ledger", "elevenlabs", 1);
     const err = await checkBudget(env, "elevenlabs").catch((e) => e);
     expect(err.status).toBe(503);
     expect(err.body).toEqual({
@@ -205,9 +209,9 @@ describe("budget", () => {
     ];
     for (const [provider, name] of caps) {
       const capped = { ...env, [name]: "10" };
-      await charge(env, provider, 9);
+      await charge(env, "ledger", provider, 9);
       await expect(checkBudget(capped, provider), name).resolves.toBeUndefined();
-      await charge(env, provider, 1);
+      await charge(env, "ledger", provider, 1);
       const err = await checkBudget(capped, provider).catch((e) => e);
       expect(err.status, name).toBe(503);
       expect(err.body, name).toMatchObject({ provider, used: 10, limit: 10 });
@@ -241,12 +245,62 @@ describe("budget", () => {
     await expect(checkDeviceRate("edge", env, nextMinute)).resolves.toBeUndefined();
   });
 
+  it("charges the device's day alongside the provider's, and no other device's", async () => {
+    await charge(env, "ledger", "jev", 1200);
+    await charge(env, "other", "jev", 5);
+    expect(await spent("jev")).toBe(1205);
+    expect(await spentBy("ledger", "jev")).toBe(1200);
+    expect(await spentBy("other", "jev")).toBe(5);
+    expect(await spentBy("ledger", "anthropic")).toBe(0);
+  });
+
+  it("refuses a device at its daily cap with 429 until midnight, and leaves others alone", async () => {
+    const at = new Date("2026-10-25T18:00:00Z");
+    await charge(env, "ledger", "elevenlabs", 5_999, at);
+    await expect(checkDeviceBudget("ledger", env, "elevenlabs", at)).resolves.toBeUndefined();
+    await charge(env, "ledger", "elevenlabs", 1, at);
+    const err = await checkDeviceBudget("ledger", env, "elevenlabs", at).catch((e) => e);
+    expect(err).toBeInstanceOf(HttpError);
+    expect(err.status).toBe(429);
+    expect(err.body).toEqual({
+      error: "device-budget",
+      provider: "elevenlabs",
+      used: 6_000,
+      limit: 6_000,
+      retryAfter: 6 * 3600,
+    });
+    expect(err.headers).toEqual({ "retry-after": String(6 * 3600) });
+    await expect(checkDeviceBudget("other", env, "elevenlabs", at)).resolves.toBeUndefined();
+    await expect(checkDeviceBudget("ledger", env, "jev", at)).resolves.toBeUndefined();
+    const tomorrow = new Date("2026-10-26T00:00:00Z");
+    await expect(checkDeviceBudget("ledger", env, "elevenlabs", tomorrow)).resolves.toBeUndefined();
+  });
+
+  it("caps each device at 1,500,000 Jev tokens, 100,000 Opus-weighted tokens, and 6,000 characters by default, each from its var", async () => {
+    const caps: [Provider, number, keyof Env][] = [
+      ["jev", 1_500_000, "DEVICE_DAILY_JEV_TOKENS"],
+      ["anthropic", 100_000, "DEVICE_DAILY_ANTHROPIC_TOKENS"],
+      ["elevenlabs", 6_000, "DEVICE_DAILY_ELEVENLABS_CHARACTERS"],
+    ];
+    for (const [provider, limit, name] of caps) {
+      await charge(env, "ledger", provider, limit - 1);
+      await expect(checkDeviceBudget("ledger", env, provider), name).resolves.toBeUndefined();
+      await charge(env, "ledger", provider, 1);
+      const err = await checkDeviceBudget("ledger", env, provider).catch((e) => e);
+      expect(err.status, name).toBe(429);
+      expect(err.body, name).toMatchObject({ provider, used: limit, limit });
+      const raised = { ...env, [name]: String(limit + 1) };
+      await expect(checkDeviceBudget("ledger", raised, provider), name).resolves.toBeUndefined();
+      await expect(checkBudget(env, provider), name).resolves.toBeUndefined();
+    }
+  });
+
   it("drops the days before the one a charge lands on", async () => {
     const saturday = new Date("2026-10-24T12:00:00Z");
     const sunday = new Date("2026-10-25T12:00:00Z");
-    await charge(env, "jev", 5, saturday);
+    await charge(env, "ledger", "jev", 5, saturday);
     expect(await spent("jev", "2026-10-24")).toBe(5);
-    await charge(env, "jev", 7, sunday);
+    await charge(env, "ledger", "jev", 7, sunday);
     expect(await spent("jev", "2026-10-25")).toBe(7);
     expect(await spent("jev", "2026-10-24")).toBe(0);
   });
@@ -307,13 +361,37 @@ describe("guarded routes", () => {
   });
 
   it("refuses before calling upstream once the cap is reached", async () => {
-    await charge(env, "jev", 20_000_000);
+    await charge(env, "ledger", "jev", 20_000_000);
     upstream = stubUpstream();
     await start("capped");
     const res = await post("/v1/decide", decideBody, { "x-device": "capped" });
     expect(res.status).toBe(503);
     expect(res.headers.get("retry-after")).toMatch(/^\d+$/);
     expect(((await res.json()) as { error: string }).error).toBe("budget");
+  });
+
+  it("charges the device's day from a route and refuses it at its cap before calling upstream", async () => {
+    upstream = stubUpstream({ body: audioBytes, headers: { "content-type": "audio/mpeg" } });
+    await start("spender");
+    await start("neighbour");
+    await charge(env, "spender", "elevenlabs", 6_000 - speakBody.text.length);
+    const res = await post("/v1/speak", speakBody, { "x-device": "spender" });
+    expect(res.status).toBe(200);
+    await res.arrayBuffer();
+    await expect.poll(() => spentBy("spender", "elevenlabs")).toBe(6_000);
+    expect(upstream.pending()).toBe(0);
+    const refused = await post("/v1/speak", speakBody, { "x-device": "spender" });
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get("retry-after")).toMatch(/^\d+$/);
+    expect(await refused.json()).toMatchObject({
+      error: "device-budget",
+      provider: "elevenlabs",
+      used: 6_000,
+      limit: 6_000,
+    });
+    upstream = stubUpstream({ body: audioBytes, headers: { "content-type": "audio/mpeg" } });
+    expect((await post("/v1/speak", speakBody, { "x-device": "neighbour" })).status).toBe(200);
+    expect(upstream.pending()).toBe(0);
   });
 
   it("returns 429 once a device has used its minute", async () => {

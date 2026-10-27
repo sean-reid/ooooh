@@ -135,6 +135,7 @@ public struct Governor: Sendable {
       answers.intervention.confidence >= config.speak.confidence
     else { return .wait }
 
+    if signals.now < config.warmUp { return .wait }
     if let last = lastPromptAt, signals.now - last < floor(for: answers, signals: signals) {
       return .wait
     }

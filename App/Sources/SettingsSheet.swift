@@ -10,6 +10,7 @@ struct SettingsSheet: View {
   let store: SessionStore
   let billing: BillingStore
   @State private var settings = AppSettings()
+  private let appStore = AppStore.shared
   @State private var transcription: String?
   @State private var showsPaywall = false
   @State private var showsHistory = false
@@ -17,12 +18,13 @@ struct SettingsSheet: View {
 
   var body: some View {
     SettingsView(
-      settings: settings, store: store, transcription: transcription,
+      settings: settings, store: store, transcription: transcription, cloudSync: cloudSync,
       subscribeAction: { showsPaywall = true },
       openHistory: { showsHistory = true },
       onDone: { dismiss() }
     )
     .task { transcription = await Self.transcriptionLine(for: .current) }
+    .onChange(of: settings.cloudSyncEnabled) { Task { await appStore.apply() } }
     .skySheet()
     .sheet(isPresented: $showsPaywall) {
       PaywallView(store: billing) { showsPaywall = false }.skySheet()
@@ -30,6 +32,12 @@ struct SettingsSheet: View {
     .sheet(isPresented: $showsHistory) {
       HistoryView(store: store).skySheet()
     }
+  }
+
+  private var cloudSync: CloudSyncState {
+    CloudSyncState(
+      configuration: appStore.running, accountAvailable: appStore.accountAvailable,
+      syncEnabled: settings.cloudSyncEnabled)
   }
 
   /// The engine Start would run, or that none takes the phone's language.

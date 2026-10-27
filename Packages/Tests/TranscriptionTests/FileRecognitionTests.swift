@@ -42,17 +42,19 @@ import Testing
     // The feed rotates at 50 s of audio, so a second request appears before the file ends.
     await recognizer.waitForRequests(2)
     await recognizer.report(
-      RecognitionResult(words: [word("hello", 1.0), word("there", 2.0)], isFinal: true),
+      RecognitionResult(words: [word("hello", 1.0), word("there", 3.0)], isFinal: true),
       request: 0)
     await recognizer.report(
       RecognitionResult(words: [word("next", 1.0)], isFinal: true), request: 1)
     let segments = try await run.value
-    // The pause timer flushed "hello" before the final arrived, as it does live; the second
-    // request starts at the first buffer boundary past 50 s, 196 buffers of 4096 frames.
+    // "there" sits a full pause after "hello", so the word times split them whether or not the
+    // pause timer fires first; the second request starts at the first buffer boundary past 50 s,
+    // 196 buffers of 4096 frames.
+    try #require(segments.count == 3)
     #expect(segments.map(\.text) == ["hello", "there", "next"])
     #expect(segments.map(\.isFinal) == [true, true, true])
     #expect(segments[0].start == 1.0 && segments[0].end == 1.5)
-    #expect(segments[1].start == 2.0 && segments[1].end == 2.5)
+    #expect(segments[1].start == 3.0 && segments[1].end == 3.5)
     #expect(abs(segments[2].start - 51.176) < 1e-6)
     #expect(abs(segments[2].end - 51.676) < 1e-6)
     // The final on the second request starts a third, the way a live final does.

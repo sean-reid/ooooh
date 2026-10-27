@@ -7,6 +7,15 @@ import Transcription
 
 @testable import Session
 
+extension GovernorConfig {
+  /// The shipped numbers past the warm-up, so a scripted moment inside the first minute arms.
+  static var warmedUp: GovernorConfig {
+    var config = initial
+    config.warmUp = 0
+    return config
+  }
+}
+
 @Suite struct SessionLoopTests {
   func fixture() throws -> FixtureTranscriber.Fixture {
     try Bundle.module.fixture("short.json", as: FixtureTranscriber.Fixture.self)
@@ -16,16 +25,16 @@ import Transcription
     .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser())
   }
 
-  /// Fires a good moment while the speaker is on the utterance ending at `end`.
+  /// Fires a good moment while the speaker is on an utterance ending at one of `ends`.
   func firing(
-    _ kind: InterventionKind, afterUtteranceEnding end: TimeInterval,
+    _ kind: InterventionKind, afterUtterancesEnding ends: Set<TimeInterval>,
     finishedAt: TimeInterval? = nil
   )
     -> ScriptedDecisionProvider
   {
     ScriptedDecisionProvider { input in
       var answers = JevAnswers.quiet
-      if let last = input.recentTranscript.last, last.end == end {
+      if let last = input.recentTranscript.last, ends.contains(last.end) {
         answers.goodMoment = .init(0.95)
         answers.intervention = .init(kind, confidence: 0.9)
       }
@@ -50,20 +59,39 @@ import Transcription
   @Test func promptsOnceAtTheScriptedMomentWithTemplateText() async throws {
     let result = await FixtureDriver.run(
       fixture: try fixture(), config: .initial,
-      dependencies: deps(firing(.deepen, afterUtteranceEnding: 14.0)))
+      dependencies: deps(firing(.deepen, afterUtterancesEnding: [80.6])))
     #expect(result.prompts.count == 1)
     #expect(result.prompts.first?.kind == .deepen)
-    #expect(result.prompts.first?.at == 15.5)
+    #expect(result.prompts.first?.at == 83.1)
     #expect(result.state.lastIntervention?.text == "What sits underneath that?")
-    #expect(result.records.contains(.promptArmed(at: 14.0, kind: .intervention(.deepen))))
+    #expect(result.records.contains(.promptArmed(at: 80.6, kind: .intervention(.deepen))))
+  }
+
+  @Test func aMomentInsideTheWarmUpIsHeldAndTheNextOneAfterItPrompts() async throws {
+    let result = await FixtureDriver.run(
+      fixture: try fixture(), config: .initial,
+      dependencies: deps(firing(.deepen, afterUtterancesEnding: [14.0, 80.6])))
+    let decided = result.records.compactMap {
+      if case .check(let at, _, _, let decision) = $0, [14.0, 80.6].contains(at) {
+        decision
+      } else {
+        nil
+      }
+    }
+    #expect(decided == [.wait, .prompt(.deepen)])
+    let armed = result.records.compactMap {
+      if case .promptArmed(let at, _) = $0 { at } else { nil }
+    }
+    #expect(armed == [80.6])
+    #expect(result.prompts.map(\.at) == [83.1])
   }
 
   @Test func wrapsUpAfterFinishedThenSilence() async throws {
     let result = await FixtureDriver.run(
       fixture: try fixture(), config: .initial,
-      dependencies: deps(firing(.clarify, afterUtteranceEnding: -1, finishedAt: 87.8)))
+      dependencies: deps(firing(.clarify, afterUtterancesEnding: [], finishedAt: 87.8)))
     #expect(result.records.contains(.promptArmed(at: 87.8, kind: .finishedQuestion)))
-    #expect(result.finishedAsks == [89.3])
+    #expect(result.finishedAsks == [90.3])
     guard case .ended(let at, let byUser) = result.records.last! else {
       Issue.record("session did not end")
       return
@@ -118,8 +146,8 @@ import Transcription
     }
     let loop = SessionLoop(config: .initial, dependencies: deps(finished))
     await loop.handle(.segment(Segment(text: "done", start: 0, end: 10, isFinal: true)))
-    #expect(await loop.nextTick == 11.5)
-    await loop.pause(until: 11.5)
+    #expect(await loop.nextTick == 12.5)
+    await loop.pause(until: 12.5)
     #expect(await loop.nextTick == 40)
     await loop.pause(until: 40)
     let checks = await loop.records.compactMap {
