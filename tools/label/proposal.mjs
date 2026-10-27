@@ -17,7 +17,7 @@ export const outputSchema = {
         additionalProperties: false,
         required: ["utterance", "kind", "reason"],
         properties: {
-          utterance: { type: "integer", minimum: 0 },
+          utterance: { type: "integer" },
           kind: { type: "string", enum: kindNames },
           reason: { type: "string" },
         },
