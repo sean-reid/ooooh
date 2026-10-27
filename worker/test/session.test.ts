@@ -1,11 +1,11 @@
 import { env } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { HttpError } from "../src/http";
 import { endSession } from "../src/routes/session";
 import { checkSession, sessionTtlSeconds, type SessionRecord } from "../src/session";
 import { jsonRequest, openSession } from "./request";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
-import { post, sessionsOf, thisMonth, wipeStorage } from "./workers";
+import { post, sessionsOf, settled, thisMonth, wipeStorage } from "./workers";
 
 let chain: StoreChain;
 
@@ -31,6 +31,7 @@ beforeAll(async () => {
 });
 
 beforeEach(wipeStorage);
+afterEach(settled);
 
 describe("free sessions", () => {
   const october = new Date("2026-10-25T10:00:00Z");

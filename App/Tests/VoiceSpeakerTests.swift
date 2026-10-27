@@ -42,24 +42,31 @@ import Testing
     }
   }
 
-  /// Yields line.mp3 1 KiB at a time with a short gap, whatever the text.
+  /// Yields line.mp3 1 KiB at a time with a short gap, whatever the text. The stream for
+  /// `holding` stops after four chunks until `release` ends, so that line cannot finish on its own.
   final class ScriptedTransport: Sendable {
     private let chunks: [Data]
     private let endings = Endings()
+    private let holding: String?
+    private let release: AsyncStream<Void>?
 
     var ended: [String] { endings.all }
 
-    init() throws {
+    init(holding: String? = nil, until release: AsyncStream<Void>? = nil) throws {
       let data = try Bundle.tests.fixture("line.mp3")
       chunks = stride(from: 0, to: data.count, by: 1024).map {
         data[$0..<min($0 + 1024, data.count)]
       }
+      self.holding = holding
+      self.release = release
     }
 
     func audio(_ text: String) -> AsyncThrowingStream<Data, Error> {
-      AsyncThrowingStream { continuation in
+      let held = text == holding ? release : nil
+      return AsyncThrowingStream { continuation in
         let task = Task {
-          for chunk in chunks {
+          for (i, chunk) in chunks.enumerated() {
+            if i == 4, let held { for await _ in held { break } }
             continuation.yield(chunk)
             try await Task.sleep(for: .milliseconds(20))
           }
@@ -108,7 +115,8 @@ import Testing
   }
 
   @Test func aNewLineCutsTheOneBeforeIt() async throws {
-    let transport = try ScriptedTransport()
+    let (release, releasing) = AsyncStream.makeStream(of: Void.self)
+    let transport = try ScriptedTransport(holding: "first", until: release)
     let speaker = VoiceSpeaker(audio: transport.audio)
     var first = speaker.speak(text: "first").makeAsyncIterator()
     #expect(await first.next() == .started)
@@ -119,6 +127,9 @@ import Testing
     }
     #expect(await first.next() == .finished)
     #expect(await first.next() == nil)
+    await wait { transport.ended.count == 1 }
+    #expect(transport.ended == ["cancelled"])
+    releasing.finish()
     #expect(await second.value == [.started, .finished])
     await wait { transport.ended.count == 2 }
     #expect(transport.ended == ["cancelled", "finished"])

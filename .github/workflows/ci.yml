@@ -115,12 +115,17 @@ jobs:
       - run: xcodegen generate
       - name: simulator
         # A freshly selected Xcode has no simulator service running yet; first launch starts it.
+        # The test host restarts under a headless boot; Simulator.app gives the device a window.
         run: |
           sudo xcodebuild -runFirstLaunch
-          xcrun simctl list devices available | grep 'iPhone 17 Pro'
+          udid=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name == "iPhone 17 Pro")][0].udid')
+          xcrun simctl boot "$udid"
+          open -a Simulator --args -CurrentDeviceUDID "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
-          -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+          -destination "id=$SIMULATOR_UDID"
           -derivedDataPath DerivedData -resultBundlePath design.xcresult
           -only-testing:oooohTests -only-testing:DesignTests -only-testing:NotesSnapshotTests
           -only-testing:BillingTests -only-testing:SettingsSnapshotTests

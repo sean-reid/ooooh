@@ -12,7 +12,7 @@ import { HttpError } from "../src/http";
 import worker from "../src/index";
 import { checkSession } from "../src/session";
 import { jsonRequest, openSession } from "./request";
-import { post, sessionsOf, spent, wipeStorage } from "./workers";
+import { post, sessionsOf, settled, spent, wipeStorage } from "./workers";
 import { buyMonth, makeStoreChain, type StoreChain } from "./storekit";
 import {
   audioBytes,
@@ -52,6 +52,12 @@ const useMinute = async (device: string, count: number, now = new Date()) => {
 
 const statusOf = (e: unknown) => (e instanceof HttpError ? e.status : e);
 
+/** Freezes `new Date()` for the test, so its hits and its requests share one minute. */
+const freezeClock = (at: Date) => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(at);
+};
+
 /** The budget objects behind a hook on `add`, for what a charge's write does to the response. */
 const budgetsWith = (add: (real: () => Promise<number>) => Promise<number>) =>
   ({
@@ -70,6 +76,7 @@ beforeAll(async () => {
 });
 
 beforeEach(wipeStorage);
+afterEach(settled);
 
 describe("budget", () => {
   it("keeps the default cap when the var is not a positive number", async () => {
@@ -249,6 +256,7 @@ describe("guarded routes", () => {
   let upstream: FakeUpstream;
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("charges Jev input tokens from the response", async () => {
@@ -309,6 +317,7 @@ describe("guarded routes", () => {
   });
 
   it("returns 429 once a device has used its minute", async () => {
+    freezeClock(new Date("2026-10-25T10:00:30Z"));
     await useMinute("busy", 59);
     upstream = stubUpstream({ body: jevReply });
     await start("busy");
@@ -319,6 +328,7 @@ describe("guarded routes", () => {
   });
 
   it("serves exactly the limit when ten requests arrive at once", async () => {
+    freezeClock(new Date("2026-10-25T10:00:30Z"));
     await useMinute("burst", 55);
     upstream = stubUpstream(...Array.from({ length: 5 }, () => ({ body: jevReply })));
     await start("burst");
