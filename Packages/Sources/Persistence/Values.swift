@@ -32,6 +32,7 @@ public struct SessionDetail: Sendable, Equatable {
   public var modeAtEnd: CompactState.Mode?
   public var state: CompactState?
   public var transcript: [Segment]
+  public var lines: [SpokenLine]
   public var notes: SessionNotes?
   public var items: [NoteEntry]
   public var audioPath: String?
@@ -63,5 +64,6 @@ public struct MarkdownDocument: Sendable, Equatable {
 public enum StoreError: Error, Equatable {
   case missingSession(UUID)
   case missingItem(UUID)
+  case missingLine(UUID)
   case missingThread(UUID)
 }

@@ -21,6 +21,9 @@ public final class StoredSession {
   @Relationship(deleteRule: .cascade, inverse: \StoredSegment.session)
   public var segments: [StoredSegment]? = []
 
+  @Relationship(deleteRule: .cascade, inverse: \StoredLine.session)
+  public var lines: [StoredLine]? = []
+
   @Relationship(deleteRule: .cascade, inverse: \StoredNoteItem.session)
   public var items: [StoredNoteItem]? = []
 
@@ -58,6 +61,33 @@ public final class StoredSegment {
     self.text = text
     self.start = start
     self.end = end
+    self.order = order
+  }
+}
+
+@Model
+public final class StoredLine {
+  public var id: UUID = UUID()
+  public var text: String = ""
+  public var kind: String = ""
+  public var at: TimeInterval = 0
+  public var spoken: Bool = false
+  public var cut: Bool = false
+  public var bad: Bool = false
+  public var order: Int = 0
+  public var session: StoredSession? = nil
+
+  public init(
+    id: UUID = UUID(), text: String, kind: String, at: TimeInterval, spoken: Bool, cut: Bool,
+    bad: Bool, order: Int
+  ) {
+    self.id = id
+    self.text = text
+    self.kind = kind
+    self.at = at
+    self.spoken = spoken
+    self.cut = cut
+    self.bad = bad
     self.order = order
   }
 }

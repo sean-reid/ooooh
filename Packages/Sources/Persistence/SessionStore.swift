@@ -16,8 +16,9 @@ public actor SessionStore {
   /// The duration runs from `startedAt` to `endedAt`; without an end it runs to the last record.
   @discardableResult
   public func save(
-    result: SessionResult, notes: SessionNotes?, title: String, startedAt: Date = .now,
-    endedAt: Date? = nil, audioPath: String? = nil, keepAudio: Bool = false
+    result: SessionResult, lines: [SpokenLine] = [], notes: SessionNotes?, title: String,
+    startedAt: Date = .now, endedAt: Date? = nil, audioPath: String? = nil,
+    keepAudio: Bool = false
   ) throws -> UUID {
     let duration =
       endedAt.map { max(0, $0.timeIntervalSince(startedAt)) } ?? Self.duration(of: result)
@@ -33,6 +34,13 @@ public actor SessionStore {
       stored.session = session
       modelContext.insert(stored)
     }
+    for (order, line) in lines.enumerated() {
+      let stored = StoredLine(
+        id: line.id, text: line.text, kind: line.kind.name, at: line.at, spoken: line.spoken,
+        cut: line.cut, bad: line.bad, order: order)
+      stored.session = session
+      modelContext.insert(stored)
+    }
     if let notes {
       try attach(notes, to: session)
     }
@@ -45,6 +53,17 @@ public actor SessionStore {
   public func attachNotes(_ notes: SessionNotes, to sessionID: UUID) throws {
     let session = try session(sessionID)
     try attach(notes, to: session)
+    try modelContext.save()
+  }
+
+  /// Sets or clears the bad mark on a line the app said.
+  public func markLine(_ lineID: UUID, bad: Bool) throws {
+    var descriptor = FetchDescriptor<StoredLine>(predicate: #Predicate { $0.id == lineID })
+    descriptor.fetchLimit = 1
+    guard let line = try modelContext.fetch(descriptor).first else {
+      throw StoreError.missingLine(lineID)
+    }
+    line.bad = bad
     try modelContext.save()
   }
 
@@ -69,6 +88,9 @@ public actor SessionStore {
     }
     for segment in try modelContext.fetch(FetchDescriptor<StoredSegment>()) {
       modelContext.delete(segment)
+    }
+    for line in try modelContext.fetch(FetchDescriptor<StoredLine>()) {
+      modelContext.delete(line)
     }
     try modelContext.save()
   }
