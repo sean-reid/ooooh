@@ -4,7 +4,6 @@
 
   struct RecordView: View {
     @State private var model = RecordModel()
-    @State private var isSharing = false
     @Environment(\.dismiss) private var dismiss
     @ScaledMetric(relativeTo: .largeTitle) private var clockSize = 64
 
@@ -19,12 +18,6 @@
           control
         }
         .padding(24)
-      }
-      .onChange(of: model.phase) { _, phase in
-        if phase == .finished { isSharing = true }
-      }
-      .sheet(isPresented: $isSharing) {
-        ShareSheet(items: model.files)
       }
     }
 
@@ -72,6 +65,31 @@
             .font(.callout)
             .foregroundStyle(Palette.accent)
         }
+        if model.phase == .finished, let fixture = model.files.first {
+          finished(fixture)
+        }
+      }
+    }
+
+    private func finished(_ fixture: URL) -> some View {
+      HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 4) {
+          Text(fixture.lastPathComponent)
+            .font(.callout)
+            .foregroundStyle(Palette.ink)
+          if let engine = model.engine {
+            Text(engine.title)
+              .font(.footnote)
+              .foregroundStyle(Palette.inkDim)
+          }
+        }
+        Spacer()
+        ShareLink(items: model.files) {
+          Label("Share", systemImage: "square.and.arrow.up").tapTarget()
+        }
+        .font(.body)
+        .foregroundStyle(Palette.accent)
+        .accessibilityIdentifier("record.share")
       }
     }
 
@@ -97,16 +115,6 @@
       let seconds = Int(model.elapsed(at: now).rounded(.down))
       return "\(seconds / 60):" + String(format: "%02d", seconds % 60)
     }
-  }
-
-  private struct ShareSheet: UIViewControllerRepresentable {
-    let items: [URL]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-      UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
   }
 
   #Preview {
