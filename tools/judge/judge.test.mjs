@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { test } from "node:test";
-import { phraseSystem, wordLimit } from "../../worker/src/phrasing.ts";
+import {
+  phraseRules,
+  phraseSystem,
+  wordLimit,
+} from "../../worker/src/phrasing.ts";
 import {
   buildCorpus,
   emptyState,
@@ -79,35 +83,34 @@ test("a corpus record renders through the route's own user message", () => {
 });
 
 test("variants keep the shipping request and change only model, prompt, and effort", () => {
-  assert.deepEqual(variantNames, ["shipping", "exemplars", "opus"]);
+  assert.deepEqual(variantNames, ["shipping", "bare", "opus"]);
   const shipping = phraseRequest("shipping", records[0]);
   assert.equal(shipping.model, "claude-sonnet-5-5");
   assert.equal(shipping.system, phraseSystem);
+  assert.ok(phraseSystem.startsWith(phraseRules));
   assert.deepEqual(shipping.output_config, { effort: "low" });
   assert.equal(shipping.fallbacks, "default");
   assert.deepEqual(shipping.betas, ["server-side-fallback-2026-07-01"]);
   assert.equal(shipping.max_tokens, 1024);
   assert.equal("thinking" in shipping, false);
 
-  const withExemplars = phraseRequest("exemplars", records[0]);
-  assert.ok(withExemplars.system.startsWith(phraseSystem));
-  assert.equal(withExemplars.model, shipping.model);
-  assert.deepEqual(withExemplars.messages, shipping.messages);
+  const bare = phraseRequest("bare", records[0]);
+  assert.equal(bare.system, phraseRules);
+  assert.equal(bare.model, shipping.model);
+  assert.deepEqual(bare.messages, shipping.messages);
   for (const [kind, line] of Object.entries(exemplars)) {
-    assert.ok(withExemplars.system.includes(`- ${kind}: ${line}`));
+    assert.ok(shipping.system.includes(`- ${kind}: ${line}`));
+    assert.equal(bare.system.includes(line), false);
     assert.equal(hardRules(line).pass, true, `${kind}: ${line}`);
   }
-  assert.deepEqual(
-    Object.keys(exemplars),
-    Object.keys(variants).length === 3 && [
-      "clarify",
-      "deepen",
-      "reflect",
-      "decide",
-      "summarize",
-      "challenge",
-    ],
-  );
+  assert.deepEqual(Object.keys(exemplars), [
+    "clarify",
+    "deepen",
+    "reflect",
+    "decide",
+    "summarize",
+    "challenge",
+  ]);
 
   const opus = phraseRequest("opus", records[0]);
   assert.equal(opus.model, "claude-opus-5-5");
