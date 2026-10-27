@@ -1,4 +1,5 @@
 import Design
+import Notes
 import NotesUI
 import Persistence
 import SwiftUI
@@ -179,14 +180,13 @@ struct StoredNotesScreen: View {
     ZStack {
       Palette.sky.ignoresSafeArea()
       if let editor {
-        EditableNotesView(editor: editor) { dismiss() }
+        EditableNotesView(
+          editor: editor, lines: detail?.lines ?? [], onMarkBad: markLine, onDone: { dismiss() })
       } else if let detail {
         PendingNotesView(
           state: detail.state ?? .empty, transcript: detail.transcript,
-          line: PendingNotesView.noNotes, lines: detail.lines,
-          onMarkBad: { line, bad in Task { try? await store.markLine(line.id, bad: bad) } },
+          line: PendingNotesView.noNotes, lines: detail.lines, onMarkBad: markLine,
           done: { dismiss() })
-        }
       }
     }
     .task {
@@ -194,6 +194,10 @@ struct StoredNotesScreen: View {
       editor = NotesEditor(store: store, detail: detail)
       self.detail = detail
     }
+  }
+
+  private func markLine(_ line: SpokenLine, bad: Bool) {
+    Task { try? await store.markLine(line.id, bad: bad) }
   }
 }
 

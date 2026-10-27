@@ -55,6 +55,16 @@
       assertSnapshot(of: image, as: .pixels, named: "full-402-accessibility3-dark")
     }
 
+    /// The transcript open under the notes, with two lines the app said, one marked bad.
+    @Test(arguments: [ColorScheme.dark, .light])
+    func withLines(scheme: ColorScheme) {
+      var view = view(NotesSample.short, revealed: [])
+      view.lines = NotesSample.lines
+      view.transcriptExpanded = true
+      let image = render(view, height: 1400, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "short-lines-402-\(scheme.name)")
+    }
+
     private func view(
       _ notes: SessionNotes, revealed: Set<String>, editable: Bool = false, isEditing: Bool = false
     ) -> NotesView {
