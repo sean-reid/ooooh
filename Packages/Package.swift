@@ -17,6 +17,7 @@ let package = Package(
     .library(name: "Persistence", targets: ["Persistence"]),
     .library(name: "Billing", targets: ["Billing"]),
     .library(name: "Settings", targets: ["Settings"]),
+    .library(name: "TestSupport", targets: ["TestSupport"]),
     .executable(name: "eval", targets: ["eval"]),
     .executable(name: "render-icon", targets: ["render-icon"]),
   ],
@@ -39,10 +40,15 @@ let package = Package(
     .target(name: "Settings", dependencies: ["Persistence", "Design", "Notes"]),
     .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
+    .target(
+      name: "TestSupport",
+      dependencies: [.product(name: "SnapshotTesting", package: "swift-snapshot-testing")],
+      path: "Tests/TestSupport"),
     .testTarget(
       name: "DesignTests",
       dependencies: [
-        "Design", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+        "Design", "TestSupport",
+        .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
       ], exclude: ["__Snapshots__"], resources: [.copy("Fixtures")]),
     .testTarget(name: "StateTests", dependencies: ["State"]),
     .testTarget(name: "GovernorTests", dependencies: ["Governor"]),
@@ -50,20 +56,25 @@ let package = Package(
     .testTarget(
       name: "NotesSnapshotTests",
       dependencies: [
-        "Notes", "NotesUI", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+        "Notes", "NotesUI", "TestSupport",
+        .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
       ], exclude: ["__Snapshots__"]),
     .testTarget(
-      name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
-    .testTarget(name: "TranscriptionTests", dependencies: ["Transcription"]),
-    .testTarget(name: "AudioTests", dependencies: ["Audio"], resources: [.copy("Fixtures")]),
-    .testTarget(name: "ProxyTests", dependencies: ["Proxy"], resources: [.copy("Fixtures")]),
+      name: "SessionTests", dependencies: ["Session", "TestSupport"],
+      resources: [.copy("Fixtures")]),
+    .testTarget(name: "TranscriptionTests", dependencies: ["Transcription", "TestSupport"]),
     .testTarget(
-      name: "PersistenceTests", dependencies: ["Persistence"], resources: [.copy("Fixtures")]),
+      name: "AudioTests", dependencies: ["Audio", "TestSupport"], resources: [.copy("Fixtures")]),
+    .testTarget(
+      name: "ProxyTests", dependencies: ["Proxy", "TestSupport"], resources: [.copy("Fixtures")]),
+    .testTarget(
+      name: "PersistenceTests", dependencies: ["Persistence", "TestSupport"],
+      resources: [.copy("Fixtures")]),
     .testTarget(name: "SettingsTests", dependencies: ["Settings", "Session"]),
     .testTarget(
       name: "SettingsSnapshotTests",
       dependencies: [
-        "Settings", "Persistence",
+        "Settings", "Persistence", "TestSupport",
         .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
       ], exclude: ["__Snapshots__"]),
   ]
