@@ -116,14 +116,26 @@ export async function structured<T>(
   read: (parsed: unknown) => T,
 ) {
   await chargeModel(env, response.model, response.usage);
+  const text = textOf(response.content);
+  // The answer itself stays out of the log; its shape and size are enough to see what went wrong.
+  const rejected = (reason: string) =>
+    console.error(
+      "anthropic rejected",
+      response.model,
+      error,
+      reason,
+      `stop=${response.stop_reason} chars=${text.length} out=${response.usage.output_tokens}`,
+    );
   if (response.stop_reason === "max_tokens") {
+    rejected("truncated");
     throw new HttpError(502, { error: "anthropic truncated", maxTokens });
   }
   if (response.stop_reason === "refusal") throw refused(response);
   let parsed: unknown;
   try {
-    parsed = JSON.parse(textOf(response.content));
+    parsed = JSON.parse(text);
   } catch {
+    rejected("not json");
     throw new HttpError(502, { error, field: "", expected: "json" });
   }
   try {
@@ -134,6 +146,7 @@ export async function structured<T>(
     return { value: read(parsed), usage };
   } catch (e) {
     if (e instanceof ValidationError) {
+      rejected(`${e.field} expected ${e.expected}`);
       throw new HttpError(502, { error, field: e.field, expected: e.expected });
     }
     throw e;
