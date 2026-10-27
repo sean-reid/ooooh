@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Orb colors are fixed per appearance rather than adaptive, so the painter can mix them.
 struct OrbTint {
+  var scheme: ColorScheme
   var core: Palette.Shade
   var warm: Palette.Shade
   var rim: Palette.Shade
@@ -14,6 +15,7 @@ struct OrbTint {
   var amber: Palette.Shade { Palette.amberShade }
 
   init(_ scheme: ColorScheme) {
+    self.scheme = scheme
     switch scheme {
     case .dark:
       core = Palette.Shade(1.0, 0.960, 0.860)
@@ -64,6 +66,12 @@ struct OrbPainter {
     case halo, under, body, sheen, grain
   }
 
+  /// Resolved once per frame by the canvas: the grain tile, and the halo disc when it is cached.
+  struct Images {
+    var grain: GraphicsContext.ResolvedImage?
+    var halo: GraphicsContext.ResolvedImage?
+  }
+
   /// What every layer measures from: the body radius after breath, and the body outline.
   struct Scene {
     var size: CGSize
@@ -82,51 +90,68 @@ struct OrbPainter {
     }
   }
 
-  func paint(in context: inout GraphicsContext, size: CGSize, grain: GraphicsContext.ResolvedImage?)
-  {
+  func paint(in context: inout GraphicsContext, size: CGSize, images: Images) {
     let scene = Scene(frame: frame, size: size)
     for layer in Layer.allCases {
-      paint(layer, scene, in: &context, grain: grain)
+      paint(layer, scene, in: &context, images: images)
     }
   }
 
-  func paint(
-    _ layer: Layer, in context: inout GraphicsContext, size: CGSize,
-    grain: GraphicsContext.ResolvedImage?
-  ) {
-    paint(layer, Scene(frame: frame, size: size), in: &context, grain: grain)
+  func paint(_ layer: Layer, in context: inout GraphicsContext, size: CGSize, images: Images) {
+    paint(layer, Scene(frame: frame, size: size), in: &context, images: images)
   }
 
   private func paint(
-    _ layer: Layer, _ scene: Scene, in context: inout GraphicsContext,
-    grain: GraphicsContext.ResolvedImage?
+    _ layer: Layer, _ scene: Scene, in context: inout GraphicsContext, images: Images
   ) {
     switch layer {
-    case .halo: halo(scene, in: &context)
+    case .halo: halo(scene, in: &context, disc: images.halo)
     case .under: under(scene, in: &context)
     case .body: body(scene, in: &context)
     case .sheen: sheen(scene, in: &context)
-    case .grain: if let grain { self.grain(scene, in: &context, tile: grain) }
+    case .grain: if let grain = images.grain { self.grain(scene, in: &context, tile: grain) }
     }
   }
 
-  private func halo(_ scene: Scene, in context: inout GraphicsContext) {
+  private func halo(
+    _ scene: Scene, in context: inout GraphicsContext, disc: GraphicsContext.ResolvedImage?
+  ) {
     let pose = frame.pose
+    guard let disc else {
+      Self.blurredHalo(
+        in: &context, center: scene.center, base: scene.base, tint: tint, pose: pose,
+        clock: frame.clock)
+      return
+    }
+    let half = scene.base * OrbHalo.extent
+    var glowContext = context
+    glowContext.blendMode = tint.glowBlend
+    glowContext.opacity = pose.glow
+    glowContext.draw(
+      disc,
+      in: CGRect(
+        x: scene.center.x - half, y: scene.center.y - half, width: 2 * half, height: 2 * half))
+  }
+
+  /// The halo drawn and blurred in place: what OrbHalo caches, and the fallback when it cannot.
+  static func blurredHalo(
+    in context: inout GraphicsContext, center: CGPoint, base: CGFloat, tint: OrbTint,
+    pose: OrbPose, clock: TimeInterval
+  ) {
     let halo = OrbGeometry.blob(
-      center: scene.center, radius: scene.base * OrbLayers.halo.radius,
-      clock: frame.clock * OrbLayers.halo.clock, drift: pose.drift * OrbLayers.halo.drift,
-      breath: 0, stretch: pose.stretch)
+      center: center, radius: base * OrbLayers.halo.radius, clock: clock * OrbLayers.halo.clock,
+      drift: pose.drift * OrbLayers.halo.drift, breath: 0, stretch: pose.stretch)
     let glow = tint.glow.color
     var glowContext = context
     glowContext.blendMode = tint.glowBlend
     glowContext.drawLayer { layer in
-      layer.addFilter(.blur(radius: scene.base * OrbLayers.halo.blur))
+      layer.addFilter(.blur(radius: base * OrbLayers.halo.blur))
       layer.fill(
         halo,
         with: .radialGradient(
-          Self.gradient(OrbLayers.haloStops) { glow.opacity($0 * tint.glowAlpha * pose.glow) },
-          center: scene.center, startRadius: scene.base * OrbLayers.halo.start,
-          endRadius: scene.base * OrbLayers.halo.radius))
+          gradient(OrbLayers.haloStops) { glow.opacity($0 * tint.glowAlpha * pose.glow) },
+          center: center, startRadius: base * OrbLayers.halo.start,
+          endRadius: base * OrbLayers.halo.radius))
     }
   }
 

@@ -4,8 +4,9 @@ import Testing
 @testable import Design
 
 /// Draws the orb at the session screen's 320 pt through a 2x CGContext, one layer at a time, and
-/// prints the median milliseconds per frame. Nothing here is gated on wall clock. Suites in one
-/// process share the cores, so the numbers mean something only when this suite runs alone.
+/// prints the median milliseconds per frame, with the halo both from its cached disc and through
+/// the blur it falls back to. Nothing here is gated on wall clock. Suites in one process share the
+/// cores, so the numbers mean something only when this suite runs alone.
 @MainActor
 @Suite struct OrbRenderBenchmark {
   static let side: CGFloat = 320
@@ -20,8 +21,20 @@ import Testing
     let size = CGSize(width: Self.side, height: Self.side)
     let pose = OrbPose.target(for: .listening)
     let grain = OrbGrain.image.map { Image(decorative: $0, scale: 1) }
+    func images(_ context: GraphicsContext, disc: Bool = true) -> OrbPainter.Images {
+      OrbPainter.Images(
+        grain: grain.map { context.resolve($0) },
+        halo: disc ? halo.map { context.resolve($0) } : nil)
+    }
     let renderer = ImageRenderer(content: AnyView(Color.clear))
     renderer.scale = Self.scale
+    let haloStart = ContinuousClock.now
+    let disc = OrbHalo.image(for: tint, side: Self.side)
+    let haloRender = (ContinuousClock.now - haloStart) / .milliseconds(1)
+    let nextStart = ContinuousClock.now
+    _ = OrbHalo.image(for: tint, side: Self.side - 8)
+    let nextRender = (ContinuousClock.now - nextStart) / .milliseconds(1)
+    let halo = disc.map { OrbHalo.image($0) }
 
     func pass(_ paint: @escaping (inout GraphicsContext, OrbFrame) -> Void) -> Double {
       var total: Duration = .zero
@@ -44,22 +57,38 @@ import Testing
     var variants: [(name: String, paint: (inout GraphicsContext, OrbFrame) -> Void)] = [
       ("empty", { _, _ in })
     ]
+    variants.append(
+      (
+        "halo blurred",
+        { context, frame in
+          OrbPainter(frame: frame, tint: tint).paint(
+            .halo, in: &context, size: size, images: images(context, disc: false))
+        }
+      ))
     for layer in OrbPainter.Layer.allCases {
       variants.append(
         (
-          layer.rawValue,
+          layer == .halo ? "halo disc" : layer.rawValue,
           { context, frame in
             OrbPainter(frame: frame, tint: tint).paint(
-              layer, in: &context, size: size, grain: grain.map { context.resolve($0) })
+              layer, in: &context, size: size, images: images(context))
           }
         ))
     }
     variants.append(
       (
-        "frame",
+        "frame blurred",
         { context, frame in
           OrbPainter(frame: frame, tint: tint).paint(
-            in: &context, size: size, grain: grain.map { context.resolve($0) })
+            in: &context, size: size, images: images(context, disc: false))
+        }
+      ))
+    variants.append(
+      (
+        "frame disc",
+        { context, frame in
+          OrbPainter(frame: frame, tint: tint).paint(
+            in: &context, size: size, images: images(context))
         }
       ))
 
@@ -74,8 +103,11 @@ import Testing
     print(
       "orb render at \(Int(Self.side)) pt, \(Int(Self.scale))x, median of \(Self.repeats) passes "
         + "of \(Self.frames) frames, empty canvas \(String(format: "%.2f", empty)) ms subtracted")
+    print(
+      "  halo disc \(disc?.width ?? 0) px rendered once in \(String(format: "%.2f", haloRender)) ms, "
+        + "the next size in \(String(format: "%.2f", nextRender)) ms")
     for (index, variant) in variants.enumerated().dropFirst() {
-      let name = variant.name.padding(toLength: 6, withPad: " ", startingAt: 0)
+      let name = variant.name.padding(toLength: 14, withPad: " ", startingAt: 0)
       print("  \(name) \(String(format: "%6.2f", medians[index] - empty)) ms/frame")
     }
     #expect(medians.last! > empty)

@@ -68,12 +68,15 @@ public struct Orb: View {
     return GeometryReader { proxy in
       let side = min(proxy.size.width, proxy.size.height)
       let margin = (side * Self.overflow).rounded()
+      let halo = OrbHalo.image(for: tint, side: side)
       Canvas(opaque: false, colorMode: .nonLinear, rendersAsynchronously: false) {
         context, _ in
-        let grain = OrbGrain.image.map { context.resolve(Image(decorative: $0, scale: 1)) }
+        let images = OrbPainter.Images(
+          grain: OrbGrain.image.map { context.resolve(Image(decorative: $0, scale: 1)) },
+          halo: halo.map { context.resolve(OrbHalo.image($0)) })
         context.translateBy(x: margin, y: margin)
         OrbPainter(frame: frame, tint: tint).paint(
-          in: &context, size: CGSize(width: side, height: side), grain: grain)
+          in: &context, size: CGSize(width: side, height: side), images: images)
       }
       .frame(width: side + 2 * margin, height: side + 2 * margin)
       .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
