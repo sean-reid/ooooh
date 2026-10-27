@@ -1,8 +1,8 @@
-// Prints the per-variant table from the lines and scores under data/.
-//   node tools/judge/report.mjs [variant ...]
+// Prints the per-variant table from the lines and scores under data/, or under --dir.
+//   node tools/judge/report.mjs [--dir <dir>] [name ...]
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { dataDir, readJsonl } from "./io.mjs";
+import { dataDir, parseArgs, readJsonl } from "./io.mjs";
 import { criterionNames, judgeModel } from "./judge.mjs";
 import { hardRules } from "./rules.mjs";
 
@@ -122,19 +122,21 @@ export const table = (summaries) => {
   return out.join("\n");
 };
 
-const variantsOnDisk = () =>
-  readdirSync(dataDir)
+export const namesOnDisk = (dir) =>
+  readdirSync(dir)
     .map((name) => name.match(/^lines\.(.+)\.jsonl$/)?.[1])
     .filter(Boolean)
     .sort();
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  const names = process.argv.slice(2);
-  const summaries = (names.length ? names : variantsOnDisk()).map((variant) => {
-    const scoresFile = join(dataDir, `scores.${variant}.jsonl`);
+  const { flags, words } = parseArgs(process.argv.slice(2));
+  const dir = flags.dir ?? dataDir;
+  const names = words.length ? words : namesOnDisk(dir);
+  const summaries = names.map((name) => {
+    const scoresFile = join(dir, `scores.${name}.jsonl`);
     return summarize(
-      variant,
-      readJsonl(join(dataDir, `lines.${variant}.jsonl`)),
+      name,
+      readJsonl(join(dir, `lines.${name}.jsonl`)),
       existsSync(scoresFile) ? readJsonl(scoresFile) : [],
     );
   });

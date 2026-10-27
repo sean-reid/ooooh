@@ -1,39 +1,40 @@
 // Scores one variant's lines against the rubric and writes the judge's answers.
-//   node tools/judge/score.mjs <variant> [--corpus <file>] [--lines <file>] [--out <file>]
+//   node tools/judge/score.mjs <name> [--corpus <file>] [--dir <dir>] [--lines <file>] [--out <file>]
 import { join } from "node:path";
 import { client, concurrency, textOf, timed, usageOf } from "./api.mjs";
 import { dataDir, parseArgs, pool, readJsonl, writeJsonl } from "./io.mjs";
 import { judgeRequest, parseJudgement } from "./judge.mjs";
 
 const { flags, words } = parseArgs(process.argv.slice(2));
-const [variant] = words;
-if (!variant) {
+const [name] = words;
+if (!name) {
   console.error(
-    "usage: score.mjs <variant> [--corpus <file>] [--lines <file>] [--out <file>]",
+    "usage: score.mjs <name> [--corpus <file>] [--dir <dir>] [--lines <file>] [--out <file>]",
   );
   process.exit(2);
 }
 
+const dir = flags.dir ?? dataDir;
 const corpus = new Map(
-  readJsonl(flags.corpus ?? join(dataDir, "corpus.jsonl")).map((record) => [
+  readJsonl(flags.corpus ?? join(dir, "corpus.jsonl")).map((record) => [
     record.id,
     record,
   ]),
 );
-const lines = readJsonl(flags.lines ?? join(dataDir, `lines.${variant}.jsonl`));
+const lines = readJsonl(flags.lines ?? join(dir, `lines.${name}.jsonl`));
 const anthropic = client();
 
 const scores = await pool(lines, concurrency, async (line) => {
   const record = corpus.get(line.id);
   if (!record) throw new Error(`${line.id} is not in the corpus`);
   const { message, latencyMs } = await timed(() =>
-    anthropic.messages.create(judgeRequest(record, line.text)),
+    anthropic.messages.create(judgeRequest(record, line.text, line.said ?? [])),
   );
   const { scores, note } = parseJudgement(textOf(message.content));
   console.log(`${line.id} ${Object.values(scores).join("")} ${note}`);
   return {
     id: line.id,
-    variant,
+    variant: name,
     scores,
     note,
     judgeLatencyMs: latencyMs,
@@ -41,6 +42,6 @@ const scores = await pool(lines, concurrency, async (line) => {
   };
 });
 
-const out = flags.out ?? join(dataDir, `scores.${variant}.jsonl`);
+const out = flags.out ?? join(dir, `scores.${name}.jsonl`);
 writeJsonl(out, scores);
 console.log(`${scores.length} scores -> ${out}`);

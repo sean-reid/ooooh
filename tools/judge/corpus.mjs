@@ -1,6 +1,7 @@
 // Turns the labeled moments in a fixture directory into phrasing inputs, one per line.
 //   node tools/judge/corpus.mjs [--fixtures <dir>] [--out <file>]
-import { readdirSync } from "node:fs";
+// A fixture sits beside its labels as <stem>.fixture.json, or as <stem>.json for a phone recording.
+import { existsSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { kindGuide } from "../../worker/src/phrasing.ts";
 import {
@@ -13,7 +14,7 @@ import {
 
 export const interventionKinds = Object.keys(kindGuide);
 
-/** SessionLoop.recentWindow: the finals the phone sends with each phrase request. */
+/** SessionLoop.recentWindow: the finals a phone sent with a phrase request before the transcript window. */
 export const recentWindow = 6;
 
 export const emptyState = () => ({
@@ -33,18 +34,20 @@ export const recordsFor = (fixture, labels) => {
   const finals = fixture.segments.filter((s) => s.isFinal !== false);
   return labels.labels
     .filter((label) => interventionKinds.includes(label.kind))
-    .map((label) => {
-      const upTo = finals.filter((s) => s.end <= label.at);
-      return {
-        id: `${labels.fixture}:${label.utterance}`,
-        fixture: labels.fixture,
-        utterance: label.utterance,
-        at: label.at,
-        kind: label.kind,
-        state: emptyState(),
-        recent: upTo.slice(-recentWindow).map(segmentOf),
-      };
-    });
+    .map((label) => ({
+      id: `${labels.fixture}:${label.utterance}`,
+      fixture: labels.fixture,
+      utterance: label.utterance,
+      at: label.at,
+      kind: label.kind,
+      state: emptyState(),
+      transcript: finals.filter((s) => s.end <= label.at).map(segmentOf),
+    }));
+};
+
+export const fixtureFile = (dir, stem) => {
+  const synthetic = join(dir, `${stem}.fixture.json`);
+  return existsSync(synthetic) ? synthetic : join(dir, `${stem}.json`);
 };
 
 export const buildCorpus = (dir) =>
@@ -54,7 +57,7 @@ export const buildCorpus = (dir) =>
     .flatMap((name) => {
       const stem = basename(name, ".labels.json");
       return recordsFor(
-        readJSON(join(dir, `${stem}.fixture.json`)),
+        readJSON(fixtureFile(dir, stem)),
         readJSON(join(dir, name)),
       );
     });
