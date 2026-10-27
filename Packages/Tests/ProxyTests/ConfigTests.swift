@@ -31,7 +31,7 @@ extension StubbedTransportTests {
       #expect(config.endSilence == 30)
       #expect(config.longSilence == 45)
       #expect(config.silenceChecks == [5, 11, 20])
-      #expect(config.armingDelay == 1.5)
+      #expect(config.armingDelay == 2.5)
       let weights: [String: Double] = [
         "hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125,
       ]

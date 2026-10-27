@@ -148,7 +148,7 @@ import Transcription
     #expect(controller.level == 0)
     let result = try #require(controller.result)
     #expect(result.transcript.count == 17)
-    #expect(result.prompts.map(\.at) == [15.5])
+    #expect(result.prompts.map(\.at) == [16.5])
     #expect(result.state.currentThread.contains("done for now"))
     #expect(result.state.lastIntervention?.text == "What sits underneath that?")
     #expect(controller.lastPrompt == "What sits underneath that?")
@@ -292,7 +292,7 @@ import Transcription
     #expect(left < .seconds(1.4), "the hold ran out before the arm was cancelled, \(left)")
     await wait { controller.stage == .ended }
     let result = try #require(controller.result)
-    #expect(result.prompts.map(\.at) == [15.5])
+    #expect(result.prompts.map(\.at) == [16.5])
     #expect(result.cancelledArms == [26.3])
     #expect(haptics.count == 1)
   }
@@ -346,7 +346,7 @@ import Transcription
   }
 
   /// Two utterances for speed 1, where the loop's timer runs on the wall clock: the prompt
-  /// fires at 3.0 and is due at 4.5, so `then` lands while the line is in flight or after it.
+  /// fires at 3.0 and is due at 5.5, so `then` lands while the line is in flight or after it.
   func realTimeFixture(then next: Segment) throws -> URL {
     try write([
       Segment(
@@ -360,7 +360,7 @@ import Transcription
   }
 
   let speechAgain = Segment(
-    text: "like I know the backend costs about twenty cents an hour", start: 5.5, end: 8.0,
+    text: "like I know the backend costs about twenty cents an hour", start: 6.5, end: 9.0,
     isFinal: true)
 
   let anHourOut = Segment(text: "and one more thing", start: 3600, end: 3601, isFinal: true)
@@ -654,7 +654,7 @@ import Transcription
     #expect(controller.admission == .free(remaining: 2, promptMinutes: 20))
     #expect(!controller.promptsRefused)
     #expect(SessionView.status(for: controller) == nil)
-    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    #expect(controller.result?.prompts.map(\.at) == [16.5])
     #expect(seen.nows.contains { $0 >= 60 })
 
     await wait { GateProtocol.requests(to: "free").count == 2 }
@@ -849,7 +849,7 @@ import Transcription
     await controller.start(.fixture(shortFixture, speed: .infinity))
     await wait { controller.stage == .ended }
     #expect(controller.admission == .paid)
-    #expect(controller.result?.prompts.map(\.at) == [82.1])
+    #expect(controller.result?.prompts.map(\.at) == [83.1])
     #expect(seen.nows.contains { $0 >= 60 })
     await wait { GateProtocol.requests(to: "paid").count == 2 }
     #expect(GateProtocol.requests(to: "paid").last?.path == "/v1/session/end")
@@ -882,7 +882,7 @@ import Transcription
     #expect(controller.admission == nil)
     #expect(!controller.promptsRefused)
     #expect(!controller.isOffline)
-    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    #expect(controller.result?.prompts.map(\.at) == [16.5])
 
     try? await Task.sleep(for: .milliseconds(200))
     #expect(GateProtocol.requests(to: "down").map(\.path) == ["/v1/session/start"])
@@ -900,7 +900,7 @@ import Transcription
     await wait { controller.stage == .ended }
     #expect(controller.admission == nil)
     #expect(!controller.isOffline)
-    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    #expect(controller.result?.prompts.map(\.at) == [16.5])
     let refused = UnreachableProtocol.seen.withLock { $0 }
     #expect(refused.contains { $0.hasPrefix("/v1/session/start@") }, "\(refused)")
   }
@@ -918,7 +918,7 @@ import Transcription
     await controller.start(.fixture(shortFixture, speed: .infinity))
     await wait { controller.stage == .ended }
     #expect(controller.admission == .free(remaining: 2, promptMinutes: 20))
-    #expect(controller.result?.prompts.map(\.at) == [15.5])
+    #expect(controller.result?.prompts.map(\.at) == [16.5])
     await wait { GateProtocol.requests(to: host).count == 2 }
     #expect(
       GateProtocol.requests(to: host).map(\.path) == ["/v1/session/start", "/v1/session/end"])

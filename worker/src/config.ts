@@ -13,7 +13,7 @@ export const governorConfig = {
   longSilence: 45,
   // Pause lengths in seconds at which the phone asks Jev during silence; after the last, nothing until speech resumes.
   silenceChecks: [5, 11, 20],
-  armingDelay: 1.5,
+  armingDelay: 2.5,
   // Weights from the second recorded Jev run: only the cues that separated labeled checks from unlabeled ones.
   cueWeights: { hangingQuestion: 1.0, trailsOff: 1.38, unnamedDecision: 1.125 },
   cueKinds: { hangingQuestion: "clarify", trailsOff: "deepen", unnamedDecision: "decide" },

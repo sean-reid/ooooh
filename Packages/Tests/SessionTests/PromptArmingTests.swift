@@ -93,16 +93,16 @@ import Transcription
     #expect(spoken(start).isEmpty)
 
     await wait { h.clock.sleeping > 0 }
-    h.advance(to: 1.9)
+    h.advance(to: 2.9)
     #expect(h.clock.sleeping == 1)
-    h.advance(to: 2.0)
+    h.advance(to: 3.0)
     let fired = await h.events.next(until: \.isPromptRequested)
-    #expect(spoken(fired).map(\.at) == [2.0])
+    #expect(spoken(fired).map(\.at) == [3.0])
 
     h.advance(to: 12)
     let (events, result) = try await h.finish()
     #expect(spoken(events).isEmpty)
-    #expect(result.prompts.map(\.at) == [2.0])
+    #expect(result.prompts.map(\.at) == [3.0])
     #expect(result.state.lastIntervention?.text == "What sits underneath that?")
     #expect(result.cancelledArms.isEmpty)
   }
@@ -133,11 +133,11 @@ import Transcription
     let second = await h.say("two", from: 1.3, to: 3.0)
     #expect(armed(second).map(\.at) == [3.0])
 
-    h.advance(to: 4.5)
+    h.advance(to: 5.5)
     let fired = await h.events.next(until: \.isPromptRequested)
-    #expect(spoken(fired).map(\.at) == [4.5])
+    #expect(spoken(fired).map(\.at) == [5.5])
     let (_, result) = try await h.finish()
-    #expect(result.prompts.map(\.at) == [4.5])
+    #expect(result.prompts.map(\.at) == [5.5])
     #expect(result.cancelledArms == [1.3])
   }
 
@@ -152,11 +152,11 @@ import Transcription
     #expect(armed(start).map(\.kind) == [.finishedQuestion])
     #expect(asked(start).isEmpty)
 
-    h.advance(to: 2.0)
+    h.advance(to: 3.0)
     let fired = await h.events.next(until: \.isAskedIfFinished)
-    #expect(asked(fired) == [2.0])
+    #expect(asked(fired) == [3.0])
     let (_, result) = try await h.finish()
-    #expect(result.finishedAsks == [2.0])
+    #expect(result.finishedAsks == [3.0])
   }
 
   @Test func speechCancelsTheFinishedQuestionAndClearsTheGovernor() async {
@@ -183,21 +183,21 @@ import Transcription
   @Test func theFloorAndTheScheduleStillApply() async throws {
     var h = await Harness(firing(.deepen, at: [0.5, 3.5]))
     _ = await h.say("one", from: 0, to: 0.5)
-    h.advance(to: 2.0)
+    h.advance(to: 3.0)
     _ = await h.events.next(until: \.isPromptRequested)
-    h.advance(to: 2.6)
-    let second = await h.say("two", from: 3.0, to: 3.5)
+    h.advance(to: 3.6)
+    let second = await h.say("two", from: 4.0, to: 4.5)
     #expect(armed(second).isEmpty)
 
     h.advance(to: 12)
     await wait { h.clock.sleeping > 0 }
     let (events, result) = try await h.finish()
     #expect(spoken(events).isEmpty)
-    #expect(result.prompts.map(\.at) == [2.0])
+    #expect(result.prompts.map(\.at) == [3.0])
     let checks = result.records.compactMap {
       if case .check(let at, _, _, _) = $0 { at } else { nil }
     }
-    #expect(checks == [0.5, 3.5, 8.5])
+    #expect(checks == [0.5, 4.5, 9.5])
   }
 
   @Test func armingCutsCollisionsOnTheShortFixture() async throws {
@@ -220,9 +220,9 @@ import Transcription
       return (report.collisions, report.cancelled, result.prompts.count)
     }
     let before = await collisions(delay: 0)
-    let after = await collisions(delay: 1.5)
+    let after = await collisions(delay: 2.5)
     #expect(before == (collisions: 15, cancelled: 0, prompts: 17))
-    #expect(after == (collisions: 8, cancelled: 7, prompts: 10))
+    #expect(after == (collisions: 2, cancelled: 13, prompts: 4))
   }
 }
 

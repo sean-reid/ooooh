@@ -34,7 +34,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     endSilence: TimeInterval,
     longSilence: TimeInterval = 45,
     silenceChecks: [TimeInterval] = [5, 11, 20],
-    armingDelay: TimeInterval = 1.5,
+    armingDelay: TimeInterval = 2.5,
     cueWeights: [String: Double] = [:],
     cueKinds: [String: InterventionKind] = [:]
   ) {
@@ -66,7 +66,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
     longSilence = try c.decodeIfPresent(TimeInterval.self, forKey: .longSilence) ?? 45
     silenceChecks =
       try c.decodeIfPresent([TimeInterval].self, forKey: .silenceChecks) ?? [5, 11, 20]
-    armingDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .armingDelay) ?? 1.5
+    armingDelay = try c.decodeIfPresent(TimeInterval.self, forKey: .armingDelay) ?? 2.5
     cueWeights = try c.decodeIfPresent([String: Double].self, forKey: .cueWeights) ?? [:]
     cueKinds = try c.decodeIfPresent([String: InterventionKind].self, forKey: .cueKinds) ?? [:]
   }
@@ -104,7 +104,7 @@ public struct GovernorConfig: Codable, Equatable, Sendable {
       endSilence: 30,
       longSilence: 45,
       silenceChecks: [5, 11, 20],
-      armingDelay: 1.5,
+      armingDelay: 2.5,
       cueWeights: ["hangingQuestion": 1.0, "trailsOff": 1.38, "unnamedDecision": 1.125],
       cueKinds: ["hangingQuestion": .clarify, "trailsOff": .deepen, "unnamedDecision": .decide]
     )

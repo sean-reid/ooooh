@@ -55,7 +55,7 @@ import Transcription
     }
     #expect(prompts.count == 1)
     #expect(prompts.first?.0 == "What sits underneath that?")
-    #expect(prompts.first?.1 == 82.1)
+    #expect(prompts.first?.1 == 83.1)
   }
 
   @Test func timerFiresPauseChecksWhileNoSpeechArrives() async throws {

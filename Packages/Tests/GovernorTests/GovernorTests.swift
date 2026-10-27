@@ -234,5 +234,6 @@ import Testing
     let config = try JSONDecoder().decode(GovernorConfig.self, from: Data(json.utf8))
     #expect(config.warmUp == 45)
     #expect(config.silenceChecks == [5, 11, 20])
+    #expect(config.armingDelay == 2.5)
   }
 }

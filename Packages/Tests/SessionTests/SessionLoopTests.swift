@@ -62,7 +62,7 @@ extension GovernorConfig {
       dependencies: deps(firing(.deepen, afterUtterancesEnding: [80.6])))
     #expect(result.prompts.count == 1)
     #expect(result.prompts.first?.kind == .deepen)
-    #expect(result.prompts.first?.at == 82.1)
+    #expect(result.prompts.first?.at == 83.1)
     #expect(result.state.lastIntervention?.text == "What sits underneath that?")
     #expect(result.records.contains(.promptArmed(at: 80.6, kind: .intervention(.deepen))))
   }
@@ -83,7 +83,7 @@ extension GovernorConfig {
       if case .promptArmed(let at, _) = $0 { at } else { nil }
     }
     #expect(armed == [80.6])
-    #expect(result.prompts.map(\.at) == [82.1])
+    #expect(result.prompts.map(\.at) == [83.1])
   }
 
   @Test func wrapsUpAfterFinishedThenSilence() async throws {
@@ -91,7 +91,7 @@ extension GovernorConfig {
       fixture: try fixture(), config: .initial,
       dependencies: deps(firing(.clarify, afterUtterancesEnding: [], finishedAt: 87.8)))
     #expect(result.records.contains(.promptArmed(at: 87.8, kind: .finishedQuestion)))
-    #expect(result.finishedAsks == [89.3])
+    #expect(result.finishedAsks == [90.3])
     guard case .ended(let at, let byUser) = result.records.last! else {
       Issue.record("session did not end")
       return
@@ -146,8 +146,8 @@ extension GovernorConfig {
     }
     let loop = SessionLoop(config: .initial, dependencies: deps(finished))
     await loop.handle(.segment(Segment(text: "done", start: 0, end: 10, isFinal: true)))
-    #expect(await loop.nextTick == 11.5)
-    await loop.pause(until: 11.5)
+    #expect(await loop.nextTick == 12.5)
+    await loop.pause(until: 12.5)
     #expect(await loop.nextTick == 40)
     await loop.pause(until: 40)
     let checks = await loop.records.compactMap {
