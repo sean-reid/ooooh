@@ -11,6 +11,10 @@
       case finished(at: Date, rendered: AVAudioFramePosition)
     }
 
+    /// OOOOH_SILENT_TESTS=1 mutes the mixer; the player renders and the normalizer levels the line as before.
+    public static let mutedByEnvironment =
+      ProcessInfo.processInfo.environment["OOOOH_SILENT_TESTS"] == "1"
+
     public nonisolated let events: AsyncStream<Event>
     /// The line being spoken, for the caption. Nil between prompts.
     public private(set) var text: String?
@@ -22,26 +26,32 @@
 
     private let emit: AsyncStream<Event>.Continuation
     private let output: AVAudioFormat
+    private let muted: Bool
     /// Built by the first line, so a session that never speaks never opens the audio server.
     private var engine: AVAudioEngine?
     private var player: AVAudioPlayerNode?
     private var normalizer = LoudnessNormalizer()
     private var generation = 0
     private var scheduled = 0
+    private var started = false
     private var ended = false
     private var feeding: Task<Void, Error>?
     private var done: CheckedContinuation<Void, Never>?
 
-    public init() {
+    public init(muted: Bool = PromptSpeaker.mutedByEnvironment) {
       (events, emit) = AsyncStream.makeStream(of: Event.self)
       guard let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) else {
         preconditionFailure("mono 44.1 kHz float is always available")
       }
       output = format
+      self.muted = muted
     }
 
     /// True once a line has built the engine graph.
     public var hasEngine: Bool { engine != nil }
+
+    /// The mixer's gain, 0 when muted. Nil until a line has built the graph.
+    var outputVolume: Float? { engine?.mainMixerNode.outputVolume }
 
     private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "audio")
     private var bytes = 0
@@ -56,6 +66,7 @@
       let mine = generation
       self.text = text
       scheduled = 0
+      started = false
       ended = false
       bytes = 0
       Self.log.info("speak begins chars=\(text.count, privacy: .public)")
@@ -76,14 +87,15 @@
             guard let pcm = try decoder.decode(packets) else { continue }
             normalizer.apply(to: pcm)
             schedule(pcm, on: player, generation: mine)
-            if scheduled == 1 {
-              try engine.start()
-              player.play()
-              Self.log.info(
-                "speak started bytes=\(self.bytes, privacy: .public) format=\(pcm.format.sampleRate, privacy: .public)Hz output=\(engine.outputNode.outputFormat(forBus: 0).sampleRate, privacy: .public)Hz"
-              )
-              emit.yield(.started(text: text, at: Date()))
-            }
+            // The player may drain between chunks on a slow host; the line still starts once.
+            guard !started else { continue }
+            started = true
+            try engine.start()
+            player.play()
+            Self.log.info(
+              "speak started bytes=\(self.bytes, privacy: .public) format=\(pcm.format.sampleRate, privacy: .public)Hz output=\(engine.outputNode.outputFormat(forBus: 0).sampleRate, privacy: .public)Hz"
+            )
+            emit.yield(.started(text: text, at: Date()))
           }
         }
       }
@@ -101,7 +113,9 @@
         guard mine == generation else { return }
         ended = true
         if scheduled == 0 {
-          Self.log.error("speak decoded nothing bytes=\(self.bytes, privacy: .public)")
+          if !started {
+            Self.log.error("speak decoded nothing bytes=\(self.bytes, privacy: .public)")
+          }
           finish()
           return
         }
@@ -128,6 +142,7 @@
       let player = AVAudioPlayerNode()
       engine.attach(player)
       engine.connect(player, to: engine.mainMixerNode, format: output)
+      if muted { engine.mainMixerNode.outputVolume = 0 }
       engine.prepare()
       self.engine = engine
       self.player = player
@@ -149,7 +164,9 @@
       if ended && scheduled == 0 { finish() }
     }
 
+    /// Ends the current line once; a second call for the same line is a no-op.
     private func finish() {
+      guard text != nil else { return }
       generation += 1
       feeding?.cancel()
       feeding = nil

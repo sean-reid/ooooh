@@ -17,17 +17,23 @@ enum Fixture {
   }
 
   /// PCM frames the fixture decodes to when fed in `size` byte chunks, the count a player schedules.
-  static func frames(chunked size: Int) throws -> AVAudioFramePosition {
+  /// `count` limits the decode to the first chunks.
+  static func frames(chunked size: Int, count: Int = .max) throws -> AVAudioFramePosition {
+    try decoded(chunked: size, count: count).reduce(0) { $0 + AVAudioFramePosition($1.frameLength) }
+  }
+
+  /// The PCM buffers the fixture decodes to, in the order a player schedules them.
+  static func decoded(chunked size: Int, count: Int = .max) throws -> [AVAudioPCMBuffer] {
     let output = try #require(AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1))
     let parser = try AudioStreamParser()
     let decoder = SpeechDecoder(output: output)
-    var frames: AVAudioFramePosition = 0
-    for chunk in chunks(try line(), size: size) {
+    var buffers: [AVAudioPCMBuffer] = []
+    for chunk in chunks(try line(), size: size).prefix(count) {
       for packets in try parser.parse(chunk) {
-        frames += AVAudioFramePosition(try decoder.decode(packets)?.frameLength ?? 0)
+        if let pcm = try decoder.decode(packets) { buffers.append(pcm) }
       }
     }
-    return frames
+    return buffers
   }
 }
 

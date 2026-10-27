@@ -115,7 +115,67 @@
       #expect(await speaker.rendered == nil)
       #expect(await speaker.text == nil)
       #expect(await speaker.hasEngine)
+      #expect(await speaker.outputVolume == 0)
       #expect(gain > 3 && gain < 5)
+    }
+
+    /// The mute sits on the mixer, after the normalizer and the player's frame clock.
+    @Test func muteLeavesTheFrameCountAndTheLineGainAlone() async throws {
+      let speaker = PromptSpeaker(muted: true)
+      var events = speaker.events.makeAsyncIterator()
+      try await speaker.speak(text, audio: try network { _ in })
+      var rendered: AVAudioFramePosition = -1
+      while let event = await events.next() {
+        if case .finished(_, let frames) = event {
+          rendered = frames
+          break
+        }
+      }
+      var reference = LoudnessNormalizer()
+      for pcm in try Fixture.decoded(chunked: 1024) { reference.apply(to: pcm) }
+      let frames = try Fixture.frames(chunked: 1024)
+      let gain = await speaker.lineGainDB
+      print("muted line rendered \(rendered) of \(frames) frames at \(gain) dB")
+      #expect(await speaker.outputVolume == 0)
+      #expect(rendered >= frames - slack)
+      #expect(rendered <= frames + lateness)
+      #expect(abs(gain - reference.gainDB) < 0.01)
+      #expect(gain > 3 && gain < 5)
+    }
+
+    /// The first chunk plays out before the second arrives, so the player drains mid-line.
+    @Test func startsOnceWhenThePlayerDrainsBetweenChunks() async throws {
+      let speaker = PromptSpeaker()
+      let collected = Task {
+        var events: [PromptSpeaker.Event] = []
+        for await event in speaker.events {
+          events.append(event)
+          if case .finished = event { break }
+        }
+        return events
+      }
+      let (release, releasing) = AsyncStream.makeStream(of: Void.self)
+      let audio = try network(firstByte: { _ in }, holding: 1, until: release)
+      let speaking = Task { try await speaker.speak(text, audio: audio) }
+      let firstChunk = try Fixture.frames(chunked: 1024, count: 1)
+      #expect(firstChunk > 0)
+      await wait { await (speaker.rendered ?? 0) >= firstChunk + slack }
+      try await Task.sleep(for: .milliseconds(100))
+      let drainedAt = try #require(await speaker.rendered)
+      releasing.yield(())
+      try await speaking.value
+      let events = await collected.value
+      let frames = try Fixture.frames(chunked: 1024)
+      print("player drained at \(drainedAt) frames after \(firstChunk) from the first chunk")
+      #expect(drainedAt >= firstChunk + slack)
+      #expect(events.count == 2)
+      guard case .started = try #require(events.first),
+        case .finished(_, let rendered) = try #require(events.last)
+      else {
+        Issue.record("expected started then finished, got \(events)")
+        return
+      }
+      #expect(rendered >= frames - slack)
     }
 
     @Test func stopCutsPlaybackAndDropsTheRest() async throws {
