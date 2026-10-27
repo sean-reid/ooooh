@@ -101,6 +101,7 @@ import Transcription
   /// so each state arrives within a second of the utterance.
   private func environment(_ microphone: HandFedMicrophone) -> Environment {
     var config = GovernorConfig.initial
+    config.warmUp = 0
     config.armingDelay = 0.2
     config.silenceChecks = [0.3, 0.6, 0.9]
     var environment = Environment(workerURL: nil)

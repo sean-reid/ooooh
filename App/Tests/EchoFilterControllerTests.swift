@@ -79,6 +79,7 @@ import Transcription
     -> SessionController.Environment
   {
     var config = GovernorConfig.initial
+    config.warmUp = 0
     config.armingDelay = 0.2
     config.silenceChecks = [0.3, 0.6, 0.9]
     var environment = SessionController.Environment(workerURL: nil)
