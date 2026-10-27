@@ -6,13 +6,15 @@ const rateKey = "rate";
 const countedKey = "session-counted";
 const sessionsPrefix = "sessions:";
 const sessionsKey = (month: string) => `${sessionsPrefix}${month}`;
+const spentPrefix = (provider: string) => `spent:${provider}:`;
+const spentKey = (provider: string, day: string) => `${spentPrefix(provider)}${day}`;
 
 type Rate = { minute: number; count: number };
 
 /**
  * One per key id, holding the last assertion counter it accepted and when, its requests this
- * minute, and its free sessions by month. The storage calls are synchronous, so a check and the write behind
- * it run with nothing in between.
+ * minute, its spend per provider by day, and its free sessions by month. The storage calls are
+ * synchronous, so a check and the write behind it run with nothing in between.
  */
 export class DeviceCounter extends DurableObject<Env> {
   private stored(): number {
@@ -51,6 +53,22 @@ export class DeviceCounter extends DurableObject<Env> {
     if (count >= limit) return false;
     this.ctx.storage.kv.put(rateKey, { minute, count: count + 1 });
     return true;
+  }
+
+  /** What the device has spent on `provider` during `day`, a UTC date, in the provider's unit. */
+  spent(provider: string, day: string): number {
+    return this.ctx.storage.kv.get<number>(spentKey(provider, day)) ?? 0;
+  }
+
+  /** Adds `amount` to the device's `provider` spend for `day` and returns the total; the days before are dropped. */
+  spend(provider: string, day: string, amount: number): number {
+    const total = this.spent(provider, day) + amount;
+    this.ctx.storage.kv.put(spentKey(provider, day), total);
+    const stale = [
+      ...this.ctx.storage.kv.list({ prefix: spentPrefix(provider), end: spentKey(provider, day) }),
+    ];
+    for (const [key] of stale) this.ctx.storage.kv.delete(key);
+    return total;
   }
 
   /** Free sessions counted toward `month`, a UTC year and month. */
