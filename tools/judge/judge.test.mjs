@@ -16,7 +16,13 @@ import {
   recentWindow,
   recordsFor,
 } from "./corpus.mjs";
-import { contentWords, frameOf, namedWords, tally } from "./frames.mjs";
+import {
+  contentWords,
+  frameOf,
+  namedWords,
+  stateWords,
+  tally,
+} from "./frames.mjs";
 import { fixturesDir, readJSON } from "./io.mjs";
 import {
   criterionNames,
@@ -329,16 +335,29 @@ test("the diagnosis counts stock frames and words named from the last two uttera
   assert.equal(frameOf("Is it the build or the queue?"), "is it X or Y");
   assert.equal(frameOf("Why does the build take an hour on Fridays?"), null);
 
-  const corpus = new Map([["f:1", { id: "f:1", transcript }]]);
+  const state = {
+    ...emptyState(),
+    openQuestions: [{ text: "whether the budget covers a second reviewer" }],
+    mainIdeas: [{ text: "the handoff is the slow part" }],
+  };
+  assert.deepEqual(
+    stateWords("The budget was still open, does the build close it?", state),
+    ["budget"],
+  );
+  assert.deepEqual(stateWords("Is it the build or the queue?", state), []);
+  assert.deepEqual(stateWords("The budget again?", emptyState()), []);
+
+  const corpus = new Map([["f:1", { id: "f:1", transcript, state }]]);
   const lines = [
     { id: "f:1", text: "How does that sit with you?" },
     { id: "f:1", text: "Is it the build or the queue?" },
     { id: "f:1", text: "Why does the build take an hour on Fridays?" },
     { id: "f:1", text: "What makes this so hard?" },
     { id: "f:1", text: "Why does the hour matter?" },
+    { id: "f:1", text: "The budget was still open, does the build close it?" },
   ];
   const counts = tally(lines, corpus);
-  assert.equal(counts.lines, 5);
+  assert.equal(counts.lines, 6);
   assert.equal(counts.framed, 4);
   assert.deepEqual(
     Object.fromEntries(
@@ -358,9 +377,14 @@ test("the diagnosis counts stock frames and words named from the last two uttera
       "Is it the build or the queue?",
       "Why does the build take an hour on Fridays?",
       "Why does the hour matter?",
+      "The budget was still open, does the build close it?",
     ],
   );
   assert.equal(counts.unnamed.length, 2);
+  assert.deepEqual(
+    counts.reachedBack.map((l) => l.text),
+    ["The budget was still open, does the build close it?"],
+  );
   assert.throws(
     () => tally([{ id: "f:9", text: "x" }], corpus),
     /not in the corpus/,
