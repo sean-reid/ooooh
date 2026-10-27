@@ -55,14 +55,21 @@ public actor SessionStore {
     try modelContext.save()
   }
 
+  /// Deletes object by object, not in a batch, so the CloudKit mirror sees every deletion.
   public func deleteEverything() throws {
     for session in try modelContext.fetch(FetchDescriptor<StoredSession>()) {
       removeAudio(at: session.audioPath)
+      modelContext.delete(session)
     }
-    try modelContext.delete(model: StoredThread.self)
-    try modelContext.delete(model: StoredNoteItem.self)
-    try modelContext.delete(model: StoredSegment.self)
-    try modelContext.delete(model: StoredSession.self)
+    for thread in try modelContext.fetch(FetchDescriptor<StoredThread>()) {
+      modelContext.delete(thread)
+    }
+    for item in try modelContext.fetch(FetchDescriptor<StoredNoteItem>()) {
+      modelContext.delete(item)
+    }
+    for segment in try modelContext.fetch(FetchDescriptor<StoredSegment>()) {
+      modelContext.delete(segment)
+    }
     try modelContext.save()
   }
 
