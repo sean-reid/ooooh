@@ -83,9 +83,6 @@ struct RootView: View {
     .onChange(of: showsSettings) { _, shown in
       if !shown { Task { await loadThreads() } }
     }
-    .onChange(of: controller.admission) { _, admission in
-      if let admission { AppBilling.freeSessions.record(admission) }
-    }
     .onChange(of: controller.stage) { _, stage in
       if stage == .ended { Task { await offerPaywall() } }
     }

@@ -66,6 +66,8 @@ final class SessionController {
     var settings: AppSettings?
     /// Set to replace the permission check and the engine chain, as the tests do.
     var transcriber: (any LiveTranscriber)?
+    /// Hears the Worker's start answer for each session, so the billing store reads the free count.
+    var freeSessions: FreeSessions?
   }
 
   private(set) var stage: Stage = .idle
@@ -180,7 +182,7 @@ final class SessionController {
       clockRefused = environment.clock.isRefused
       let assembly = await SessionAssembly.make(
         environment: environment, carrying: thread,
-        admitted: { [weak self] start in self?.admission = start },
+        admitted: { [weak self] start in self?.admitted(start) },
         cutOff: { [weak self] reason in Task { @MainActor in self?.cutoff = reason } })
       gate = assembly.gate
       voice = assembly.voice
@@ -237,6 +239,11 @@ final class SessionController {
     if endedAt == nil { endedAt = .now }
     await live.end()
     await observers.first?.value
+  }
+
+  private func admitted(_ start: SessionStart?) {
+    admission = start
+    if let start { environment.freeSessions?.record(start) }
   }
 
   /// Posts the minutes from Start to End after the notes, since the Worker answers nothing for a
