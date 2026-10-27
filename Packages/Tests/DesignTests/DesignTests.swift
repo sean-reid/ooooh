@@ -57,6 +57,40 @@ import Testing
     #expect(!Orb.pauses(true, 0, .offline))
   }
 
+  @Test func aFlatListeningOrbDrawsAtHalfRate() {
+    #expect(Orb.interval(true, 0, .listening) == 1 / 15.0)
+    #expect(Orb.interval(true, 0.019, .listening) == 1 / 15.0)
+    #expect(Orb.interval(false, 0, .listening) == 1 / 30.0)
+    #expect(Orb.interval(true, 0.02, .listening) == 1 / 30.0)
+    #expect(Orb.interval(true, 0, .resting) == 1 / 30.0)
+    #expect(Orb.interval(true, 0, .speaking) == 1 / 30.0)
+    #expect(Orb.interval(true, 0, .aboutToSpeak) == 1 / 30.0)
+    #expect(Orb.interval(true, 0, .offline) == 1 / 30.0)
+  }
+
+  @Test @MainActor func listeningGoesFlatOnceThePoseLandsAndBreathDrops() {
+    let motion = OrbMotion()
+    let start = Date(timeIntervalSinceReferenceDate: 0)
+    _ = motion.advance(to: start, level: 0.5, phase: .listening)
+    #expect(!motion.flat)
+    var flatAt: TimeInterval?
+    for tick in 1...90 where flatAt == nil {
+      let time = Double(tick) / 30
+      _ = motion.advance(to: start + time, level: 0, phase: .listening)
+      if motion.flat { flatAt = time }
+    }
+    let settled = try! #require(flatAt)
+    #expect(settled > 1 && settled < 3, "went flat after \(settled) s")
+    _ = motion.advance(to: start + 4, level: 0, phase: .speaking)
+    #expect(!motion.flat)
+    for tick in 1...90 {
+      _ = motion.advance(to: start + 4 + Double(tick) / 30, level: 0, phase: .listening)
+    }
+    #expect(motion.flat)
+    _ = motion.advance(to: start + 8, level: 0.3, phase: .listening)
+    #expect(!motion.flat)
+  }
+
   @Test @MainActor func restingSettlesAfterListeningAndWakesOnLevel() {
     let motion = OrbMotion()
     let start = Date(timeIntervalSinceReferenceDate: 0)
