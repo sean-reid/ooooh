@@ -100,6 +100,8 @@ final class SessionController {
   private var quietOverride: AppSettings.QuietModeOverride = .auto
   private var generator: (any NotesGenerator)?
   private var live: LiveSessionLoop?
+  /// Hears every spoken line, so the microphone's take on it never reaches the loop.
+  private var echo: EchoFilter?
   private var observers: [Task<Void, Never>] = []
   private var delivery: Task<Void, Never>?
   private var writing: Task<Void, Never>?
@@ -170,7 +172,9 @@ final class SessionController {
         }
         try await start(microphone)
         Self.log.info("Transcribing with \(microphone.engine.title, privacy: .public)")
-        transcriber = microphone
+        let filter = EchoFilter(microphone)
+        echo = filter
+        transcriber = filter
       case .fixture(let url, let speed):
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
       }
@@ -378,9 +382,12 @@ final class SessionController {
           if quiet {
             environment.haptic()
             environment.announce(text)
+          } else {
+            echo?.spoke(text, from: elapsed(at: .now))
           }
         case .finished:
           isSpeaking = false
+          if !quiet { echo?.finishedSpeaking(at: elapsed(at: .now)) }
         }
       }
       guard !Task.isCancelled else { return }
@@ -402,6 +409,7 @@ final class SessionController {
     delivery.cancel()
     Self.log.info("prompt cancelled speaking=\(wasSpeaking, privacy: .public)")
     await voice.stop()
+    if wasSpeaking { echo?.finishedSpeaking(at: elapsed(at: .now)) }
   }
 
   private func scheduleOffline(_ offline: Bool) {
