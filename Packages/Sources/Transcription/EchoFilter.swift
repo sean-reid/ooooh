@@ -11,6 +11,9 @@ public final class EchoFilter: Transcriber, Sendable {
   /// A fragment shorter than this inside a line's window is too little to judge and is dropped;
   /// the recognizer's next, longer result carries the same words again.
   static let minimumWords = 3
+  /// A volatile inside a line's window that is not echo still waits for its final unless it has
+  /// grown to this many words, which is a person talking over the line, not a misheard echo.
+  static let interruptWords = 6
 
   private let base: any Transcriber
   private let clock: @Sendable () -> TimeInterval
@@ -79,10 +82,18 @@ public final class EchoFilter: Transcriber, Sendable {
         state.passedStart = false
         return passed
       case .segment(let segment):
-        if let echo = state.echo(segment) {
+        switch state.judge(segment) {
+        case .echo(let echo):
           state.heldStart = nil
-          log(echo, segment)
+          log(echo, segment, verdict: "dropped")
           return []
+        case .held(let echo):
+          log(echo, segment, verdict: "held")
+          return []
+        case .passed(let echo):
+          log(echo, segment, verdict: "passed")
+        case .outside:
+          break
         }
         var passed = state.flushHeld()
         if state.inUtterance, !state.passedStart {
@@ -110,12 +121,14 @@ public final class EchoFilter: Transcriber, Sendable {
       .filter { !$0.isEmpty }
   }
 
-  private func log(_ echo: Echo, _ segment: Segment) {
+  private func log(_ echo: Echo, _ segment: Segment, verdict: String) {
     let engine = (base as? any LiveTranscriber)?.engine.rawValue ?? "unknown"
     transcriptionLog.info(
       """
-      echo dropped overlap=\(echo.overlap, format: .fixed(precision: 2), privacy: .public) \
+      echo \(verdict, privacy: .public) \
+      overlap=\(echo.overlap, format: .fixed(precision: 2), privacy: .public) \
       words=\(echo.words, privacy: .public) final=\(segment.isFinal, privacy: .public) \
+      sinceLine=\(echo.sinceLine, format: .fixed(precision: 2), privacy: .public) \
       engine=\(engine, privacy: .public)
       """)
   }
@@ -148,6 +161,15 @@ public final class EchoFilter: Transcriber, Sendable {
   private struct Echo {
     var overlap: Double
     var words: Int
+    /// Seconds from the covering line's start to the segment's start.
+    var sinceLine: TimeInterval
+  }
+
+  private enum Judgement {
+    case outside
+    case echo(Echo)
+    case held(Echo)
+    case passed(Echo)
   }
 
   private struct State {
@@ -163,20 +185,26 @@ public final class EchoFilter: Transcriber, Sendable {
       return [.speechStarted(at: held)]
     }
 
-    /// The best match among the lines whose window holds the segment's start, when it clears the
-    /// threshold or the segment is too short to judge.
-    mutating func echo(_ segment: Segment) -> Echo? {
+    /// Echo when the best match among the lines whose window holds the segment's start clears the
+    /// threshold or the segment is too short to judge. Otherwise a final passes, a volatile passes
+    /// only at `interruptWords`, and a shorter volatile is held for its final.
+    mutating func judge(_ segment: Segment) -> Judgement {
       lines.removeAll { $0.isPast(segment.start) }
       let words = EchoFilter.words(in: segment.text)
-      guard !words.isEmpty else { return nil }
+      guard !words.isEmpty else { return .outside }
       let covering = lines.filter { $0.covers(segment.start) }
-      guard !covering.isEmpty else { return nil }
-      let overlap =
-        covering.map { line in
-          Double(words.count { line.matches($0) }) / Double(words.count)
-        }.max() ?? 0
-      guard overlap >= threshold || words.count < minimumWords else { return nil }
-      return Echo(overlap: overlap, words: words.count)
+      guard let best = covering.max(by: { score($0, words) < score($1, words) }) else {
+        return .outside
+      }
+      let echo = Echo(
+        overlap: score(best, words), words: words.count, sinceLine: segment.start - best.start)
+      if echo.overlap >= threshold || words.count < minimumWords { return .echo(echo) }
+      if segment.isFinal || words.count >= interruptWords { return .passed(echo) }
+      return .held(echo)
+    }
+
+    private func score(_ line: Line, _ words: [String]) -> Double {
+      Double(words.count { line.matches($0) }) / Double(words.count)
     }
   }
 }
