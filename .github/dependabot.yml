@@ -8,6 +8,10 @@ updates:
     directory: /worker
     schedule:
       interval: weekly
+  - package-ecosystem: npm
+    directory: /tools/judge
+    schedule:
+      interval: weekly
   - package-ecosystem: swift
     directory: /Packages
     schedule:
