@@ -58,16 +58,22 @@ public struct PrivacyView: View {
       "What stays on your phone",
       [
         "Audio is discarded when a session ends. Notes, transcripts, and settings are stored on "
-          + "the phone and nowhere else."
+          + "the phone.",
+        "While the phone is signed in to iCloud, your sessions also live in your private iCloud "
+          + "database, so a new phone gets them back. Apple holds that copy under your Apple "
+          + "Account; I can't read it, and my server never sees it. While sync is on, signing out "
+          + "of iCloud removes the local copy from the phone, as iOS does for every app that "
+          + "mirrors its data to iCloud. You can turn sync off in Settings, and the copy already "
+          + "in iCloud stays until you delete everything.",
       ]
     ),
     (
       "Your controls",
       [
         "From Settings you can delete one session, delete everything, or export your notes as "
-          + "Markdown. Deleting removes the data from your phone. The records on my server age "
-          + "out on the schedule above, the attested public key excepted, and none of them is "
-          + "linked to you."
+          + "Markdown. Deleting removes the data from your phone, and from iCloud when sync is "
+          + "on. The records on my server age out on the schedule above, the attested public key "
+          + "excepted, and none of them is linked to you."
       ]
     ),
     (

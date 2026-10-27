@@ -13,10 +13,13 @@ import Testing
     return defaults
   }
 
-  @Test func defaultsAreChallengeOnAndAutomatic() throws {
-    let settings = AppSettings(defaults: try freshDefaults())
+  @Test func defaultsAreChallengeOnAutomaticAndSyncOn() throws {
+    let defaults = try freshDefaults()
+    let settings = AppSettings(defaults: defaults)
     #expect(settings.challengeEnabled)
     #expect(settings.quietModeOverride == .auto)
+    #expect(settings.cloudSyncEnabled)
+    #expect(AppSettings.cloudSyncEnabled(in: defaults))
   }
 
   @Test func valuesRoundTripThroughANewInstanceOnTheSameDefaults() throws {
@@ -24,12 +27,16 @@ import Testing
     let settings = AppSettings(defaults: defaults)
     settings.challengeEnabled = false
     settings.quietModeOverride = .quiet
+    settings.cloudSyncEnabled = false
 
     let reread = AppSettings(defaults: defaults)
     #expect(!reread.challengeEnabled)
     #expect(reread.quietModeOverride == .quiet)
+    #expect(!reread.cloudSyncEnabled)
+    #expect(!AppSettings.cloudSyncEnabled(in: defaults))
     #expect(defaults.string(forKey: "settings.quietModeOverride") == "quiet")
     #expect(defaults.object(forKey: "settings.challengeEnabled") as? Bool == false)
+    #expect(defaults.object(forKey: "settings.cloudSyncEnabled") as? Bool == false)
   }
 
   @Test func anUnknownStoredOverrideFallsBackToAutomatic() throws {

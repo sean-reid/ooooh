@@ -24,6 +24,24 @@
       assertSnapshot(of: image, as: .pixels, named: "402-challenge-off-\(scheme.name)")
     }
 
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsWithSyncOff(scheme: ColorScheme) throws {
+      let image = render(try settingsView(cloudSync: .off), height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-sync-off-\(scheme.name)")
+    }
+
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsWithNoAccount(scheme: ColorScheme) throws {
+      let image = render(try settingsView(cloudSync: .noAccount), height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-no-account-\(scheme.name)")
+    }
+
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsWithSyncFailed(scheme: ColorScheme) throws {
+      let image = render(try settingsView(cloudSync: .failed), height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-sync-failed-\(scheme.name)")
+    }
+
     @Test func settingsAccessibility3() throws {
       let image = render(try settingsView(), height: nil, scheme: .dark, type: .accessibility3)
       assertSnapshot(of: image, as: .pixels, named: "402-accessibility3-dark")
@@ -42,17 +60,21 @@
       assertSnapshot(of: image, as: .pixels, named: "402-accessibility3-dark")
     }
 
-    private func settingsView(challengeEnabled: Bool = true) throws -> SettingsView {
+    /// The switch draws the state's own setting: off for `.off`, on for the rest.
+    private func settingsView(
+      challengeEnabled: Bool = true, cloudSync: CloudSyncState = .syncing
+    ) throws -> SettingsView {
       let suite = "settings-snapshots"
       let defaults = try #require(UserDefaults(suiteName: suite))
       defaults.removePersistentDomain(forName: suite)
       let settings = AppSettings(defaults: defaults)
       settings.challengeEnabled = challengeEnabled
+      settings.cloudSyncEnabled = cloudSync != .off
       return SettingsView(
         settings: settings,
         store: try SessionStore(configuration: .inMemory), version: "0.1.0 (1)",
-        transcription: "On-device transcription", sessionCount: 12, subscribeAction: {},
-        openHistory: {}, onDone: {})
+        transcription: "On-device transcription", cloudSync: cloudSync, sessionCount: 12,
+        subscribeAction: {}, openHistory: {}, onDone: {})
     }
 
     private func privacyView() -> PrivacyView {
