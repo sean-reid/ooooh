@@ -430,6 +430,69 @@ import Transcription
     #expect(try await store.openThreads(limit: 3).map(\.text) == ["What the free tier is for"])
   }
 
+  /// Voice mode over a hand-fed microphone: the deepen line is cut by speech, the finished
+  /// question goes through the orb, and both are saved with the session as it went.
+  @Test func savesEveryLineItSaidWithTheCutOneAndTheQuietFinishedQuestion() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    let microphone = HandFedMicrophone()
+    let finishedEnd: TimeInterval = 1.6
+    let decisions = ScriptedDecisionProvider { input in
+      var answers = JevAnswers.quiet
+      if input.recentTranscript.last?.end == HandFedMicrophone.utteranceEnd {
+        answers.goodMoment = .init(0.95)
+        answers.intervention = .init(.deepen, confidence: 0.9)
+      }
+      if input.recentTranscript.last?.end == finishedEnd {
+        answers.seemsFinished = .init(0.9)
+      }
+      return answers
+    }
+    var config = warmedUp
+    config.armingDelay = 0.2
+    config.silenceChecks = [0.3, 0.6, 0.9]
+    var environment = environment(
+      .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
+      speaker: HeldLine(), haptics: Counter())
+    environment.forceVoice = true
+    environment.aboutToSpeakHold = .zero
+    environment.config = config
+    environment.transcriber = microphone
+    environment.store = store
+    let controller = SessionController(environment: environment)
+
+    await controller.start(.microphone)
+    #expect(!controller.quietMode)
+    microphone.say()
+    await wait { controller.phase == .speaking }
+    #expect(controller.lines.map(\.text) == ["What sits underneath that?"])
+    #expect(controller.lines.map(\.cut) == [false])
+    microphone.resume(at: 1.0)
+    await wait { controller.phase == .listening }
+    #expect(controller.lines.map(\.cut) == [true])
+    microphone.say("okay I'm done for now", from: 1.0, to: finishedEnd)
+    await wait { controller.lastPrompt == "Done for now?" }
+    await wait { controller.phase == .speaking }
+    await wait { controller.phase != .speaking }
+    await controller.end()
+    await wait { controller.savedSessionID != nil }
+
+    let result = try #require(controller.result)
+    let saved = try #require(controller.savedSessionID)
+    let lines = try #require(try await store.detail(saved)).lines
+    #expect(lines == controller.lines)
+    #expect(lines.map(\.text) == ["What sits underneath that?", "Done for now?"])
+    #expect(lines.map(\.kind) == [.intervention(.deepen), .finishedQuestion])
+    #expect(lines.map(\.at) == result.prompts.map(\.at) + result.finishedAsks)
+    #expect(lines.map(\.spoken) == [true, false])
+    #expect(lines.map(\.cut) == [true, false])
+    #expect(lines.map(\.bad) == [false, false])
+
+    controller.markLine(lines[0].id, bad: true)
+    #expect(controller.lines.map(\.bad) == [true, false])
+    await wait { (try? await store.detail(saved))?.lines.map(\.bad) == [true, false] }
+    #expect(try await store.detail(saved)?.lines.map(\.bad) == [true, false])
+  }
+
   @Test func aCarriedThreadReachesTheProvidersAndTheFinalState() async throws {
     let store = try SessionStore(configuration: .inMemory)
     var earlierEnvironment = environment(nil, speaker: Recorder(), haptics: Counter())

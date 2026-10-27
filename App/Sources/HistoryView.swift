@@ -183,9 +183,9 @@ struct StoredNotesScreen: View {
       } else if let detail {
         PendingNotesView(
           state: detail.state ?? .empty, transcript: detail.transcript,
-          line: PendingNotesView.noNotes
-        ) {
-          dismiss()
+          line: PendingNotesView.noNotes, lines: detail.lines,
+          onMarkBad: { line, bad in Task { try? await store.markLine(line.id, bad: bad) } },
+          done: { dismiss() })
         }
       }
     }

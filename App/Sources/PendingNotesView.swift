@@ -1,4 +1,5 @@
 import Design
+import Notes
 import NotesUI
 import State
 import SwiftUI
@@ -9,6 +10,8 @@ struct PendingNotesView: View {
   let state: CompactState
   let transcript: [Segment]
   var line = Self.offlineLine
+  var lines: [SpokenLine] = []
+  var onMarkBad: (SpokenLine, Bool) -> Void = { _, _ in }
   let done: () -> Void
 
   static let noNotes = "There are no notes for this session."
@@ -46,7 +49,7 @@ struct PendingNotesView: View {
             section("Decisions", lines: state.decisions.map(\.text))
             section("Open questions", lines: state.openQuestions.map(\.text))
             section("Uncertainties", lines: state.uncertainties.map(\.text))
-            TranscriptView(transcript: transcript)
+            TranscriptView(transcript: transcript, lines: lines, onMarkBad: onMarkBad)
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(24)

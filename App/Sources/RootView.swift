@@ -110,10 +110,8 @@ struct RootView: View {
     case .unavailable:
       PendingNotesView(
         state: controller.result?.state ?? .empty, transcript: transcript,
-        line: PendingNotesView.line(for: controller)
-      ) {
-        reset()
-      }
+        line: PendingNotesView.line(for: controller), lines: controller.lines,
+        onMarkBad: { line, bad in controller.markLine(line.id, bad: bad) }, done: reset)
     case .empty:
       EmptySessionView { reset() }
     case .writing, nil:
