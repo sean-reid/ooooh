@@ -20,7 +20,9 @@ public enum PersistenceContainer {
     let modelConfiguration =
       switch configuration {
       case .inMemory:
-        ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        // Each in-memory store gets its own name; two sharing the default name fail to save.
+        ModelConfiguration(
+          UUID().uuidString, schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
       case .local:
         ModelConfiguration(schema: schema, cloudKitDatabase: .none)
       case .cloud:
