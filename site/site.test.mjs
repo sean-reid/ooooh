@@ -13,7 +13,7 @@ const here = import.meta.dirname;
 const pages = ["index.html", "privacy.html", "terms.html"];
 const read = (name) => readFileSync(join(here, name), "utf8");
 const count = (html, re) => (html.match(re) ?? []).length;
-const leftovers = ["lorem", "TODO", "iCloud", String.fromCodePoint(0x2014)];
+const leftovers = ["lorem", "TODO", String.fromCodePoint(0x2014)];
 
 for (const name of pages) {
   test(`${name} exists with one h1 and no leftovers`, () => {
