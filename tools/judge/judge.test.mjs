@@ -307,6 +307,16 @@ test("the diagnosis counts stock frames and words named from the last two uttera
   assert.deepEqual(namedWords("How does that sit with you?", transcript), []);
   assert.equal(frameOf("How does that sit with you?"), "how does X sit");
   assert.equal(frameOf("What makes the hour matter?"), "what makes X");
+  assert.equal(frameOf("Why does the hour matter?"), "why does X matter");
+  assert.equal(
+    frameOf("Why is the review queue important?"),
+    "why does X matter",
+  );
+  assert.equal(
+    frameOf("Why Friday counts and not Monday?"),
+    "why does X matter",
+  );
+  assert.equal(frameOf("An hour on Fridays, so what?"), "why does X matter");
   assert.equal(frameOf("Which part of the build is slow?"), "which part of X");
   assert.equal(frameOf("Is it the build or the queue?"), "is it X or Y");
   assert.equal(frameOf("Why does the build take an hour on Fridays?"), null);
@@ -317,10 +327,11 @@ test("the diagnosis counts stock frames and words named from the last two uttera
     { id: "f:1", text: "Is it the build or the queue?" },
     { id: "f:1", text: "Why does the build take an hour on Fridays?" },
     { id: "f:1", text: "What makes this so hard?" },
+    { id: "f:1", text: "Why does the hour matter?" },
   ];
   const counts = tally(lines, corpus);
-  assert.equal(counts.lines, 4);
-  assert.equal(counts.framed, 3);
+  assert.equal(counts.lines, 5);
+  assert.equal(counts.framed, 4);
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(counts.byFrame).map(([name, hits]) => [name, hits.length]),
@@ -328,6 +339,7 @@ test("the diagnosis counts stock frames and words named from the last two uttera
     {
       "how does X sit": 1,
       "what makes X": 1,
+      "why does X matter": 1,
       "which part of X": 0,
       "is it X or Y": 1,
     },
@@ -337,6 +349,7 @@ test("the diagnosis counts stock frames and words named from the last two uttera
     [
       "Is it the build or the queue?",
       "Why does the build take an hour on Fridays?",
+      "Why does the hour matter?",
     ],
   );
   assert.equal(counts.unnamed.length, 2);

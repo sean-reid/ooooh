@@ -9,6 +9,8 @@ import { namesOnDisk } from "./report.mjs";
 export const frames = {
   "how does X sit": /\bhow does\b.{0,40}?\bsit\b/i,
   "what makes X": /\bwhat makes\b/i,
+  "why does X matter":
+    /\b(why|does|do|did|would|should)\b.{0,40}?\bmatters?\b|\bwhy (is|are|was|were)\b.{0,40}?\bimportant\b|\bwhy\b.{0,40}?\bcounts?\b|\bso what\b/i,
   "which part of X": /\bwhich (part|piece|bit) of\b/i,
   "is it X or Y": /\bis it\b.{1,40}?\bor\b/i,
 };
