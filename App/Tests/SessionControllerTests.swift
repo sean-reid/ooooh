@@ -466,7 +466,7 @@ import Transcription
     await wait { controller.phase == .speaking }
     #expect(controller.lines.map(\.text) == ["What sits underneath that?"])
     #expect(controller.lines.map(\.cut) == [false])
-    microphone.resume(at: 1.0)
+    microphone.resume(at: 1.0, saying: "no wait I want to go back")
     await wait { controller.phase == .listening }
     #expect(controller.lines.map(\.cut) == [true])
     microphone.say("okay I'm done for now", from: 1.0, to: finishedEnd)
