@@ -1,0 +1,142 @@
+{
+  "name": "trip-planning",
+  "summary": "The speaker is planning ten days with two friends against a list of eleven places, and protects two days in their grandfather's village, which they haven't explained to the others. They work out the geography, cut their own pick first, choose the lakes and port over the islands, offer the beach town as a trade, and decide to tell the friends the real reason about the house. Labels: deepen where they admit they've been passing off the village as a logistics matter; leave on the long silence after the full list, when they are quietly doing the cutting themselves; decide where the choice narrows to islands versus lakes and port with geography pulling one way; finished on the final instruction to themselves.",
+  "utterances": [
+    {
+      "text": "Okay so the trip, um, we have ten days, it's me and Dana and Theo, and right now the list is",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "it's eleven places, eleven, which is just not, that's not a trip that's a relay race",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and every time we get on a call somebody adds one, Theo added the islands last night",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "which, fine, the islands look great, but the ferry alone is most of a day each way",
+      "pauseAfter": 1.4
+    },
+    {
+      "text": "So I'm trying to just lay it out. Flying into the capital, out of the capital, that part's fixed because of the tickets",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "Dana wants the capital for at least three days because of the museums and the food, she's been talking about the food since like March",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "Theo wants the coast, the islands, he wants to be in the water basically",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "and I want, I mean I want a lot of things but there's one thing I am not giving up, which is the two days in the village",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "my grandfather's village, up in the hills, it's like four hours inland on a bus that goes twice a day",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "And I haven't really told them why it's two days and not one, I just keep saying it like it's a logistics thing",
+      "pauseAfter": 6.5,
+      "label": "deepen",
+      "note": "Admits they are hiding the real reason for the village days behind logistics."
+    },
+    {
+      "text": "It's not a logistics thing. My mom asked me to go to the house, the, the old house, and take pictures of it before it gets sold in the fall",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and find the cousin who still lives there, and I don't even know if one day is enough to find him, honestly",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "so two days is already the minimum, that's, I'm not padding it",
+      "pauseAfter": 1.8
+    },
+    {
+      "text": "Okay. So if the village is two days and travel to it is basically another day, half day in, half day out",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "that's three of the ten gone, and the capital at the start and end eats at least one, um, call it two",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "so we really have five days for everything else, five, and the list has like eight other things on it",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "The mountain lakes, the wine town, the old port city, the islands, the canyon hike Theo found, the beach town, the market town Dana likes",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and then the one with the castle that I added myself, so I can't really complain",
+      "pauseAfter": 18,
+      "label": "leave",
+      "note": "Has just laid out the whole list and goes quiet to start cutting on their own."
+    },
+    {
+      "text": "Yeah. The castle goes. That's easy, that was mine, I'll cut it first so it doesn't look like I'm only cutting their stuff",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "And honestly the wine town and the market town are kind of the same day, they're like forty minutes apart",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "so that's one day not two. The canyon hike is, uh, it's a whole day and you need a car, and none of us wants to drive there",
+      "pauseAfter": 1.2
+    },
+    {
+      "text": "So realistically it's islands or the lakes plus the port, it's kind of one or the other",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "because the islands are the opposite direction from the village, they're south, the village is north",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and the lakes and the port are sort of on the way back from the village, which, which is the whole thing",
+      "pauseAfter": 7,
+      "label": "decide",
+      "note": "Narrowed to islands versus lakes and port, and the geography already favors one."
+    },
+    {
+      "text": "I think it's the lakes and the port. I think I have to say that to Theo directly and not let it sort of drift",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and offer him something real, like he picks the beach town for the last two days before we fly out, he gets his water",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "Because if I'm asking them to spend three days on my thing, I can't also be the one who quietly kills the islands",
+      "pauseAfter": 1.5
+    },
+    {
+      "text": "And I think I just tell them the real reason about the village, about the house, um, because otherwise it does sound like I'm just being stubborn",
+      "pauseAfter": 5.5
+    },
+    {
+      "text": "And I'm not, I mean I am, but it's for a reason",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "So the message tonight is, capital two days, village with travel three, lakes and port two, beach town two, and the wine and market day",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "that's ten, that's actually ten",
+      "pauseAfter": 1
+    },
+    {
+      "text": "Tell them about the house first",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "The plan adds up and they settle what to do first, then stop."
+    }
+  ]
+}

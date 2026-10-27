@@ -1,0 +1,25 @@
+{
+  "fixture" : "work-decision",
+  "labels" : [
+    {
+      "at" : 62.20800000000005,
+      "kind" : "deepen",
+      "utterance" : 7
+    },
+    {
+      "at" : 160.2560000000001,
+      "kind" : "challenge",
+      "utterance" : 17
+    },
+    {
+      "at" : 184.57600000000014,
+      "kind" : "leave",
+      "utterance" : 20
+    },
+    {
+      "at" : 246.5280000000002,
+      "kind" : "finished",
+      "utterance" : 27
+    }
+  ]
+}

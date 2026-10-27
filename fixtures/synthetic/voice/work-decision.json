@@ -1,0 +1,172 @@
+{
+  "segments" : [
+    {
+      "end" : 4.096000000000002,
+      "isFinal" : true,
+      "start" : 0.768,
+      "text" : "So the offer is real now it's in writing"
+    },
+    {
+      "end" : 8.704000000000006,
+      "isFinal" : true,
+      "start" : 4.096000000000002,
+      "text" : "my director sent it over Monday and she wants an answer by Friday"
+    },
+    {
+      "end" : 13.05600000000001,
+      "isFinal" : true,
+      "start" : 8.704000000000006,
+      "text" : "and it's leading the new team that's going to rebuild the reconciliation service"
+    },
+    {
+      "end" : 14.336000000000011,
+      "isFinal" : true,
+      "start" : 13.31200000000001,
+      "text" : "five people"
+    },
+    {
+      "end" : 19.456000000000014,
+      "isFinal" : true,
+      "start" : 14.592000000000011,
+      "text" : "two of them I'd be hiring and the other three are coming over from the platform group"
+    },
+    {
+      "end" : 35.840000000000025,
+      "isFinal" : true,
+      "start" : 19.456000000000014,
+      "text" : "and I keep going back-and-forth on it because the thing I actually like about this job is the building like the afternoons where I'm deep in something and I don't look up until it's dark and I know I know that a lead role means a lot less of that"
+    },
+    {
+      "end" : 39.16800000000003,
+      "isFinal" : true,
+      "start" : 36.096000000000025,
+      "text" : "maybe not none but a lot less"
+    },
+    {
+      "end" : 62.20800000000005,
+      "isFinal" : true,
+      "start" : 51.20000000000004,
+      "text" : "Pulling at me what's pulling at me ? Is that if I say no somebody else gets it and I've seen how the last couple of leads ran things and I think I do it better ."
+    },
+    {
+      "end" : 69.12000000000005,
+      "isFinal" : true,
+      "start" : 68.35200000000005,
+      "text" : "meaning"
+    },
+    {
+      "end" : 72.44800000000005,
+      "isFinal" : true,
+      "start" : 70.40000000000005,
+      "text" : "I'd protect peoples time ."
+    },
+    {
+      "end" : 86.78400000000006,
+      "isFinal" : true,
+      "start" : 72.96000000000005,
+      "text" : "I'd stop the thing where every Tuesday there's a two hour planning meeting that nobody needs and I'd actually keep the scope small enough that we shipped something in the first quarter instead of instead of drawing diagrams for six months ."
+    },
+    {
+      "end" : 89.60000000000007,
+      "isFinal" : true,
+      "start" : 87.29600000000006,
+      "text" : "part I'm pretty sure about ."
+    },
+    {
+      "end" : 93.95200000000007,
+      "isFinal" : true,
+      "start" : 90.11200000000007,
+      "text" : "part . I'm not sure about is whether I'd be good at the other stuff"
+    },
+    {
+      "end" : 99.32800000000007,
+      "isFinal" : true,
+      "start" : 93.95200000000007,
+      "text" : "the one on ones the performance review reviews telling someone their work isn't there yet ?"
+    },
+    {
+      "end" : 108.54400000000008,
+      "isFinal" : true,
+      "start" : 101.37600000000008,
+      "text" : "With the two juniors and it went OK but it's different when it's your actual job and it goes in their file"
+    },
+    {
+      "end" : 131.5840000000001,
+      "isFinal" : true,
+      "start" : 111.61600000000008,
+      "text" : ". The lead before last told me once that she stopped writing code in like her third month and she said she didn't miss it until about a year in and then she missed it a lot and she went back to being an engineer eventually which I mean , that tells me it's reversible . It's not a door that locks behind you ."
+    },
+    {
+      "end" : 154.1120000000001,
+      "isFinal" : true,
+      "start" : 151.8080000000001,
+      "text" : "I work on the matching engine myself"
+    },
+    {
+      "end" : 160.2560000000001,
+      "isFinal" : true,
+      "start" : 154.1120000000001,
+      "text" : "would she say yes and would I actually be able to hold onto that day once things get busy ?"
+    },
+    {
+      "end" : 168.19200000000012,
+      "isFinal" : true,
+      "start" : 166.14400000000012,
+      "text" : "not if I'm honest"
+    },
+    {
+      "end" : 174.08000000000013,
+      "isFinal" : true,
+      "start" : 168.44800000000012,
+      "text" : "things always get busy and the first thing to go is the thing that's only protected by me"
+    },
+    {
+      "end" : 184.57600000000014,
+      "isFinal" : true,
+      "start" : 174.33600000000013,
+      "text" : ", but even half a day , even just owning the code review reviews on the core pieces would keep me close enough that I'm not . I'm not managing something . I don't understand ."
+    },
+    {
+      "end" : 207.87200000000016,
+      "isFinal" : true,
+      "start" : 202.24000000000015,
+      "text" : "OK , I think what I'm actually afraid of . Is getting worse at the thing I'm good at ."
+    },
+    {
+      "end" : 215.80800000000016,
+      "isFinal" : true,
+      "start" : 208.12800000000016,
+      "text" : "only average at the new thing for a while and that's that's probably just what it feels like to grow into a roll"
+    },
+    {
+      "end" : 226.81600000000017,
+      "isFinal" : true,
+      "start" : 215.80800000000016,
+      "text" : ". Everybody's average at it for a while and if I say no , I'll be watching someone else run that team for the next two years and I'll have opinions every single week ."
+    },
+    {
+      "end" : 229.37600000000018,
+      "isFinal" : true,
+      "start" : 227.32800000000017,
+      "text" : "I already know I will ."
+    },
+    {
+      "end" : 241.6640000000002,
+      "isFinal" : true,
+      "start" : 231.68000000000018,
+      "text" : "I'm going to write back tomorrow morning and say yes conditional on the review day and the two hires being mine to pick if she says no to both"
+    },
+    {
+      "end" : 243.7120000000002,
+      "isFinal" : true,
+      "start" : 241.9200000000002,
+      "text" : "then I'll think again ."
+    },
+    {
+      "end" : 246.5280000000002,
+      "isFinal" : true,
+      "start" : 244.2240000000002,
+      "text" : "I'm pretty sure she won't ."
+    }
+  ]
+}

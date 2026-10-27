@@ -1,0 +1,114 @@
+{
+  "name": "stalled-project",
+  "summary": "The speaker revisits a tool-lending app for the neighborhood tool library that stalled in March. They realize the blocker was never the code but undecided reservation rules, and they see they let the hardest ten percent hold back the useful ninety. They land on shipping checkout-only for the October meeting and handing the rules question back to the volunteers. Labels: the deepen follows the first admission that the real obstacle was missing decisions, which is worth opening up. The summarize comes after all three options are laid out along with the guilt pulling toward quitting. The leave marks the long silence after the core realization lands. The finished goes on the closing commitment.",
+  "utterances": [
+    {
+      "text": "So the tool library thing. I haven't opened that folder since, I think, March, and Denise asked me again on Saturday when I was dropping off the hedge trimmer, just like, casually, how's the app coming, and I said good, which, it's not.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "It's not good, it's sitting there at maybe seventy percent.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "The checkout part works, the inventory list works, you can scan the little sticker on a drill and it marks it out, that was the fun part and I did all of that in like three weekends.",
+      "pauseAfter": 1.2
+    },
+    {
+      "text": "And then I hit the reservations.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "Because people wanted to be able to say I need the tile saw next Saturday, hold it for me, and that means a calendar, and that means what happens when somebody doesn't bring it back on time and the next person shows up, and overlapping holds, and, and reminders, emails, all of that.",
+      "pauseAfter": 2.1
+    },
+    {
+      "text": "And I just, I kept opening it and closing it.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "I think honestly it wasn't the code that stopped me. Like I know how to build a calendar, it's not hard, it's tedious, but it's not hard.",
+      "pauseAfter": 1.4
+    },
+    {
+      "text": "It was more that every time I sat down I had to make a decision about the rules, like how long can you hold something, what happens if you no-show, and those aren't my decisions, those are the volunteers' decisions, and nobody had made them.",
+      "pauseAfter": 6.5,
+      "label": "deepen",
+      "note": "Names the real blocker as undecided rules rather than code, which is worth pulling on."
+    },
+    {
+      "text": "Yeah. I mean I asked once, in the group chat, and got like four different answers and then it kind of died and I didn't push.",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "And then work got busy in April, that's the other half of it, the migration thing ate every evening for like six weeks and by the time that was over I'd lost the thread.",
+      "pauseAfter": 1.3
+    },
+    {
+      "text": "I'd have to reread my own code to even remember how I set up the database.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "So now it's, uh, now it's September and they're still on the spreadsheet.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "Which works. That's the thing, the spreadsheet works fine-ish, Denise color codes it, things go missing sometimes but they went missing before too.",
+      "pauseAfter": 1.6
+    },
+    {
+      "text": "The annual meeting is October twentieth. I sort of half promised I'd demo something there, back in the spring when I was excited.",
+      "pauseAfter": 4.5
+    },
+    {
+      "text": "Okay so, um, options. One, I finish it properly, calendar and all, and that's probably, realistically, eight or ten weekends, and I don't have eight weekends before the twentieth.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "Two, I ship what I have. Just checkout and inventory, no reservations, people call or text Denise like they do now to hold stuff.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "Three, I tell them I'm stopping, hand over the repo to whoever wants it, which is probably nobody, and they keep the spreadsheet.",
+      "pauseAfter": 1.1
+    },
+    {
+      "text": "And I keep wanting to say three because it feels clean, but I think that's mostly because I feel guilty and want the guilt to stop, not because it's the right call for them.",
+      "pauseAfter": 7,
+      "label": "summarize",
+      "note": "Has laid out three options and noticed guilt is what pulls toward quitting, so a short recap would help."
+    },
+    {
+      "text": "Because two is actually, two is kind of most of the value. The stuff that goes missing goes missing because nobody logs it out, and the scanning fixes that, the reservations were always the nice-to-have that I let turn into the whole project.",
+      "pauseAfter": 1.5
+    },
+    {
+      "text": "Like I did the thing where the hardest ten percent becomes the reason the other ninety never gets used.",
+      "pauseAfter": 18,
+      "label": "leave",
+      "note": "The core realization lands here, and the long quiet is the speaker letting it settle."
+    },
+    {
+      "text": "Yeah.",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "So, um, I think what I'd actually do is spend two weekends cleaning up what's there, getting it onto the old laptop at the shed, and then at the meeting I show checkout only and I say reservations depend on rules you all have to decide first.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "And put the rules question back on them, out loud, in the room, instead of the group chat where it dies.",
+      "pauseAfter": 1.2
+    },
+    {
+      "text": "If they decide them, maybe I build it over the winter. If they don't, then it stays checkout only and that's still, like, better than the spreadsheet.",
+      "pauseAfter": 1
+    },
+    {
+      "text": "I'll text Denise tonight about Saturday.",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "A concrete next step closes the thought, and the speaker stops there."
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "name": "work-decision",
+  "summary": "The speaker weighs a written offer to lead a new five-person team rebuilding the reconciliation service against staying a hands-on engineer, with the answer due Friday. They land on saying yes tomorrow, on condition of a protected review day and picking the two hires. Labels: deepen after the claim that they'd run the team better than past leads, which invites saying what better means; challenge after they assume a protected coding day would survive busy periods, an assumption they half-doubt themselves; leave on the long silence after naming the minimum hands-on involvement they need; finished on the closing line once the decision is made.",
+  "utterances": [
+    {
+      "text": "So the offer is real now, it's in writing,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "my director sent it over Monday and she wants an answer by Friday,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and it's leading the new team that's going to rebuild the reconciliation service,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "five people, two of them I'd be hiring, and the other three are coming over from the platform group.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "And I keep going back and forth on it because the thing I actually like about this job is the building,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "like the afternoons where I'm deep in something and I don't look up until it's dark,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "and I know, I know that a lead role means a lot less of that.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "Maybe not none, but a lot less.",
+      "pauseAfter": 2.1
+    },
+    {
+      "text": "The money is better, it's about twelve percent more, which is not nothing with the um the mortgage going up in March,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "but honestly that's not the part that's pulling at me.",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "What's pulling at me is that if I say no somebody else gets it,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "and I've seen how the last couple of leads ran things and I think I'd do it better.",
+      "pauseAfter": 6,
+      "label": "deepen",
+      "note": "Says they'd run it better than past leads without yet saying what better means."
+    },
+    {
+      "text": "Better meaning, um, I'd protect people's time.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "I'd stop the thing where every Tuesday there's a two hour planning meeting that nobody needs,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "and I'd actually keep the scope small enough that we ship something in the first quarter instead of, instead of drawing diagrams for six months.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "That part I'm pretty sure about.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "The part I'm not sure about is whether I'd be good at the other stuff, uh, the one on ones, the performance reviews, telling someone their work isn't there yet.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "I've done a little of that informally with the two juniors and it went okay but it's different when it's your actual job and it goes in their file.",
+      "pauseAfter": 3.4
+    },
+    {
+      "text": "The lead before last told me once that she stopped writing code in like her third month,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "and she said she didn't miss it until about a year in, and then she missed it a lot.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "And she went back to being an engineer eventually, which, I mean, that tells me it's reversible,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "it's not a door that locks behind you.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "Although it took her almost a year to get moved back, so reversible but not cheap.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "So I think the real question for me is not lead or not lead,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "it's whether I can negotiate some of the hands-on part into it.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "Like if I asked for one day a week that's mine, uh, no meetings, I work on the matching engine myself,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "would she say yes, and would I actually be able to hold onto that day once things get busy.",
+      "pauseAfter": 5.5,
+      "label": "challenge",
+      "note": "Leans on a protected coding day surviving busy periods, which they already seem to doubt."
+    },
+    {
+      "text": "Probably not, if I'm honest.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "Things always get busy, and the first thing to go is the thing that's only protected by me.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "But even half a day, even just owning the code reviews on the core pieces, would keep me close enough that I'm not, I'm not managing something I don't understand.",
+      "pauseAfter": 18,
+      "label": "leave",
+      "note": "Long silence right after naming the minimum hands-on role they need; they're working it through."
+    },
+    {
+      "text": "Okay, I think what I'm actually afraid of is getting worse at the thing I'm good at,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and being only average at the new thing for a while.",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "And that's, that's probably just what it feels like to grow into a role, everybody's average at it for a while.",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "And if I say no I'll be watching someone else run that team for the next two years, and I'll have opinions every single week.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "I already know I will.",
+      "pauseAfter": 2.4
+    },
+    {
+      "text": "So I'm going to write back tomorrow morning and say yes, conditional on the review day,",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "and the two hires being mine to pick.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "If she says no to both, then I'll think again.",
+      "pauseAfter": 0.4
+    },
+    {
+      "text": "But I'm pretty sure she won't.",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "The decision is made and the thought is complete."
+    }
+  ]
+}

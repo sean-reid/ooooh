@@ -1,0 +1,100 @@
+{
+  "name": "money-question",
+  "summary": "The speaker weighs a $38,000 kitchen quote against $61,000 in savings and works out that the real issue is not the kitchen but never again checking the balance every morning, as they did during a lean stretch two years ago. They set a floor of $30,000 left after spending, test cutting the scope against waiting, and land on replacing the dishwasher now and booking a smaller kitchen job for next spring. Labels: deepen where they name a tight feeling at $23,000 left without knowing its source; leave on the long silence after they realize it isn't about the kitchen; decide once both options, waiting or dropping the island, are on the table; challenge where they assume an overrun is certain and treat the floor as fixed; finished on the plain last line.",
+  "utterances": [
+    {
+      "text": "So the quote came back yesterday for the kitchen and it's thirty eight thousand, which is, um, which is more than I'd told myself it would be, I'd been carrying around twenty five in my head for like a year.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "And the thing is we have it, that's the annoying part, there's sixty one sitting in the savings and the high yield one combined, so it's not a can we, it's a should we, and I keep going back and forth on it.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "Because if I do it this year, the cabinets are falling apart, the dishwasher's been leaking under the floor probably, and the contractor said he can start in April and then his calendar's full until next spring.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "So there's a, there's a window thing happening too that I don't love, it feels like pressure.",
+      "pauseAfter": 1.8
+    },
+    {
+      "text": "Okay let me just do the math out loud. Sixty one minus thirty eight is twenty three. And our monthly, if I'm honest with everything, the mortgage and the car and the insurance and food, it's about forty one hundred.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "So twenty three thousand is like five and a half months, give or take, which is, I mean that's not nothing, people say three to six, that's inside the range.",
+      "pauseAfter": 6.5
+    },
+    {
+      "text": "But it doesn't feel fine. When I picture the account at twenty three I get this, like, tight feeling in my chest, and I don't totally know where that comes from.",
+      "pauseAfter": 7,
+      "label": "deepen",
+      "note": "Names a physical reaction to the number and says they don't know where it comes from."
+    },
+    {
+      "text": "I think, I think part of it is two years ago when my hours got cut and we were down to like nine thousand in savings for a few months, and I was checking the balance every morning before I even got out of bed.",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "I don't want to go back to that. That's, that's really what this is about, it's not the kitchen.",
+      "pauseAfter": 18,
+      "label": "leave",
+      "note": "They just reframed the whole question themselves, and the silence is where it sinks in."
+    },
+    {
+      "text": "Okay so, if it's not about the kitchen then the real question is what number lets me not check the balance every morning, and I think, honestly, it's thirty. Thirty thousand left after, that's my floor.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "Which means either the kitchen is thirty one thousand or we wait and save another seven.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "And seven at the rate we're putting away, which is about eleven hundred a month when nothing goes wrong, that's six, seven months, so we'd be at thirty eight plus thirty by like October, November.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "And then he's booked so it'd be next spring anyway. Which, uh, which actually maybe that's fine, the dishwasher can be replaced on its own for what, eight hundred bucks, and we just live with the cabinets one more year.",
+      "pauseAfter": 1.4
+    },
+    {
+      "text": "Or we cut the scope. He had the island in there, and the island alone was something like six thousand with the stone, and I only wanted the island because I saw it somewhere, we don't need it.",
+      "pauseAfter": 7.5,
+      "label": "decide",
+      "note": "Both options are now laid out: wait and save, or drop the island and go this year."
+    },
+    {
+      "text": "Yeah if I take the island out it's like thirty two, and then we'd have twenty nine left, which is, that's basically the number, it's a thousand off, I can live with a thousand off.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "Although I know how these go. Thirty two never stays thirty two, they open up a wall and there's something, and suddenly it's thirty six and I'm at twenty five and I'm back to the chest thing.",
+      "pauseAfter": 1.2
+    },
+    {
+      "text": "So I'd need a, like a buffer built into it. If I say the real budget is thirty two plus ten percent, that's about thirty five, and that leaves twenty six, and that's under my floor.",
+      "pauseAfter": 5.5,
+      "label": "challenge",
+      "note": "Assumes the overrun is certain and treats the thirty thousand floor as fixed when it came from one bad stretch."
+    },
+    {
+      "text": "Ugh. Okay.",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "Then the honest answer is wait. Not forever, just do the dishwasher now, keep saving through the summer, and book him for next spring with the smaller version, no island, and by then we'd be somewhere around seventy, and spending thirty five leaves thirty five, which is above the floor even if it runs over.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "That actually, yeah, that feels different when I say it. That doesn't make my chest do the thing.",
+      "pauseAfter": 1.6
+    },
+    {
+      "text": "I'll call him tomorrow about next spring.",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "The plan is settled and they stop on the next concrete step."
+    }
+  ]
+}

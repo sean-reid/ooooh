@@ -1,0 +1,25 @@
+{
+  "fixture" : "hard-conversation",
+  "labels" : [
+    {
+      "at" : 87.55200000000006,
+      "kind" : "deepen",
+      "utterance" : 11
+    },
+    {
+      "at" : 123.9040000000001,
+      "kind" : "leave",
+      "utterance" : 16
+    },
+    {
+      "at" : 191.48800000000014,
+      "kind" : "decide",
+      "utterance" : 22
+    },
+    {
+      "at" : 248.8320000000002,
+      "kind" : "finished",
+      "utterance" : 29
+    }
+  ]
+}

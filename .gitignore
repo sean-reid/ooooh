@@ -23,3 +23,6 @@ fixtures/synthetic/audio/
 
 # Voice corpus audio is rendered and cached locally, not tracked
 fixtures/synthetic/voice/audio/
+
+# Rendered voice WAVs, 8 MB each.
+fixtures/synthetic/voice/audio/

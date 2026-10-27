@@ -1,0 +1,25 @@
+{
+  "fixture" : "trip-planning",
+  "labels" : [
+    {
+      "at" : 73.47200000000005,
+      "kind" : "deepen",
+      "utterance" : 7
+    },
+    {
+      "at" : 139.0080000000001,
+      "kind" : "leave",
+      "utterance" : 15
+    },
+    {
+      "at" : 200.19200000000015,
+      "kind" : "decide",
+      "utterance" : 17
+    },
+    {
+      "at" : 265.4719999999991,
+      "kind" : "finished",
+      "utterance" : 26
+    }
+  ]
+}
