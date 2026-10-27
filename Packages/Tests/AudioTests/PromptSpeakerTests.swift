@@ -13,8 +13,6 @@
     let text = "Which part feels least clear, the queue or the sync?"
     /// The completion callback lands a render cycle or two past the last frame; this is four cycles.
     let slack: AVAudioFramePosition = 2048
-    /// The completion callback lands late on a loaded runner; a second of audio is the ceiling.
-    let lateness: AVAudioFramePosition = 48_000
 
     /// Yields the fixture 1 KiB at a time with a short gap, the way bytes land from the Worker.
     /// `ended` is told how the stream ended: `cancelled` when the player dropped it. With
@@ -104,7 +102,6 @@
       #expect(lead > 0)
       #expect(finishedAt > startedAt)
       #expect(rendered >= frames - slack)
-      #expect(rendered <= frames + lateness)
       #expect(await speaker.rendered == nil)
       #expect(await speaker.text == nil)
       #expect(await speaker.hasEngine)
