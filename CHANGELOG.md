@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.4.0](https://github.com/sean-reid/ooooh/compare/v0.3.0...v0.4.0) (2026-10-27)
+
+
+### Features
+
+* **app:** show the speech model download and name each Start failure ([#188](https://github.com/sean-reid/ooooh/issues/188)) ([cdf9b84](https://github.com/sean-reid/ooooh/commit/cdf9b84eee89d22f7b9627e12ee166146b5dbdbf))
+* **audio:** log each spoken line's start, cut, finish, and failure ([#197](https://github.com/sean-reid/ooooh/issues/197)) ([ccda4c8](https://github.com/sean-reid/ooooh/commit/ccda4c83fac34643fee6f2f3ab25beaca1f9f97b))
+* **eval:** fit the speak policy from per-check feature rows ([#218](https://github.com/sean-reid/ooooh/issues/218)) ([885ab11](https://github.com/sean-reid/ooooh/commit/885ab116646b2089802f4c9a2e80a3770f026d46))
+* **eval:** six synthetic voice sessions with Jev's answers ([#228](https://github.com/sean-reid/ooooh/issues/228)) ([7d2cf5d](https://github.com/sean-reid/ooooh/commit/7d2cf5d2e0ffb16f220bf2691fbe91e6fc85e9d8))
+* **governor:** ask if finished after 45 seconds of silence ([#196](https://github.com/sean-reid/ooooh/issues/196)) ([a1253d4](https://github.com/sean-reid/ooooh/commit/a1253d4674ae513f57ffe850ad3d1bd408bb2e61))
+* name the speaker's words in every line and vary the frame ([#225](https://github.com/sean-reid/ooooh/issues/225)) ([2216b50](https://github.com/sean-reid/ooooh/commit/2216b50e3f7f6a7e3d6c82bdce5897ca80452468))
+* **notes:** show and export the session transcript ([#212](https://github.com/sean-reid/ooooh/issues/212)) ([d72a188](https://github.com/sean-reid/ooooh/commit/d72a188091f99b04799d73a43811a6c692b414f6))
+* record-to-labels pipeline for real sessions ([#200](https://github.com/sean-reid/ooooh/issues/200)) ([f4063fb](https://github.com/sean-reid/ooooh/commit/f4063fb32ad3687aae162008e916a44aeafd1fc2))
+* **session:** compact every 75 seconds or 150 words ([#207](https://github.com/sean-reid/ooooh/issues/207)) ([b0039c1](https://github.com/sean-reid/ooooh/commit/b0039c1e1f45209816038ce442d324126deb5142))
+* **session:** send session counts to Jev and sweep the governor over recordings ([#204](https://github.com/sean-reid/ooooh/issues/204)) ([405ce9a](https://github.com/sean-reid/ooooh/commit/405ce9a2f1828ceb606963261c5d5a18a844d91d))
+* **tools:** add a judge for the phrase line ([#201](https://github.com/sean-reid/ooooh/issues/201)) ([3a7e7d2](https://github.com/sean-reid/ooooh/commit/3a7e7d2ff2d97b4b8e0557004fef3ced068ccc17))
+* **tools:** synthesize voice sessions in my style for Jev calibration ([#223](https://github.com/sean-reid/ooooh/issues/223)) ([f515538](https://github.com/sean-reid/ooooh/commit/f515538f845515017b628d5ec0b94c5a1ad0ab23))
+* **worker:** phrase with six example lines in the prompt ([#209](https://github.com/sean-reid/ooooh/issues/209)) ([a1605ef](https://github.com/sean-reid/ooooh/commit/a1605ef69c5e0670d00d7186be0326ef6f0ff09d))
+
+
+### Bug Fixes
+
+* **app:** keep the microphone's echo of a spoken line from cutting it ([#210](https://github.com/sean-reid/ooooh/issues/210)) ([0cd9b25](https://github.com/sean-reid/ooooh/commit/0cd9b25a3d976ef12033850c1cc93462f0154186))
+* **app:** stop re-seeding a carried thread the compactor removed ([#186](https://github.com/sean-reid/ooooh/issues/186)) ([f904b90](https://github.com/sean-reid/ooooh/commit/f904b90b72d744abaae31e192922cf86d7f81b5b))
+* **audio:** level spoken prompts toward -16 dBFS ([#202](https://github.com/sean-reid/ooooh/issues/202)) ([de40505](https://github.com/sean-reid/ooooh/commit/de405055ab81898f687863b2db0c51e6c8ccc7a8))
+* **audio:** report one start per line and mute test runs ([#211](https://github.com/sean-reid/ooooh/issues/211)) ([bf907ab](https://github.com/sean-reid/ooooh/commit/bf907ab42f184eccc3a55d4a66dfc498240e69c2))
+* **design:** wake a paused orb when its level or phase changes ([#190](https://github.com/sean-reid/ooooh/issues/190)) ([453b2ca](https://github.com/sean-reid/ooooh/commit/453b2ca714fb5eeb13da11a2788ced559f18d1f1))
+* **persistence:** name each in-memory store so two never share one ([#213](https://github.com/sean-reid/ooooh/issues/213)) ([9f068c8](https://github.com/sean-reid/ooooh/commit/9f068c8a2905651efa648826b333ee06adae2c74))
+* **proxy:** replace a stored App Attest key the service refuses ([#187](https://github.com/sean-reid/ooooh/issues/187)) ([1ab419a](https://github.com/sean-reid/ooooh/commit/1ab419aedebe65399ed9927814971ee6995e5f9f))
+* **site:** centre the footer and stack the credit on phones ([#208](https://github.com/sean-reid/ooooh/issues/208)) ([1bf52f8](https://github.com/sean-reid/ooooh/commit/1bf52f83f2e5465c41f16ca9a40851ebf278ee21))
+* **site:** draw the App Store placeholder as a label ([#221](https://github.com/sean-reid/ooooh/issues/221)) ([7892a03](https://github.com/sean-reid/ooooh/commit/7892a03fae0d2a3064c30ebdf007c5b5278ea1f5))
+* **transcription:** drop short fragments and prefix matches during a line ([#220](https://github.com/sean-reid/ooooh/issues/220)) ([f93651b](https://github.com/sean-reid/ooooh/commit/f93651b2d0e90405b0464b1ff44db67b41704ad6))
+* **transcription:** finalize dictation after a one second pause ([#192](https://github.com/sean-reid/ooooh/issues/192)) ([4660557](https://github.com/sean-reid/ooooh/commit/4660557d6a764f2fb62a87532507cd771cbee8c3))
+* **transcription:** time echo windows on the microphone's clock ([#227](https://github.com/sean-reid/ooooh/issues/227)) ([f9db83a](https://github.com/sean-reid/ooooh/commit/f9db83af141aac43f857327185d869754ee47cba))
+* **worker:** log every structured answer the validator rejects ([#198](https://github.com/sean-reid/ooooh/issues/198)) ([9a28537](https://github.com/sean-reid/ooooh/commit/9a285371ebe1bad60e30a8279c69998f5a887390))
+
+
+### Performance
+
+* **app:** keep launch work off the first frame and build sessions through SessionAssembly ([#215](https://github.com/sean-reid/ooooh/issues/215)) ([7cb5e06](https://github.com/sean-reid/ooooh/commit/7cb5e06d6b249440c92b88b1958585aed17d2af4))
+* **design:** cache the orb's halo and halve its frame rate in a flat room ([#214](https://github.com/sean-reid/ooooh/issues/214)) ([e58122d](https://github.com/sean-reid/ooooh/commit/e58122d39d34fc05973c08430ace2424286e0e20))
+
 ## [0.3.0](https://github.com/sean-reid/ooooh/compare/v0.2.0...v0.3.0) (2026-10-26)
 
 
