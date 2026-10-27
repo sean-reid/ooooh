@@ -43,7 +43,7 @@ import Transcription
     #expect(controller.quietMode)
     microphone.say()
     await wait { controller.lastPrompt != nil && controller.phase == .listening }
-    microphone.input.yield(.speechStarted(at: 20))
+    microphone.resume(at: 20)
     await wait { controller.level > 0 }
 
     snapshot(controller, scheme: scheme)
@@ -152,6 +152,12 @@ final class HandFedMicrophone: LiveTranscriber, @unchecked Sendable {
   }
 
   static let utteranceEnd: TimeInterval = 0.5
+
+  /// A new utterance opening at `at`: the recognizer reports the start with its first volatile words.
+  func resume(at: TimeInterval) {
+    input.yield(.speechStarted(at: at))
+    input.yield(.segment(Segment(text: "and the other", start: at, end: at + 0.6, isFinal: false)))
+  }
 
   /// One finished utterance, over by `utteranceEnd` on the session clock.
   func say() {
