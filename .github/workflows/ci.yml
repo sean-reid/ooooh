@@ -164,10 +164,24 @@ jobs:
         # A freshly selected Xcode has no simulator service running yet; first launch starts it.
         run: |
           sudo xcodebuild -runFirstLaunch
-          xcrun simctl list devices available | grep 'iPhone 17 Pro'
+          udid=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name == "iPhone 17 Pro")][0].udid')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+      - name: audio device
+        # The simulator plays through the host's coreaudiod, whose first open of the output device is the slow one; afplay takes it before the test host does.
+        # The image's Null Audio Device is sometimes missing after boot; restarting coreaudiod brings it up.
+        run: |
+          system_profiler SPAudioDataType
+          if ! afplay /System/Library/Sounds/Tink.aiff; then
+            sudo launchctl kickstart -kp system/com.apple.audio.coreaudiod
+            sleep 5
+            system_profiler SPAudioDataType
+            afplay /System/Library/Sounds/Tink.aiff
+          fi
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
-          -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+          -destination "id=$SIMULATOR_UDID"
           -derivedDataPath DerivedData -resultBundlePath audio.xcresult
           -only-testing:AudioTests test
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
