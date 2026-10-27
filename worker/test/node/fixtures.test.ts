@@ -236,6 +236,18 @@ describe("ProxyTests request fixtures", () => {
     });
   }
 
+  // `said` defaults to empty, so a renamed field would pass; Sonnet's prompt shows the lines arrived.
+  it("requests/phrase.json passes /v1/phrase with the lines said so far", async () => {
+    const upstream = stubUpstream({ body: sonnetReply(shortSentence) });
+    const request = jsonRequest("/v1/phrase", requestFixture("phrase"));
+    expect((await worker.fetch(request, testEnv)).status).toBe(200);
+    const posted = JSON.parse(requestFixture("phrase")) as { said: { text: string }[] };
+    expect(posted.said.length).toBeGreaterThan(1);
+    const prompt = bodyOf<{ messages: { content: string }[] }>(upstream.requests[0]).messages[0]
+      .content;
+    for (const line of posted.said) expect(prompt).toContain(line.text);
+  });
+
   // The state validator defaults every field, so a renamed one would pass as empty; Jev's copy shows what survived.
   it("requests/decide.json passes /v1/decide with the whole state", async () => {
     const upstream = stubUpstream({ body: jevReply });

@@ -35,13 +35,15 @@ export async function pool(items, limit, fn) {
   return out;
 }
 
-/** `--name value` pairs and bare words from argv. */
+/** `--name value` pairs and bare words from argv; a flag with no value after it is `true`. */
 export const parseArgs = (argv) => {
   const flags = {};
   const words = [];
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i].startsWith("--")) flags[argv[i].slice(2)] = argv[++i];
-    else words.push(argv[i]);
+    if (!argv[i].startsWith("--")) words.push(argv[i]);
+    else if (argv[i + 1] === undefined || argv[i + 1].startsWith("--"))
+      flags[argv[i].slice(2)] = true;
+    else flags[argv[i].slice(2)] = argv[++i];
   }
   return { flags, words };
 };

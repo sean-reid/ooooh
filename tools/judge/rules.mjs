@@ -1,4 +1,4 @@
-import { wordCount, wordLimit } from "../../worker/src/phrasing.ts";
+import { stockFrame, wordCount, wordLimit } from "../../worker/src/phrasing.ts";
 
 const sentenceCount = (text) =>
   text.split(/[.?!]+(?=\s|$)/).filter((part) => part.trim()).length;
@@ -11,8 +11,15 @@ export const hardRules = (text) => {
     underLimit: line.length > 0 && wordCount(line) <= wordLimit,
     noI: !/\bI\b/.test(line),
     plain: !/["*_#`>]|\p{Pi}|\p{Pf}/u.test(line) && !/^[-•]/.test(line),
+    noStockFrame: !stockFrame.test(line),
   };
   return { ...checks, pass: Object.values(checks).every(Boolean) };
 };
 
-export const ruleNames = ["oneSentence", "underLimit", "noI", "plain"];
+export const ruleNames = [
+  "oneSentence",
+  "underLimit",
+  "noI",
+  "plain",
+  "noStockFrame",
+];

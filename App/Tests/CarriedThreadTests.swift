@@ -42,9 +42,10 @@ import Transcription
   struct RecordingPhraser: Phraser {
     let inputs: Inputs
 
-    func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
-      -> String
-    {
+    func phrase(
+      _ kind: InterventionKind, state: CompactState, recent: [Segment],
+      said: [CompactState.Intervention]
+    ) async throws -> String {
       inputs.phrasings.withLock { $0.append(state) }
       return ""
     }

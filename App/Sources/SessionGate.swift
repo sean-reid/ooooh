@@ -116,11 +116,12 @@ final class Admission: Sendable {
     let base: any Phraser
     let admission: Admission
 
-    func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
-      -> String
-    {
+    func phrase(
+      _ kind: InterventionKind, state: CompactState, recent: [Segment],
+      said: [CompactState.Intervention]
+    ) async throws -> String {
       try await admission.admit(
-        { try await base.phrase(kind, state: state, recent: recent) }, refused: "")
+        { try await base.phrase(kind, state: state, recent: recent, said: said) }, refused: "")
     }
   }
 

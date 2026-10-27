@@ -16,6 +16,7 @@ public struct SonnetPhraser: Phraser {
     var state: CompactState
     var recent: [WireSegment]
     var lastIntervention: CompactState.Intervention?
+    var said: [CompactState.Intervention]
   }
 
   public struct Response: Decodable, Equatable, Sendable {
@@ -29,21 +30,24 @@ public struct SonnetPhraser: Phraser {
     case done(String)
   }
 
-  public func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
-    -> String
-  {
-    let response: Response = try await client.post("v1/phrase", body: body(kind, state, recent))
+  public func phrase(
+    _ kind: InterventionKind, state: CompactState, recent: [Segment],
+    said: [CompactState.Intervention]
+  ) async throws -> String {
+    let response: Response = try await client.post(
+      "v1/phrase", body: body(kind, state, recent, said))
     return response.text
   }
 
-  public func stream(_ kind: InterventionKind, state: CompactState, recent: [Segment])
-    -> AsyncThrowingStream<Event, Error>
-  {
+  public func stream(
+    _ kind: InterventionKind, state: CompactState, recent: [Segment],
+    said: [CompactState.Intervention]
+  ) -> AsyncThrowingStream<Event, Error> {
     AsyncThrowingStream { continuation in
       let task = Task {
         do {
           let request = try await client.request(
-            "v1/phrase", body: body(kind, state, recent), accept: "text/event-stream")
+            "v1/phrase", body: body(kind, state, recent, said), accept: "text/event-stream")
           let (bytes, response) = try await client.session.bytes(for: request)
           try ProxyError.check(response, data: Data())
           for try await event in ServerSentEvents.events(from: bytes.lines) {
@@ -72,9 +76,12 @@ public struct SonnetPhraser: Phraser {
     }
   }
 
-  private func body(_ kind: InterventionKind, _ state: CompactState, _ recent: [Segment]) -> Body {
+  private func body(
+    _ kind: InterventionKind, _ state: CompactState, _ recent: [Segment],
+    _ said: [CompactState.Intervention]
+  ) -> Body {
     Body(
       kind: kind, state: state, recent: recent.map(WireSegment.init),
-      lastIntervention: state.lastIntervention)
+      lastIntervention: state.lastIntervention, said: said)
   }
 }
