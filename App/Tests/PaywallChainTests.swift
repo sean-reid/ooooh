@@ -1,6 +1,7 @@
 import Billing
 import Foundation
 import Proxy
+import TestSupport
 import Testing
 
 @testable import ooooh
@@ -92,7 +93,8 @@ import Testing
 
   @Test func aTransactionTheWorkerRefusesOffersThePaywallOnceTheFreeCountIsSpent() async throws {
     let host = "paywall-unconfirmed"
-    GateProtocol.answer(host, "/v1/entitlement", 401, try posts.fixture("entitlement-refused"))
+    GateProtocol.answer(
+      host, "/v1/entitlement", 401, try Bundle.tests.fixture("entitlement-refused.json"))
     let freeSessions = FreeSessions()
     let client = ProxyClient(
       baseURL: URL(string: "http://\(host)")!, session: GateProtocol.session(),

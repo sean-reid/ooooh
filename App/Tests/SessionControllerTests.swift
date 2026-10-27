@@ -8,6 +8,7 @@ import Session
 import Settings
 import State
 import Synchronization
+import TestSupport
 import Testing
 import Transcription
 
@@ -15,9 +16,7 @@ import Transcription
 
 @MainActor
 @Suite struct SessionControllerTests {
-  let shortFixture = Bundle(for: Marker.self).url(forResource: "short", withExtension: "json")!
-
-  final class Marker {}
+  let shortFixture = try! Bundle.tests.fixtureURL("short.json")
 
   /// Records speak and stop in order. A line stays "playing" until stop, two seconds at most.
   @MainActor final class Recorder: PromptSpeaking {
@@ -112,10 +111,7 @@ import Transcription
     return environment
   }
 
-  func workerFixture(_ name: String) throws -> Data {
-    try Data(
-      contentsOf: #require(Bundle(for: Marker.self).url(forResource: name, withExtension: "json")))
-  }
+  func workerFixture(_ name: String) throws -> Data { try Bundle.tests.fixture("\(name).json") }
 
   struct CannedNotes: NotesGenerator {
     static let notes = SessionNotes(

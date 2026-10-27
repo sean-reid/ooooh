@@ -2,6 +2,7 @@ import Billing
 import Foundation
 import Proxy
 import Synchronization
+import TestSupport
 import Testing
 
 @testable import ooooh
@@ -10,8 +11,6 @@ import Testing
 /// Worker wrote to Packages/Tests/ProxyTests/Fixtures. Each test has its own host.
 @MainActor
 @Suite struct EntitlementPostTests {
-  final class Marker {}
-
   /// Signs every request from one fixed key.
   struct FixedAttestor: Attestor {
     func assertion(clientDataHash: Data) async throws -> Assertion? {
@@ -51,11 +50,6 @@ import Testing
       expires: Date(timeIntervalSince1970: 1_763_600_000), revoked: false)
   }
 
-  func fixture(_ name: String) throws -> Data {
-    try Data(
-      contentsOf: #require(Bundle(for: Marker.self).url(forResource: name, withExtension: "json")))
-  }
-
   /// A store whose poster is a real client against `host`, signing with `FixedAttestor`.
   func store(_ host: String, transactions: TransactionSource) -> BillingStore {
     let client = ProxyClient(
@@ -75,7 +69,8 @@ import Testing
 
   @Test func aLaunchPostsTheTransactionSignedOnceAndTakesTheWorkersView() async throws {
     let host = "entitled.test"
-    GateProtocol.answer(host, "/v1/entitlement", 200, try fixture("entitlement-paid"))
+    GateProtocol.answer(
+      host, "/v1/entitlement", 200, try Bundle.tests.fixture("entitlement-paid.json"))
     let store = store(host, transactions: Held(monthly).source)
 
     try? await store.load()
@@ -98,7 +93,8 @@ import Testing
 
   @Test func aLaunchWithNoTransactionPostsNothing() async throws {
     let host = "fresh.test"
-    GateProtocol.answer(host, "/v1/entitlement", 200, try fixture("entitlement-paid"))
+    GateProtocol.answer(
+      host, "/v1/entitlement", 200, try Bundle.tests.fixture("entitlement-paid.json"))
     let store = store(host, transactions: .none)
 
     try? await store.load()
@@ -110,7 +106,8 @@ import Testing
 
   @Test func aRefusalKeepsStoreKitsViewAndTheReason() async throws {
     let host = "refused.test"
-    GateProtocol.answer(host, "/v1/entitlement", 401, try fixture("entitlement-refused"))
+    GateProtocol.answer(
+      host, "/v1/entitlement", 401, try Bundle.tests.fixture("entitlement-refused.json"))
     let store = store(host, transactions: Held(monthly).source)
 
     try? await store.load()
@@ -123,7 +120,8 @@ import Testing
 
   @Test func aFreeAnswerOutranksACurrentStoreKitEntitlement() async throws {
     let host = "lapsed.test"
-    GateProtocol.answer(host, "/v1/entitlement", 200, try fixture("entitlement-free"))
+    GateProtocol.answer(
+      host, "/v1/entitlement", 200, try Bundle.tests.fixture("entitlement-free.json"))
     let store = store(host, transactions: Held(monthly).source)
 
     try? await store.load()
@@ -151,7 +149,8 @@ import Testing
 
   @Test func eachTransactionStoreKitDeliversIsPosted() async throws {
     let host = "renewing.test"
-    GateProtocol.answer(host, "/v1/entitlement", 200, try fixture("entitlement-paid"))
+    GateProtocol.answer(
+      host, "/v1/entitlement", 200, try Bundle.tests.fixture("entitlement-paid.json"))
     let held = Held(nil)
     let store = store(host, transactions: held.source)
     #expect(store.entitlement == .free(remainingSessions: 3))
