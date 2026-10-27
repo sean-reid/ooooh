@@ -67,6 +67,7 @@ public struct NotesView: View {
           }
         }
       }
+      TranscriptView(transcript: transcript)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 24)

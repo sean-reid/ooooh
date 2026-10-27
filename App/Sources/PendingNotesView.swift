@@ -1,4 +1,5 @@
 import Design
+import NotesUI
 import State
 import SwiftUI
 import Transcription
@@ -45,6 +46,7 @@ struct PendingNotesView: View {
             section("Decisions", lines: state.decisions.map(\.text))
             section("Open questions", lines: state.openQuestions.map(\.text))
             section("Uncertainties", lines: state.uncertainties.map(\.text))
+            TranscriptView(transcript: transcript)
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .padding(24)

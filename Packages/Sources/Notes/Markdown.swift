@@ -1,7 +1,11 @@
 import Foundation
+import Transcription
 
 extension SessionNotes {
-  public func markdown(date: Date, timeZone: TimeZone = .current) -> String {
+  /// The notes as Markdown, with the transcript as the last section when one is given.
+  public func markdown(date: Date, timeZone: TimeZone = .current, transcript: [Segment] = [])
+    -> String
+  {
     var style = Date.FormatStyle.dateTime.year().month(.wide).day()
     style.timeZone = timeZone
     style.locale = Locale(identifier: "en_US")
@@ -14,6 +18,6 @@ extension SessionNotes {
         out += mark + item.text + "\n"
       }
     }
-    return out
+    return out + transcript.markdown
   }
 }

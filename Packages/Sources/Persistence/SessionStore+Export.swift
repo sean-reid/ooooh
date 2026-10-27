@@ -18,7 +18,8 @@ extension SessionStore {
       let slug = Self.filenameSlug(session.title)
       return MarkdownDocument(
         filename: slug.isEmpty ? "\(stamp).md" : "\(stamp)-\(slug).md",
-        contents: notes.markdown(date: session.startedAt, timeZone: timeZone))
+        contents: notes.markdown(
+          date: session.startedAt, timeZone: timeZone, transcript: Self.transcript(of: session)))
     }
   }
 

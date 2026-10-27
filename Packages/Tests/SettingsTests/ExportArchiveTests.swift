@@ -50,6 +50,35 @@ import Transcription
     #expect(archive.files[0].contents.contains("4 sessions"))
   }
 
+  @Test func eachFileEndsWithTheStampedTranscript() async throws {
+    let store = try SessionStore(configuration: .inMemory)
+    let base = Date(timeIntervalSince1970: 1_792_800_000)
+    try await store.save(
+      result: await Self.result(lines: ["the garden needs a fence", "and a gate"]),
+      notes: SessionNotes(
+        title: "Fence for the garden",
+        actions: [NoteItem(id: "a1", text: "Price fencing")]),
+      title: "", startedAt: base)
+    try await store.save(
+      result: await Self.result(lines: ["second pass"]), notes: nil, title: "Untitled pass",
+      startedAt: base + 86_400)
+
+    let archive = ExportArchive(
+      documents: try await store.exportMarkdown(timeZone: Self.utc), exportedAt: Self.exportedAt,
+      timeZone: Self.utc)
+    #expect(
+      archive.files.map(\.name) == [
+        "README.md", "2026-10-24 Fence for the garden.md", "2026-10-25 Untitled pass.md",
+      ])
+    #expect(
+      archive.files[1].contents.hasSuffix(
+        "## Actions\n\n- Price fencing\n\n## Transcript\n\n"
+          + "0:00 the garden needs a fence\n0:05 and a gate\n"))
+    #expect(
+      archive.files[2].contents
+        == "# Untitled pass\n\nOctober 25, 2026\n\n## Transcript\n\n0:00 second pass\n")
+  }
+
   #if os(macOS)
     @Test func theZipFromARealStoreUnzipsWithTheExpectedFiles() async throws {
       let store = try SessionStore(configuration: .inMemory)

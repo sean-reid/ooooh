@@ -299,8 +299,16 @@ import Transcription
       documents.map(\.filename) == [
         "2026-10-25-034640-pricing-and-the-free-tier.md", "2026-10-26-034640-no-notes-yet.md",
       ])
-    #expect(documents[0].contents == Support.notes.markdown(date: first, timeZone: utc))
-    #expect(documents[1].contents == "# No notes yet\n\nOctober 26, 2026\n")
+    let transcript = result.transcript.filter(\.isFinal)
+    #expect(transcript.count == 17)
+    #expect(
+      documents[0].contents
+        == Support.notes.markdown(date: first, timeZone: utc, transcript: transcript))
+    #expect(
+      documents[1].contents.hasPrefix(
+        "# No notes yet\n\nOctober 26, 2026\n\n## Transcript\n\n"
+          + "0:00 okay so the thing I keep coming back to is pricing\n0:05 like I know"))
+    #expect(documents[1].contents.hasSuffix("\n1:26 okay I'm done for now\n"))
   }
 
   @Test func exportPutsTheSummaryUnderTheTitle() async throws {
@@ -327,7 +335,8 @@ import Transcription
         "2026-10-27-034640-pricing-and-the-free-tier.md",
       ])
     #expect(
-      documents[0].contents == """
+      documents[0].contents.hasPrefix(
+        """
         # A quick one
 
         October 25, 2026
@@ -338,8 +347,14 @@ import Transcription
 
         - Window or porch
 
-        """)
-    #expect(documents[1].contents == "# Shorter\n\nOctober 26, 2026\n\nOne thought, no list.\n")
+        ## Transcript
+
+        0:00 okay so the thing I keep coming back to is pricing
+
+        """))
+    #expect(
+      documents[1].contents.hasPrefix(
+        "# Shorter\n\nOctober 26, 2026\n\nOne thought, no list.\n\n## Transcript\n"))
     #expect(
       documents[2].contents.hasPrefix(
         "# Pricing and the free tier\n\nOctober 27, 2026\n\n## Ideas\n"))
