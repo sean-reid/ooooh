@@ -44,6 +44,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private let audioSink: (any AudioBufferSink)?
   private let pause: TimeInterval
   private let onDevice: Bool
+  private let clock: OffsetClock
   private let stream: AsyncStream<TranscriptEvent>
   private let continuation: AsyncStream<TranscriptEvent>.Continuation
   private let results: AsyncStream<Report>
@@ -76,13 +77,15 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   /// `requestLimit` is the audio one request may hear before the next one takes over.
   init(
     recognizer: any SpeechRecognizing, locale: Locale, audioSink: (any AudioBufferSink)? = nil,
-    requestLimit: TimeInterval = 50, pause: TimeInterval = 1, onDevice: Bool = true
+    requestLimit: TimeInterval = 50, pause: TimeInterval = 1, onDevice: Bool = true,
+    clock: OffsetClock = OffsetClock(ContinuousClock())
   ) {
     self.recognizer = recognizer
     self.locale = locale
     self.audioSink = audioSink
     self.pause = pause
     self.onDevice = onDevice
+    self.clock = clock
     self.feed = RequestFeed(limit: requestLimit)
     (stream, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
     (results, reports) = AsyncStream.makeStream(of: Report.self)
@@ -135,8 +138,9 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     audioEngine.inputNode.removeTap(onBus: 0)
     audioEngine.stop()
     feed.swap(in: nil).previous?.endAudio()
-    for _ in 0..<15 where !currentEnded {
-      try? await Task.sleep(for: .milliseconds(100))
+    let deadline = clock.now() + .seconds(1.5)
+    while !currentEnded, clock.now() < deadline {
+      try? await clock.sleep(min(deadline, clock.now() + .milliseconds(100)))
     }
     recognizer.cancelAll()
     consumer?.cancel()
@@ -233,8 +237,8 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private func scheduleFlush() {
     silence?.cancel()
     let generation = generation
-    silence = Task { [weak self, pause] in
-      try? await Task.sleep(for: .seconds(pause))
+    silence = Task { [weak self, pause, clock] in
+      try? await clock.sleep(clock.now() + .seconds(pause))
       guard !Task.isCancelled else { return }
       await self?.flush(generation)
     }

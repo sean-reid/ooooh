@@ -147,15 +147,24 @@ import Testing
 
   @Test func silenceFlushesTheOpenUtterance() async throws {
     let recognizer = FakeRecognizer()
+    let clock = TestClock()
     let transcriber = SpeechRecognizerTranscriber(
-      recognizer: recognizer, locale: Locale(identifier: "en_US"), pause: 0.05)
+      recognizer: recognizer, locale: Locale(identifier: "en_US"), pause: 1,
+      clock: OffsetClock(clock))
     try await transcriber.beginRecognition()
     await recognizer.report(
       RecognitionResult(words: [word("Hmm", 1.0)], isFinal: false), request: 0)
+    await wait(for: "the pause timer to park on the clock") { clock.sleeping == 1 }
+    clock.advance(by: .seconds(1))
     let events = await collect(transcriber.events(), count: 4)
     #expect(events[2] == .segment(Segment(text: "Hmm", start: 1.0, end: 1.5, isFinal: true)))
     #expect(events[3] == .speechEnded(at: 1.5))
     #expect(recognizer.requests == 1)
-    await transcriber.stop()
+    // Stop waits on the clock for the open request to end, up to 1.5 s.
+    let stopping = Task { await transcriber.stop() }
+    await wait(for: "stop to park on the clock") { clock.sleeping == 1 }
+    clock.advance(by: .seconds(1.5))
+    await stopping.value
+    #expect(recognizer.cancelled == 1)
   }
 }
