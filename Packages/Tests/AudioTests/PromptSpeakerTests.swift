@@ -167,10 +167,13 @@
       #expect(rendered >= frames - slack)
     }
 
+    /// The stream holds after five chunks, so the line cannot play out before the stop lands.
     @Test func stopCutsPlaybackAndDropsTheRest() async throws {
       let speaker = PromptSpeaker()
       var events = speaker.events.makeAsyncIterator()
-      let audio = try network { _ in }
+      let ended = Ended()
+      let (release, releasing) = AsyncStream.makeStream(of: Void.self)
+      let audio = try network(firstByte: { _ in }, ended: ended, holding: 5, until: release)
       let speaking = Task { try await speaker.speak(text, audio: audio) }
       while let event = await events.next() {
         if case .started = event { break }
@@ -181,6 +184,7 @@
       await speaker.stop()
       try await speaking.value
       let returned = Date().timeIntervalSince(stoppedAt)
+      releasing.finish()
       var finishedAt = Date.distantPast
       var cut: AVAudioFramePosition = -1
       while let event = await events.next() {
@@ -191,12 +195,16 @@
         }
       }
       let frames = try Fixture.frames(chunked: 1024)
+      let fed = try Fixture.frames(chunked: 1024, count: 5)
+      await wait { !ended.all.isEmpty }
       print(
-        "speak returned \(Int(returned * 1000)) ms after stop, cut at \(cut) of \(frames) frames")
+        "speak returned \(Int(returned * 1000)) ms after stop, cut at \(cut) with \(fed) of \(frames) frames fed"
+      )
       #expect(returned > 0)
       #expect(finishedAt >= stoppedAt)
       #expect(cut > 0)
-      #expect(cut < frames - slack)
+      #expect(fed < frames - slack)
+      #expect(ended.all == ["cancelled"])
       try await Task.sleep(for: .milliseconds(100))
       #expect(await speaker.rendered == nil)
       #expect(await speaker.text == nil)
