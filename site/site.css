@@ -114,6 +114,12 @@ main {
   font-size: 16px;
 }
 
+/* A span until the listing exists: no link, so it must not look like one. */
+span.store {
+  border-color: var(--line);
+  color: var(--dim);
+}
+
 a.store:hover,
 a.store:focus-visible {
   background: var(--amber);
