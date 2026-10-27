@@ -16,7 +16,8 @@
     private(set) var files: [URL] = []
     private(set) var startedAt: Date?
     private(set) var stoppedAt: Date?
-    private var transcriber: SpeechAnalyzerTranscriber?
+    private(set) var engine: TranscriptionEngine?
+    private var transcriber: (any LiveTranscriber)?
     private var recorder: FixtureRecorder?
     private var consumer: Task<Void, Never>?
 
@@ -46,10 +47,15 @@
         try await CapturePermissions.request()
         try AudioSessionController().activate()
         let recorder = try FixtureRecorder(directory: Self.fixturesDirectory)
-        let transcriber = SpeechAnalyzerTranscriber(audioSink: recorder.audio)
+        let locale = Locale.current
+        guard let engine = await TranscriptionEngine.available(for: locale) else {
+          throw NoTranscriptionEngine(locale: locale)
+        }
+        let transcriber = engine.makeTranscriber(locale: locale, audioSink: recorder.audio)
         try await transcriber.start()
         self.recorder = recorder
         self.transcriber = transcriber
+        self.engine = engine
         startedAt = .now
         phase = .recording
         consumer = Task {
@@ -58,7 +64,7 @@
           }
         }
       } catch {
-        phase = .failed(error.localizedDescription)
+        phase = .failed(StartFailure(error).message)
       }
     }
 

@@ -72,6 +72,8 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: A development build can talk to a Worker running on a Mac on your own network.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
     entitlements:
       path: App/Resources/ooooh.entitlements
       properties:
