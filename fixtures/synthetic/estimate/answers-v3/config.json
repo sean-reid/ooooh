@@ -1,0 +1,24 @@
+{
+  "version": 6,
+  "floor": { "min": 30, "max": 120 },
+  "speak": { "probability": 0.9, "confidence": 0 },
+  "finished": { "probability": 0.6, "confidence": 0.7 },
+  "command": { "probability": 0.9, "confidence": 0.7 },
+  "densityWindow": 120,
+  "endSilence": 30,
+  "longSilence": 45,
+  "silenceChecks": [5, 11, 20],
+  "armingDelay": 1.5,
+  "cueWeights": {
+    "hangingQuestion": 1.0,
+    "trailsOff": 2.2,
+    "unnamedDecision": 1.125,
+    "repeatsPoint": 1.4
+  },
+  "cueKinds": {
+    "hangingQuestion": "clarify",
+    "trailsOff": "deepen",
+    "unnamedDecision": "decide",
+    "repeatsPoint": "reflect"
+  }
+}
