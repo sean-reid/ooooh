@@ -3,7 +3,7 @@ import Transcription
 
 @testable import Notes
 
-@Suite struct NotesViewTests {
+@Suite struct TranscriptSpanTests {
   let transcript = [
     Segment(text: "First thing.", start: 0, end: 4, isFinal: true),
     Segment(text: "Second thing.", start: 5, end: 9, isFinal: true),

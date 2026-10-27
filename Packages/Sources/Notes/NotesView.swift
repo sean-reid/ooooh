@@ -145,13 +145,3 @@ struct NoteItemRow: View {
     item.resolved ? "\(item.text), resolved" : item.text
   }
 }
-
-extension TranscriptSpan {
-  /// The words of every segment that overlaps the span, in order.
-  public func text(in transcript: [Segment]) -> String {
-    transcript
-      .filter { $0.end >= start && $0.start <= end }
-      .map(\.text)
-      .joined(separator: " ")
-  }
-}
