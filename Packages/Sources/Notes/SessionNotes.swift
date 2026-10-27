@@ -1,5 +1,6 @@
 import Foundation
 import State
+import Transcription
 
 /// The structured output of a session. Every item points back at the transcript.
 public struct SessionNotes: Codable, Equatable, Sendable {
@@ -80,5 +81,15 @@ public struct TranscriptSpan: Codable, Equatable, Sendable {
   public init(start: TimeInterval, end: TimeInterval) {
     self.start = start
     self.end = end
+  }
+}
+
+extension TranscriptSpan {
+  /// The words of every segment that overlaps the span, in order.
+  public func text(in transcript: [Segment]) -> String {
+    transcript
+      .filter { $0.end >= start && $0.start <= end }
+      .map(\.text)
+      .joined(separator: " ")
   }
 }

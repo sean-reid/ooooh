@@ -41,6 +41,8 @@ targets:
       - package: Packages
         product: Notes
       - package: Packages
+        product: NotesUI
+      - package: Packages
         product: Transcription
       - package: Packages
         product: Audio

@@ -9,6 +9,7 @@ let package = Package(
     .library(name: "State", targets: ["State"]),
     .library(name: "Governor", targets: ["Governor"]),
     .library(name: "Notes", targets: ["Notes"]),
+    .library(name: "NotesUI", targets: ["NotesUI"]),
     .library(name: "Transcription", targets: ["Transcription"]),
     .library(name: "Audio", targets: ["Audio"]),
     .library(name: "Proxy", targets: ["Proxy"]),
@@ -26,7 +27,8 @@ let package = Package(
     .target(name: "Design", resources: [.copy("Fonts")]),
     .target(name: "State"),
     .target(name: "Governor", dependencies: ["State"]),
-    .target(name: "Notes", dependencies: ["State", "Transcription", "Design"]),
+    .target(name: "Notes", dependencies: ["State", "Transcription"]),
+    .target(name: "NotesUI", dependencies: ["Notes", "Transcription", "Design"]),
     .target(name: "Transcription"),
     .target(name: "Audio"),
     .target(
@@ -48,7 +50,7 @@ let package = Package(
     .testTarget(
       name: "NotesSnapshotTests",
       dependencies: [
-        "Notes", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+        "Notes", "NotesUI", .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
       ], exclude: ["__Snapshots__"]),
     .testTarget(
       name: "SessionTests", dependencies: ["Session"], resources: [.copy("Fixtures")]),
