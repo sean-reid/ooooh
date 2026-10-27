@@ -78,7 +78,7 @@ describe("POST /v1/decide", () => {
           unnamedDecision: 0.09,
         },
       },
-      questionsVersion: 2,
+      questionsVersion: 3,
       usage: { jevInputTokens: 412 },
     });
 

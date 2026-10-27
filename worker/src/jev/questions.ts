@@ -1,6 +1,6 @@
 import { interventionKinds } from "../schema";
 
-export const questionsVersion = 2;
+export const questionsVersion = 3;
 
 export const jevModel = "jev-latest";
 
@@ -44,10 +44,11 @@ export const cueQuestions = {
   trailsOff: {
     type: "noul",
     instructions:
-      "Does the most recent line end unfinished: a sentence that stops partway, a 'so maybe', an 'I don't know', or a fragment?",
+      "Does the most recent line give out rather than pause: the speaker loses the thread, runs out of words, or gives up on the sentence with a 'so maybe', an 'I don't know', or a shrug? A clause break is not a trail-off. The transcriber cuts a line after one second of silence, so a line that stops at 'and', 'but', 'so', 'because', or 'which' while the sentence is still going is a breath, and the next line will finish it. A short opening line that only names the topic is not a trail-off either.",
     criteria: {
-      true: "The last line is incomplete or ends in uncertainty.",
-      false: "The last line is a complete thought.",
+      true: "The thought is abandoned or dissolves into uncertainty, and nothing in the line points to how it would continue.",
+      false:
+        "The line is a complete thought, or it stops at a clause boundary with the sentence still in motion, or it is a short opening line that sets up what follows.",
     },
   } satisfies Noul,
   contradictsEarlier: {
@@ -76,11 +77,11 @@ export const questions = {
   goodMoment: {
     type: "noul",
     instructions:
-      "Is this a good moment for the app to say one short sentence to the speaker? Judge from the pause, the shape of the recent transcript, and the time since the last intervention.",
+      "Is this a good moment for the app to say one short sentence to the speaker? Judge from the recent lines, the pause, and the signals: secondsSinceStart, wordsSoFar, promptsSoFar, and secondsSincePrompt. Answer no when the speaker is mid-thought, between two clauses of one sentence, partway through a list or a sequence of steps, in the first sentences of the session before they have laid out what they are thinking about, or has just answered their own question and is carrying on. Answer yes only when the speaker has closed a thought, not just a sentence, and a question from outside would land rather than interrupt.",
     criteria: {
-      true: "The speaker has reached a natural break and a short question would be welcome now.",
+      true: "The speaker has finished a thought and paused on it. The session is past its opening, the last prompt is well behind, and a short question would be welcome now.",
       false:
-        "The speaker is mid-thought, flowing, or just heard an intervention and should be left alone.",
+        "The speaker is mid-thought; or taking a breath between clauses; or working through a list that is not done; or in the first sentences of the session; or has just answered their own question; or just heard a prompt and should be left alone.",
     },
   } satisfies Noul,
   intervention: {
