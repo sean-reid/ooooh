@@ -8,6 +8,7 @@ import {
 } from "../anthropic";
 import { json, readBody } from "../http";
 import { compactState, segment, type Segment } from "../schema";
+import { claimNotes } from "../session";
 import { array, num, obj, optional, str, ValidationError } from "../validate";
 
 const body = obj({ state: compactState, transcript: array(segment) });
@@ -128,6 +129,7 @@ const notesDeadlineMs = 180_000;
 export async function notesRoute(request: Request, env: Env, device: string): Promise<Response> {
   const input = await readBody(request, body);
   const cred = credential(env);
+  await claimNotes(device, env);
   const client = anthropicClient(cred, { timeout: notesDeadlineMs });
 
   const user = [

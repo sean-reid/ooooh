@@ -215,6 +215,8 @@ describe("ProxyTests fixtures", () => {
 // Each body the phone posts goes through the route's own readBody, so a field one side renamed is a 422 here.
 describe("ProxyTests request fixtures", () => {
   beforeAll(async () => {
+    const end = jsonRequest("/v1/session/end", { minutes: 1 });
+    expect((await worker.fetch(end, testEnv)).status).toBe(204);
     expect((await worker.fetch(startRequest(), testEnv)).status).toBe(200);
   });
 

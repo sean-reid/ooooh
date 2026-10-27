@@ -57,6 +57,18 @@ export type Window = "prompt-minutes" | "whole-session";
 export const noSession = (reason: string) => new HttpError(402, { error: "no-session", reason });
 
 /**
+ * Takes the open session's one notes call, paid or free, in the device's DeviceCounter so two
+ * posts landing together cannot both take it. 402 without a session, 409 once it is taken.
+ */
+export async function claimNotes(device: string, env: Env): Promise<void> {
+  const session = await openSession(device, env);
+  if (!session) throw noSession("not-started");
+  if (!(await counterFor(env, device).claimNotes(session.startedAt))) {
+    throw new HttpError(409, { error: "notes-written" });
+  }
+}
+
+/**
  * Refuses a device with no open session and no paid record, and a prompt once a free session's
  * minutes are spent. The first call under a pending session is what counts it.
  */
