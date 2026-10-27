@@ -1,23 +1,13 @@
 import { models } from "../../worker/src/models.ts";
 import {
+  exemplars,
   phraseEffort,
+  phraseRules,
   phraseSystem,
   phraseUserMessage,
 } from "../../worker/src/phrasing.ts";
 
-export const exemplars = {
-  clarify: "When you say it is slow, which step is the slow one?",
-  deepen: "What makes Friday the deadline that counts?",
-  reflect: "Three times now, slow was fine.",
-  decide: "So is it the small team, or is that still open?",
-  summarize: "Estimation, cost, and who sits in the room, three threads open.",
-  challenge: "What would it take for the cheaper path to be wrong?",
-};
-
-const exemplarBlock = `Examples, one per kind, from other sessions:
-${Object.entries(exemplars)
-  .map(([kind, line]) => `- ${kind}: ${line}`)
-  .join("\n")}`;
+export { exemplars };
 
 export const variants = {
   shipping: {
@@ -25,9 +15,9 @@ export const variants = {
     system: phraseSystem,
     effort: phraseEffort,
   },
-  exemplars: {
+  bare: {
     model: models.phrase,
-    system: `${phraseSystem}\n\n${exemplarBlock}`,
+    system: phraseRules,
     effort: phraseEffort,
   },
   opus: {
