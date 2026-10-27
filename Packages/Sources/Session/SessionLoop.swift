@@ -47,12 +47,15 @@ public actor SessionLoop {
 
   /// Finals a check and a phrase see verbatim; the Worker reads this many lines and no more.
   static let recentWindow = 6
+  /// Lines already spoken that a phrase is told not to echo.
+  static let saidWindow = 3
 
   var governor: Governor
   var state: CompactState
   var transcript: [Segment] = []
   var uncompacted: [Segment] = []
   var records: [SessionRecord] = []
+  var said: [CompactState.Intervention] = []
   var checkIndex = 0
   var lastCompactionAt: TimeInterval = 0
   var lastSpeechEnd: TimeInterval = 0
@@ -184,8 +187,10 @@ public actor SessionLoop {
   func arm(_ kind: ArmedPrompt, at now: TimeInterval, restoring governor: Governor) async {
     var text: Task<String, Never>?
     if case .intervention(let kind) = kind {
-      let (state, recent, phraser) = (state, recent, deps.phraser)
-      text = Task { (try? await phraser.phrase(kind, state: state, recent: recent)) ?? "" }
+      let (state, recent, said, phraser) = (state, recent, recentlySaid, deps.phraser)
+      text = Task {
+        (try? await phraser.phrase(kind, state: state, recent: recent, said: said)) ?? ""
+      }
     }
     let due = max(lastSpeechEnd + config.armingDelay, now)
     arm = Arm(kind: kind, due: due, text: text, governor: governor)
@@ -198,7 +203,9 @@ public actor SessionLoop {
     switch arm.kind {
     case .intervention(let kind):
       let text = await arm.text?.value ?? ""
-      state.lastIntervention = .init(kind: kind, text: text, at: arm.due)
+      let line = CompactState.Intervention(kind: kind, text: text, at: arm.due)
+      state.lastIntervention = line
+      said.append(line)
       promptsSoFar += 1
       lastPromptAt = arm.due
       records.append(.prompt(at: arm.due, kind: kind, text: text))
@@ -260,6 +267,8 @@ public actor SessionLoop {
 
   /// The last few utterances, whether or not a compaction has folded them into the state.
   var recent: [Segment] { Array(transcript.suffix(Self.recentWindow)) }
+
+  var recentlySaid: [CompactState.Intervention] { Array(said.suffix(Self.saidWindow)) }
 
   static func words(in segment: Segment) -> Int {
     segment.text.split(separator: " ").count

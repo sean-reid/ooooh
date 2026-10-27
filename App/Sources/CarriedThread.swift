@@ -59,10 +59,11 @@ final class CarriedThread: Sendable {
     let base: any Phraser
     let thread: CarriedThread
 
-    func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
-      -> String
-    {
-      try await base.phrase(kind, state: thread.seed(state), recent: recent)
+    func phrase(
+      _ kind: InterventionKind, state: CompactState, recent: [Segment],
+      said: [CompactState.Intervention]
+    ) async throws -> String {
+      try await base.phrase(kind, state: thread.seed(state), recent: recent, said: said)
     }
   }
 

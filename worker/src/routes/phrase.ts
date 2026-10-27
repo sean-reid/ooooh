@@ -21,7 +21,7 @@ import {
   wordLimit,
 } from "../phrasing";
 import { compactState, intervention, interventionKinds, segment } from "../schema";
-import { array, obj, oneOf, optional } from "../validate";
+import { array, obj, oneOf, optional, withDefault } from "../validate";
 
 export type Deadlines = { callMs: number; stallMs: number };
 
@@ -33,6 +33,7 @@ const body = obj({
   state: compactState,
   recent: array(segment),
   lastIntervention: optional(intervention),
+  said: withDefault(array(intervention), []),
 });
 type Input = ReturnType<typeof body> & { cred: Credential; env: Env; deadlines: Deadlines };
 

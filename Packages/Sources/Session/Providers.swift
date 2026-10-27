@@ -27,8 +27,11 @@ public protocol Compactor: Sendable {
 }
 
 public protocol Phraser: Sendable {
-  func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
-    -> String
+  /// `said` is the last few lines the app spoke this session, oldest first.
+  func phrase(
+    _ kind: InterventionKind, state: CompactState, recent: [Segment],
+    said: [CompactState.Intervention]
+  ) async throws -> String
 }
 
 /// Answers from a closure. Tests script the moments they want.
@@ -67,9 +70,10 @@ public struct PassthroughCompactor: Compactor {
 public struct TemplatePhraser: Phraser {
   public init() {}
 
-  public func phrase(_ kind: InterventionKind, state: CompactState, recent: [Segment]) async throws
-    -> String
-  {
+  public func phrase(
+    _ kind: InterventionKind, state: CompactState, recent: [Segment],
+    said: [CompactState.Intervention]
+  ) async throws -> String {
     switch kind {
     case .clarify: "Which part of that feels least clear?"
     case .deepen: "What sits underneath that?"

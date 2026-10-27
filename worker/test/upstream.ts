@@ -45,7 +45,12 @@ export const decideBody = {
 
 export const compactBody = { state, transcript: segments };
 
-export const phraseBody = { kind: "clarify", state, recent: segments };
+export const saidLines = [
+  { kind: "clarify", text: "Which part feels least clear?", at: 60 },
+  { kind: "deepen", text: "Why does the retry queue matter more than the sync layer?", at: 95 },
+];
+
+export const phraseBody = { kind: "clarify", state, recent: segments, said: saidLines };
 
 export const notesBody = { state, transcript: segments };
 export const speakBody = { text: "Which part feels least clear, the queue or the sync?" };

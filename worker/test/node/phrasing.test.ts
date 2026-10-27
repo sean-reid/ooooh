@@ -5,11 +5,26 @@ import {
   kindGuide,
   phraseRules,
   phraseSystem,
+  phraseUserMessage,
+  saidLines,
+  saidWindow,
   stockFrame,
   wordCount,
   wordLimit,
+  type PhraseInput,
 } from "../../src/phrasing";
-import { interventionKinds } from "../../src/schema";
+import { interventionKinds, type Intervention } from "../../src/schema";
+import { phraseBody, saidLines as said, segments, state } from "../upstream";
+
+const input = (over: Record<string, unknown> = {}): PhraseInput =>
+  ({ ...phraseBody, ...over }) as unknown as PhraseInput;
+
+const line = (kind: Intervention["kind"], text: string, at: number): Intervention => ({
+  kind,
+  text,
+  at,
+  takenUp: undefined,
+});
 
 const sentences = (text: string) =>
   text.split(/[.?!]+(?=\s|$)/).filter((part) => part.trim()).length;
@@ -65,5 +80,37 @@ describe("the phrase prompt", () => {
     }
     expect(phraseSystem).toMatch(/show the standard, not a template/);
     expect(phraseSystem.startsWith(phraseRules)).toBe(true);
+  });
+
+  it("renders the last three lines said, oldest first, under the instruction not to echo them", () => {
+    const four = [
+      ...said,
+      line("reflect", "Back and forth, twice now.", 110),
+      line("decide", "The queue or the sync layer, which is it?", 125),
+    ];
+    expect(saidWindow).toBe(3);
+    expect(saidLines(input({ said: four }))).toEqual(four.slice(1));
+    const message = phraseUserMessage(input({ said: four }));
+    expect(message).toContain(
+      "Said to them this session, oldest first. Do not open with the same words or reuse the shape of any of them:\n" +
+        "- (deepen) Why does the retry queue matter more than the sync layer?\n" +
+        "- (reflect) Back and forth, twice now.\n" +
+        "- (decide) The queue or the sync layer, which is it?\n",
+    );
+    expect(message).not.toContain(four[0].text);
+    expect(message.indexOf("Said to them")).toBeLessThan(message.indexOf("Recent words"));
+  });
+
+  it("falls back to the one line it has when a phone sends no said list", () => {
+    const last = line("clarify", "Which part feels least clear?", 60);
+    expect(saidLines(input({ said: [], lastIntervention: last }))).toEqual([last]);
+    const inState = { ...state, lastIntervention: last };
+    expect(saidLines(input({ said: undefined, state: inState }))).toEqual([last]);
+    const bare = input({ said: [], lastIntervention: undefined, state });
+    expect(saidLines(bare)).toEqual([]);
+    expect(phraseUserMessage(bare)).toContain("Nothing said to them yet.\nRecent words");
+    expect(phraseUserMessage(bare).split("\n").at(-1)).toBe(
+      `[${segments[1].start}s] ${segments[1].text}`,
+    );
   });
 });

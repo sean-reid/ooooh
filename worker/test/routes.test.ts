@@ -13,6 +13,7 @@ import {
   opusNotes,
   opusReply,
   phraseBody,
+  saidLines,
   shortSentence,
   sonnetReply,
   sonnetStream,
@@ -591,6 +592,21 @@ describe("POST /v1/phrase", () => {
     expect(upstream.requests[0].headers["anthropic-beta"]).toContain("server-side-fallback");
     expect(bodies[1].messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
     expect(bodies[1].messages[2].content).toContain("3 words over");
+  });
+
+  it("hands Sonnet the lines already said, oldest first, ahead of the transcript", async () => {
+    expectUpstream({ body: sonnetReply(shortSentence) });
+
+    const res = await post("/v1/phrase", phraseBody);
+    expect(res.status).toBe(200);
+    const sent = bodyOf<{ messages: { content: string }[] }>(upstream.requests[0]);
+    const prompt = sent.messages[0].content;
+    const positions = [...saidLines.map((line) => line.text), phraseBody.recent[1].text].map(
+      (text) => prompt.indexOf(text),
+    );
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(prompt).toContain(`- (${saidLines[1].kind}) ${saidLines[1].text}`);
   });
 
   it("truncates at a sentence boundary when the retry is still too long", async () => {

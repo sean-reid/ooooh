@@ -60,15 +60,33 @@ ${Object.entries(exemplars)
   .map(([kind, line]) => `- ${kind}: ${line}`)
   .join("\n")}`;
 
+/** How many of the lines already said this session the model is shown. */
+export const saidWindow = 3;
+
 export type PhraseInput = {
   kind: InterventionKind;
   state: CompactState;
   recent: Segment[];
   lastIntervention?: Intervention;
+  said?: Intervention[];
 };
 
-export const phraseUserMessage = (input: PhraseInput) => {
+/** The lines said so far, newest last; a phone that sends none falls back to the one it has. */
+export const saidLines = (input: PhraseInput): Intervention[] => {
+  if (input.said?.length) return input.said.slice(-saidWindow);
   const last = input.lastIntervention ?? input.state.lastIntervention;
+  return last ? [last] : [];
+};
+
+const saidBlock = (said: Intervention[]) =>
+  said.length
+    ? [
+        "Said to them this session, oldest first. Do not open with the same words or reuse the shape of any of them:",
+        ...said.map((line) => `- (${line.kind}) ${line.text}`),
+      ].join("\n")
+    : "Nothing said to them yet.";
+
+export const phraseUserMessage = (input: PhraseInput) => {
   const lines = [
     `Kind: ${input.kind}`,
     `Mode: ${input.state.mode}`,
@@ -76,7 +94,7 @@ export const phraseUserMessage = (input: PhraseInput) => {
     `Open questions: ${input.state.openQuestions.map((q) => q.text).join(" | ") || "none"}`,
     `Main ideas: ${input.state.mainIdeas.map((q) => q.text).join(" | ") || "none"}`,
     `Uncertainties: ${input.state.uncertainties.map((q) => q.text).join(" | ") || "none"}`,
-    last ? `Last thing said to them (${last.kind}): ${last.text}` : "Nothing said to them yet.",
+    saidBlock(saidLines(input)),
     `Recent words, the last two are the ones to name from:\n${transcriptLines(input.recent)}`,
   ];
   return lines.join("\n");

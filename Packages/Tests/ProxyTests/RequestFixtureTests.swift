@@ -53,10 +53,17 @@ extension StubbedTransportTests {
       }
     }
 
+    /// The same two lines as worker/test/upstream.ts, so both suites read one picture.
+    static let said: [CompactState.Intervention] = [
+      .init(kind: .clarify, text: "Which part feels least clear?", at: 60),
+      .init(
+        kind: .deepen, text: "Why does the retry queue matter more than the sync layer?", at: 95),
+    ]
+
     @Test func phrase() async throws {
       try await compare("phrase", reply: Bundle.module.fixture("phrase.json")) {
         _ = try await SonnetPhraser(client: client).phrase(
-          .clarify, state: Self.state, recent: Self.segments)
+          .clarify, state: Self.state, recent: Self.segments, said: Self.said)
       }
     }
 

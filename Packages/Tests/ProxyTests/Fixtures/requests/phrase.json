@@ -17,6 +17,18 @@
       "text" : "Or maybe it's the sync layer, I keep going back and forth on that."
     }
   ],
+  "said" : [
+    {
+      "at" : 60,
+      "kind" : "clarify",
+      "text" : "Which part feels least clear?"
+    },
+    {
+      "at" : 95,
+      "kind" : "deepen",
+      "text" : "Why does the retry queue matter more than the sync layer?"
+    }
+  ],
   "state" : {
     "currentThread" : "Whether to rebuild the sync layer or patch the queue.",
     "decisions" : [
