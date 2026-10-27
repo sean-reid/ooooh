@@ -4,6 +4,7 @@ const counterKey = "counter";
 const seenKey = "seen";
 const rateKey = "rate";
 const countedKey = "session-counted";
+const notesKey = "notes-session";
 const sessionsPrefix = "sessions:";
 const sessionsKey = (month: string) => `${sessionsPrefix}${month}`;
 const spentPrefix = (provider: string) => `spent:${provider}:`;
@@ -69,6 +70,13 @@ export class DeviceCounter extends DurableObject<Env> {
     ];
     for (const [key] of stale) this.ctx.storage.kv.delete(key);
     return total;
+  }
+
+  /** Takes the one notes call the session that started at `startedAt` gets; false once taken. */
+  claimNotes(startedAt: number): boolean {
+    if (this.ctx.storage.kv.get<number>(notesKey) === startedAt) return false;
+    this.ctx.storage.kv.put(notesKey, startedAt);
+    return true;
   }
 
   /** Free sessions counted toward `month`, a UTC year and month. */
