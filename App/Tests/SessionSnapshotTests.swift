@@ -137,6 +137,7 @@ import Transcription
 /// A live transcriber the test speaks into, so nothing moves between the wait and the picture.
 final class HandFedMicrophone: LiveTranscriber, @unchecked Sendable {
   let engine = TranscriptionEngine.speechTranscriber
+  let audioTime: TimeInterval = 0
   let input: AsyncStream<TranscriptEvent>.Continuation
   private let stream: AsyncStream<TranscriptEvent>
 

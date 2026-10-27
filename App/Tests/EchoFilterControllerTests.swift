@@ -10,13 +10,21 @@ import Transcription
 /// until it is stopped. What the microphone hears of the line must neither cut it nor be kept.
 @MainActor
 @Suite struct EchoFilterControllerTests {
-  /// A live transcriber fed by hand. Segment times are the controller's session seconds.
+  /// A live transcriber fed by hand, on an audio clock that started `lag` seconds after the
+  /// session clock, as a phone's does while the engine warms up. Segment times are audio seconds.
   final class EchoMicrophone: LiveTranscriber, @unchecked Sendable {
     let engine = TranscriptionEngine.speechTranscriber
+    let lag: TimeInterval
     let input: AsyncStream<TranscriptEvent>.Continuation
     private let stream: AsyncStream<TranscriptEvent>
+    private let started = Date()
 
-    init() { (stream, input) = AsyncStream.makeStream() }
+    init(lag: TimeInterval = 1.2) {
+      self.lag = lag
+      (stream, input) = AsyncStream.makeStream()
+    }
+
+    var audioTime: TimeInterval { max(0, Date().timeIntervalSince(started) - lag) }
 
     func downloadProgress() -> AsyncStream<Double> { AsyncStream { $0.finish() } }
     func start() async throws {}
@@ -121,14 +129,14 @@ import Transcription
     let line = try #require(controller.lastPrompt)
     #expect(speaker.spoken == [line])
 
-    let heardAt = controller.elapsed(at: .now) + 0.2
+    let heardAt = microphone.audioTime + 0.2
     microphone.hear(line, from: heardAt, to: heardAt + 1.2)
     try await Task.sleep(for: .milliseconds(300))
     #expect(controller.isSpeaking)
     #expect(controller.phase == .speaking)
     #expect(speaker.stops == 0)
 
-    let repliedAt = controller.elapsed(at: .now) + 0.2
+    let repliedAt = microphone.audioTime + 0.2
     microphone.hear(reply, from: repliedAt, to: repliedAt + 1.5)
     await eventually { speaker.stops == 1 }
     #expect(!controller.isSpeaking)

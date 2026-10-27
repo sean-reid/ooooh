@@ -327,12 +327,17 @@ final class SessionController {
           if quiet {
             environment.haptic()
             environment.announce(text)
-          } else {
-            echo?.spoke(text, from: elapsed(at: .now))
+          } else if let echo {
+            echo.spoke(text)
+            Self.log.info(
+              """
+              line started audioTime=\(echo.audioTime, format: .fixed(precision: 2), privacy: .public) \
+              sessionTime=\(self.elapsed(at: .now), format: .fixed(precision: 2), privacy: .public)
+              """)
           }
         case .finished:
           isSpeaking = false
-          if !quiet { echo?.finishedSpeaking(at: elapsed(at: .now)) }
+          if !quiet { echo?.finishedSpeaking() }
         }
       }
       guard !Task.isCancelled else { return }
@@ -354,7 +359,7 @@ final class SessionController {
     delivery.cancel()
     Self.log.info("prompt cancelled speaking=\(wasSpeaking, privacy: .public)")
     await voice.stop()
-    if wasSpeaking { echo?.finishedSpeaking(at: elapsed(at: .now)) }
+    if wasSpeaking { echo?.finishedSpeaking() }
   }
 
   private func scheduleOffline(_ offline: Bool) {
