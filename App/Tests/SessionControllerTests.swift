@@ -415,6 +415,8 @@ import Transcription
     await controller.start(.fixture(shortFixture, speed: .infinity))
     await wait { controller.notes == .written(CannedNotes.notes) }
     let saved = try #require(controller.savedSessionID)
+    #expect(controller.editor?.sessionID == saved)
+    #expect(controller.editor?.notes.title == CannedNotes.notes.title)
     let sessions = try await store.sessions()
     #expect(sessions.map(\.id) == [saved])
     #expect(sessions.first?.title == "Pricing and the free tier")
