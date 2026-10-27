@@ -46,4 +46,13 @@ describe("DeviceCounter", () => {
     await stub.raise(5);
     expect(await stub.lastSeen()).toBe(stamped);
   });
+
+  it("takes a session's notes claim once, whoever asks together, and again for the next", async () => {
+    const stub = env.DEVICE_COUNTER.getByName("notes");
+    const results = await Promise.all(Array.from({ length: 10 }, () => stub.claimNotes(1_000)));
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await stub.claimNotes(1_000)).toBe(false);
+    expect(await stub.claimNotes(2_000)).toBe(true);
+    expect(await stub.claimNotes(1_000)).toBe(true);
+  });
 });

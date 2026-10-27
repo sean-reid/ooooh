@@ -517,3 +517,57 @@ describe("session gate", () => {
     expect((await post("/v1/speak", speakBody, device)).status).toBe(200);
   });
 });
+
+describe("notes once a session", () => {
+  let upstream: FakeUpstream;
+  const device = { "x-device": "noted" };
+  const notes = () => post("/v1/notes", notesBody, device);
+  afterEach(() => {
+    expect(upstream.pending()).toBe(0);
+    vi.unstubAllGlobals();
+  });
+
+  it("answers the second call for a session with 409 and asks Opus once", async () => {
+    upstream = stubUpstream({ body: opusReply() });
+    await start("noted");
+    expect((await notes()).status).toBe(200);
+    const again = await notes();
+    expect(again.status).toBe(409);
+    expect(await again.json()).toEqual({ error: "notes-written" });
+    expect(upstream.requests).toHaveLength(1);
+  });
+
+  it("lets one of five calls landing together reach Opus", async () => {
+    upstream = stubUpstream({ body: opusReply() });
+    await start("noted");
+    const responses = await Promise.all(Array.from({ length: 5 }, notes));
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409, 409, 409, 409]);
+    expect(upstream.requests).toHaveLength(1);
+  });
+
+  it("keeps the call for a body it refuses, and gives the next session its own", async () => {
+    upstream = stubUpstream({ body: opusReply() }, { body: opusReply() });
+    await start("noted");
+    expect((await post("/v1/notes", {}, device)).status).toBe(422);
+    expect((await notes()).status).toBe(200);
+    expect((await notes()).status).toBe(409);
+    expect((await end("noted", 2)).status).toBe(204);
+    await start("noted");
+    expect((await notes()).status).toBe(200);
+    expect((await notes()).status).toBe(409);
+  });
+
+  it("needs an open session on a paid device too, then takes its one call the same way", async () => {
+    upstream = stubUpstream({ body: jevReply }, { body: opusReply() }, { body: opusReply() });
+    expect((await buyMonth("noted", chain, env)).status).toBe(200);
+    await refused(await notes(), "not-started");
+    expect((await post("/v1/decide", decideBody, device)).status).toBe(200);
+    expect(await (await start("noted")).json()).toEqual({ allowed: true, free: false });
+    expect((await notes()).status).toBe(200);
+    expect((await notes()).status).toBe(409);
+    expect((await end("noted", 5)).status).toBe(204);
+    await start("noted");
+    expect((await notes()).status).toBe(200);
+    expect(upstream.requests).toHaveLength(3);
+  });
+});
