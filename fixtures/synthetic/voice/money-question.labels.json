@@ -1,0 +1,30 @@
+{
+  "fixture" : "money-question",
+  "labels" : [
+    {
+      "at" : 90.11200000000007,
+      "kind" : "deepen",
+      "utterance" : 6
+    },
+    {
+      "at" : 115.71200000000009,
+      "kind" : "leave",
+      "utterance" : 8
+    },
+    {
+      "at" : 192.00000000000014,
+      "kind" : "decide",
+      "utterance" : 15
+    },
+    {
+      "at" : 235.77600000000018,
+      "kind" : "challenge",
+      "utterance" : 18
+    },
+    {
+      "at" : 273.40799999999825,
+      "kind" : "finished",
+      "utterance" : 22
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "fixture" : "stalled-project",
+  "labels" : [
+    {
+      "at" : 83.20000000000006,
+      "kind" : "deepen",
+      "utterance" : 6
+    },
+    {
+      "at" : 185.85600000000014,
+      "kind" : "summarize",
+      "utterance" : 16
+    },
+    {
+      "at" : 215.04000000000016,
+      "kind" : "leave",
+      "utterance" : 18
+    },
+    {
+      "at" : 270.59199999999856,
+      "kind" : "finished",
+      "utterance" : 24
+    }
+  ]
+}

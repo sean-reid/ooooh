@@ -1,0 +1,30 @@
+{
+  "fixture" : "product-idea",
+  "labels" : [
+    {
+      "at" : 92.41600000000007,
+      "kind" : "deepen",
+      "utterance" : 7
+    },
+    {
+      "at" : 132.8640000000001,
+      "kind" : "challenge",
+      "utterance" : 11
+    },
+    {
+      "at" : 166.91200000000012,
+      "kind" : "leave",
+      "utterance" : 14
+    },
+    {
+      "at" : 219.64800000000017,
+      "kind" : "summarize",
+      "utterance" : 19
+    },
+    {
+      "at" : 250.3680000000002,
+      "kind" : "finished",
+      "utterance" : 25
+    }
+  ]
+}

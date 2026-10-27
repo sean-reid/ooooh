@@ -1,0 +1,174 @@
+{
+  "name": "hard-conversation",
+  "summary": "The speaker keeps putting off calling their brother to ask him to take two days a week of their mother's care, and works out that the real fear is not a no but a quiet yes that never turns into action. They land on asking for the days first, keeping a paid helper as the fallback, telling him about the work strain, and calling Saturday morning. Labels: deepen where they say his silence is worse than a fight, which is worth opening up; leave on the long silence after they name the fear of a hollow yes; decide where they weigh asking for time against asking for money; finished on the plan to call before ten.",
+  "utterances": [
+    {
+      "text": "So I've been meaning to call Danny for, I think it's three weeks now",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and every time I get to the point of actually dialing I find something else to do,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "like last night I reorganized the spice drawer, which is, that's where I'm at.",
+      "pauseAfter": 1.8
+    },
+    {
+      "text": "The thing I want to say is pretty simple when I write it down.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "I need him to take two days a week with Mom.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "Not every other weekend, not when he can, two actual days, Tuesday and Thursday would be ideal",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "because that's when her PT is and that's when I've been leaving work early.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "And I've left early something like, um, eleven times since January",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and my manager hasn't said anything yet but she's going to.",
+      "pauseAfter": 2.4
+    },
+    {
+      "text": "And what I'm afraid of, I mean, there's a few versions.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "The first one is he says you chose to live ten minutes from her,",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "which is true, I did, I moved back in twenty nineteen and he didn't,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and so somehow that makes it my job, like I signed up for it by signing a lease.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "And the second one is worse honestly, which is he doesn't argue at all,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "he just goes quiet and says yeah okay, and then nothing changes",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and I'm the one who has to bring it up again in two months and be the, the nag.",
+      "pauseAfter": 6,
+      "label": "deepen",
+      "note": "They call the quiet agreement worse than an argument but haven't said why yet."
+    },
+    {
+      "text": "Because when he argues at least I know where he is.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "When he goes quiet I'm basically talking to, to a wall that agrees with me.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "And that's what happened with the house stuff after Dad died, um, he said he'd handle the paperwork with the county",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and eight months later I was the one sitting in that office with the folder.",
+      "pauseAfter": 1.9
+    },
+    {
+      "text": "So maybe that's actually the thing I'm scared of.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "Not that he says no, that he says yes and I have to believe it.",
+      "pauseAfter": 18,
+      "label": "leave",
+      "note": "They have just named the real fear and are sitting with it."
+    },
+    {
+      "text": "Okay. I think, I think part of why I keep putting it off is I haven't decided what I do if he does say no.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "Like is there a version where I say fine and I hire someone for those two days,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "it's about forty dollars an hour around here, so that's, uh, three hundred and twenty a week if it's four hours each,",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and I ask him to split it.",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "Which honestly might be easier for him, writing a check, he's always been better at the check than the showing up.",
+      "pauseAfter": 2.6
+    },
+    {
+      "text": "But I don't want it to just be money either.",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "Mom asks about him. She asked on Sunday when Daniel's coming and I said soon,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and I don't know if soon is true.",
+      "pauseAfter": 1.4
+    },
+    {
+      "text": "So the money thing solves my calendar and doesn't solve that.",
+      "pauseAfter": 7,
+      "label": "decide",
+      "note": "They are weighing asking for his time against asking for his money."
+    },
+    {
+      "text": "I think I ask for the days first. Ask for the days, and the money is the fallback, I don't lead with it",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "because if I lead with it he'll take it, he'll take the easy one.",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "And I want to say the part about work too, not as a guilt thing, just, um, as a fact",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "that I can't keep doing eleven early days a quarter and keep the job.",
+      "pauseAfter": 1.2
+    },
+    {
+      "text": "He doesn't know that. I've never told him that, I've kind of made it look fine,",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "which is maybe partly on me, if I'm being fair.",
+      "pauseAfter": 4.5
+    },
+    {
+      "text": "I'm going to call him Saturday morning, he's usually out running errands and more relaxed then,",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "not text, because if I text he'll answer in a week with a thumbs up.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "Saturday, before ten.",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "They have set a time to make the call, and the thought is complete."
+    }
+  ]
+}

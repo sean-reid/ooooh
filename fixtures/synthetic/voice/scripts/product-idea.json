@@ -1,0 +1,108 @@
+{
+  "name": "product-idea",
+  "summary": "The speaker finally gives a recurring idea a hard look: a browser tool that turns two bank exports into a monthly bill-split summary for couples. They map out a two-day build and weigh subscription against one-time pricing and free spreadsheets. They land on a fake-door nine dollar button with a five percent kill threshold, written down before building. Labels: deepen where they admit they always stall at the payment page, since the reason is worth opening; challenge where they assume a monthly money fight means people will pay, which their own meal planner flop puts in doubt; leave on the long silence after naming second-month use as the real signal, where they are working it out alone; summarize after the build plan, pricing and kill rule are all on the table; finished on the restated threshold.",
+  "utterances": [
+    {
+      "text": "So this is the third time this month I've opened a note about the bill splitting thing, the, the one where you drop in your bank export and it gives you and whoever you live with a one page summary of who owes what",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "and I keep not doing anything with it, which is kind of the reason I'm talking right now, because it either gets a weekend or it gets deleted",
+      "pauseAfter": 1.8
+    },
+    {
+      "text": "The problem it solves is real for me at least, um, every month my partner and I sit with two CSV files and a spreadsheet and it takes like forty minutes and someone always ends up a little annoyed",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "and the spreadsheet breaks whenever one of the banks changes their column order, which happened twice this year.",
+      "pauseAfter": 4.5
+    },
+    {
+      "text": "Okay so what would a weekend actually look like. Saturday morning I'd write the parser for just the two banks we use, nothing else, uh, no logins, no connecting to accounts, you just upload the file",
+      "pauseAfter": 0.5
+    },
+    {
+      "text": "and it runs in the browser so I'm not holding anyone's money data, which honestly is half the pitch, you know, I think people are nervous about handing that over",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "Saturday afternoon the categories, rent, groceries, utilities, and a way to mark a transaction as shared or mine or yours, and then the split, fifty fifty or by income",
+      "pauseAfter": 1.4
+    },
+    {
+      "text": "Sunday is the summary page and a landing page with a, with a payment button, and that's where I always stall, because the code part I know I can do in two days",
+      "pauseAfter": 6,
+      "label": "deepen",
+      "note": "They admit they always stall at the payment step, and the reason has not been said."
+    },
+    {
+      "text": "Whether anyone pays is the actual question.",
+      "pauseAfter": 1.2
+    },
+    {
+      "text": "My gut says couples in their late twenties who just moved in together, they have exactly this problem, and they're already paying for little apps, like, three or four dollars a month without thinking",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "but I also know my gut said that about the meal planner thing two years ago and I got eleven signups and zero dollars",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "and the difference, I think, the difference is that the meal planner was a nice to have and this one is a fight you have every month, um, money fights are not nice to have",
+      "pauseAfter": 5.5,
+      "label": "challenge",
+      "note": "Assumes a painful monthly fight means people will pay, right after their gut was wrong on the meal planner."
+    },
+    {
+      "text": "Though people solve money fights with a shared spreadsheet for free, so I'm competing with free, and with the habit they already have",
+      "pauseAfter": 0.6
+    },
+    {
+      "text": "Which means maybe it's not a subscription, maybe it's a one time thing, like nine dollars, you upload, you get the summary every month, no account",
+      "pauseAfter": 1.1
+    },
+    {
+      "text": "or maybe I don't even put a price on it yet and I just see if anyone uses it twice, because using it the second month is the real signal, the first time is just curiosity",
+      "pauseAfter": 18,
+      "label": "leave",
+      "note": "Long silence right after naming second-month use as the real signal; they are weighing it on their own."
+    },
+    {
+      "text": "No, I want the payment button there from day one.",
+      "pauseAfter": 0.8
+    },
+    {
+      "text": "Even if it's just a, a fake door, a button that says nine dollars and then says sorry, not ready, um, leave your email, because clicks on a price tell me way more than signups did last time",
+      "pauseAfter": 0.7
+    },
+    {
+      "text": "And I'd post it in the two forums where people complain about splitting rent, uh, and send it to the four couples I know, and I'm going to count how many click the button",
+      "pauseAfter": 1.3
+    },
+    {
+      "text": "If it's under, say, five percent of the people who land on it then I let it go, for real this time, and I stop opening that note",
+      "pauseAfter": 6.5,
+      "label": "summarize",
+      "note": "Build plan, pricing and a kill threshold are all now on the table; a short recap would pull them together."
+    },
+    {
+      "text": "The thing I'm actually scared of is it, is it working kind of, like three percent, somewhere in the middle where I can't tell",
+      "pauseAfter": 1
+    },
+    {
+      "text": "So I write the number down now, before I build it, five percent, so I can't move it later",
+      "pauseAfter": 0.9
+    },
+    {
+      "text": "Saturday starts with the parser for our two banks.",
+      "pauseAfter": 2.5
+    },
+    {
+      "text": "Five percent or I let it go.",
+      "pauseAfter": 3,
+      "label": "finished",
+      "note": "Restates the threshold and stops; the thought is complete."
+    }
+  ]
+}
