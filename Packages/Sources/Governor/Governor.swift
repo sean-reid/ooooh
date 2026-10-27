@@ -10,21 +10,31 @@ public enum Decision: Equatable, Sendable {
   case command(JevAnswers.Command)
 }
 
-/// Lightweight signals the client measures itself.
+/// Lightweight signals the client measures itself. `now` is seconds since the session started.
 public struct Signals: Equatable, Sendable {
   public var now: TimeInterval
   public var pauseLength: TimeInterval
   public var speechDensity: Double
   public var awaitingFinishedReply: Bool
+  /// Words in every final utterance so far.
+  public var wordsSoFar: Int
+  /// Interventions spoken so far this session; the finished question is not one.
+  public var promptsSoFar: Int
+  /// Seconds since the last intervention spoke, nil before the first.
+  public var secondsSincePrompt: TimeInterval?
 
   public init(
     now: TimeInterval, pauseLength: TimeInterval, speechDensity: Double,
-    awaitingFinishedReply: Bool = false
+    awaitingFinishedReply: Bool = false, wordsSoFar: Int = 0, promptsSoFar: Int = 0,
+    secondsSincePrompt: TimeInterval? = nil
   ) {
     self.now = now
     self.pauseLength = pauseLength
     self.speechDensity = speechDensity
     self.awaitingFinishedReply = awaitingFinishedReply
+    self.wordsSoFar = wordsSoFar
+    self.promptsSoFar = promptsSoFar
+    self.secondsSincePrompt = secondsSincePrompt
   }
 }
 

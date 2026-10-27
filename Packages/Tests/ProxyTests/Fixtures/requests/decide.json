@@ -19,7 +19,11 @@
   "signals" : {
     "awaitingFinishedReply" : false,
     "pauseLength" : 2.5,
-    "speechDensity" : 0.6
+    "promptsSoFar" : 1,
+    "secondsSincePrompt" : 75.5,
+    "secondsSinceStart" : 135.5,
+    "speechDensity" : 0.6,
+    "wordsSoFar" : 27
   },
   "state" : {
     "currentThread" : "Whether to rebuild the sync layer or patch the queue.",

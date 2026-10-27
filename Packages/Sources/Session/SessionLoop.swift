@@ -55,6 +55,9 @@ public actor SessionLoop {
   var checkIndex = 0
   var lastCompactionAt: TimeInterval = 0
   var lastSpeechEnd: TimeInterval = 0
+  var wordsSoFar = 0
+  var promptsSoFar = 0
+  var lastPromptAt: TimeInterval?
   var arm: Arm?
   var compaction: Task<Void, Never>?
   var ending = false
@@ -106,6 +109,7 @@ public actor SessionLoop {
       guard segment.isFinal else { return }
       transcript.append(segment)
       uncompacted.append(segment)
+      wordsSoFar += Self.words(in: segment)
       lastSpeechEnd = segment.end
       await compactIfDue(at: segment.end)
       await check(at: segment.end, pause: 0, utteranceEnded: true)
@@ -145,7 +149,8 @@ public actor SessionLoop {
     guard arm == nil, !ending else { return }
     let signals = Signals(
       now: now, pauseLength: pause, speechDensity: density(at: now),
-      awaitingFinishedReply: governor.finishedAskedAt != nil)
+      awaitingFinishedReply: governor.finishedAskedAt != nil, wordsSoFar: wordsSoFar,
+      promptsSoFar: promptsSoFar, secondsSincePrompt: lastPromptAt.map { now - $0 })
     guard governor.takeCheck(now: now, speechEnd: lastSpeechEnd, utteranceEnded: utteranceEnded)
     else { return }
 
@@ -193,6 +198,8 @@ public actor SessionLoop {
     case .intervention(let kind):
       let text = await arm.text?.value ?? ""
       state.lastIntervention = .init(kind: kind, text: text, at: arm.due)
+      promptsSoFar += 1
+      lastPromptAt = arm.due
       records.append(.prompt(at: arm.due, kind: kind, text: text))
     case .finishedQuestion:
       records.append(.askedIfFinished(at: arm.due))
@@ -227,7 +234,7 @@ public actor SessionLoop {
   func compactIfDue(at now: TimeInterval, force: Bool = false) async {
     if let compaction { await compaction.value }
     guard !uncompacted.isEmpty else { return }
-    let words = uncompacted.reduce(0) { $0 + $1.text.split(separator: " ").count }
+    let words = uncompacted.reduce(0) { $0 + Self.words(in: $1) }
     guard force || now - lastCompactionAt >= policy.everySeconds || words >= policy.everyWords
     else { return }
     let task = Task { await compact(at: now) }
@@ -252,6 +259,10 @@ public actor SessionLoop {
 
   /// The last few utterances, whether or not a compaction has folded them into the state.
   var recent: [Segment] { Array(transcript.suffix(Self.recentWindow)) }
+
+  static func words(in segment: Segment) -> Int {
+    segment.text.split(separator: " ").count
+  }
 
   /// Fraction of the trailing window covered by speech.
   func density(at now: TimeInterval) -> Double {

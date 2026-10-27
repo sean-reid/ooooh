@@ -31,7 +31,15 @@ export const segments = [
 export const decideBody = {
   state,
   recentTranscript: segments,
-  signals: { pauseLength: 2.5, speechDensity: 0.6, awaitingFinishedReply: false },
+  signals: {
+    pauseLength: 2.5,
+    speechDensity: 0.6,
+    awaitingFinishedReply: false,
+    secondsSinceStart: 135.5,
+    wordsSoFar: 27,
+    promptsSoFar: 1,
+    secondsSincePrompt: 75.5,
+  },
   lastIntervention: { kind: "clarify", text: "Which part feels least clear?", at: 60 },
 };
 

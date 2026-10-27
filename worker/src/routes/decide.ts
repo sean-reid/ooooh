@@ -12,7 +12,15 @@ const recentWindow = 6;
 const body = obj({
   state: compactState,
   recentTranscript: array(segment),
-  signals: obj({ pauseLength: num, speechDensity: num, awaitingFinishedReply: bool }),
+  signals: obj({
+    pauseLength: num,
+    speechDensity: num,
+    awaitingFinishedReply: bool,
+    secondsSinceStart: num,
+    wordsSoFar: num,
+    promptsSoFar: num,
+    secondsSincePrompt: optional(num),
+  }),
   lastIntervention: optional(intervention),
 });
 
@@ -47,7 +55,8 @@ export async function decide(request: Request, env: Env): Promise<Response> {
   const jevState = {
     state,
     lastIntervention: last ? { kind: last.kind, text: last.text, at: last.at } : null,
-    signals: input.signals,
+    // Sent as null rather than dropped, so Jev sees that nothing has been asked yet.
+    signals: { ...input.signals, secondsSincePrompt: input.signals.secondsSincePrompt ?? null },
     recentTranscript: transcriptLines(input.recentTranscript.slice(-recentWindow)),
     earlierLinesInWindow: Math.max(0, input.recentTranscript.length - recentWindow),
   };

@@ -8,6 +8,7 @@ import Transcription
 // eval --corpus <dir> [--config c.json] [--answers-dir <dir>] [--require-perfect]
 // eval --corpus <dir> --answers-dir <dir> --gate precision=0.28,recall=0.45,...
 // eval --corpus <dir> --live <worker url> --record-dir <dir>
+// eval --corpus <dir> --answers-dir <run1> --answers-dir <run2> --sweep "bar=0.8,0.9;trailsOff=1,1.38"
 // Any form takes --arming-delay <seconds> to override the config's, 0 to speak at the decision.
 //
 // --live asks the real Jev through the Worker at every check, writes one JSON
@@ -19,12 +20,20 @@ import Transcription
 // --gate scores a recorded run at the config and exits 2 when the combined
 // precision, recall, or finished recall drop under a floor or intrusions or
 // collisions rise over a cap. Every fixture needs its answers file.
+// --sweep replays every --answers-dir through each point of the grid and prints
+// one row per point, best first: the points whose recall clears --recall-floor
+// (0.45) on every run, by their lowest precision; then the rest.
 
 let args = Array(CommandLine.arguments.dropFirst())
 
 func option(_ name: String) -> String? {
   guard let index = args.firstIndex(of: name), index + 1 < args.count else { return nil }
   return args[index + 1]
+}
+
+/// Every value given for a flag that repeats.
+func options(_ name: String) -> [String] {
+  args.indices.filter { args[$0] == name && $0 + 1 < args.count }.map { args[$0 + 1] }
 }
 
 func fail(_ message: String) -> Never {
@@ -230,6 +239,37 @@ do {
   gate = try option("--gate").map { try EvalGate(spec: $0) }
 } catch {
   fail("--gate: \(error)")
+}
+
+if let spec = option("--sweep") {
+  guard let directory = option("--corpus") else { fail("--sweep needs --corpus") }
+  let dirs = options("--answers-dir")
+  guard !dirs.isEmpty else { fail("--sweep needs at least one --answers-dir") }
+  let sweep: EvalSweep
+  do {
+    sweep = try EvalSweep(spec: spec)
+  } catch {
+    fail("--sweep: \(error)")
+  }
+  let floor = option("--recall-floor").flatMap(Double.init) ?? 0.45
+  let corpora = try dirs.map { try corpus(in: directory, answersDir: $0) }
+  var rows: [SweepRow] = []
+  for point in sweep.points {
+    let pointConfig = point.applied(to: config)
+    var reports: [EvalReport] = []
+    for runs in corpora {
+      var outcomes: [EvalReport] = []
+      for run in runs { outcomes.append(try await evaluate(run, config: pointConfig).report) }
+      reports.append(EvalReport.merged(outcomes))
+    }
+    rows.append(SweepRow(label: point.label, reports: reports))
+  }
+  print("config v\(config.version)  \(dirs.count) run(s)  recall floor \(floor)")
+  let labelWidth = rows.map(\.label.count).max() ?? 0
+  for row in rows.sorted(by: { $0.ranksAbove($1, floor: floor) }) {
+    print(row.line(floor: floor, labelWidth: labelWidth))
+  }
+  exit(0)
 }
 
 var runs: [Run]
