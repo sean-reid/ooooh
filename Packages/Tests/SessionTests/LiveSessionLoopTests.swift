@@ -92,23 +92,25 @@ import Transcription
 
   @Test func endingEarlyKeepsWhatWasHeard() async throws {
     let fixture = try base.fixture()
+    let finals = fixture.segments.filter(\.isFinal)
+    let first = finals[0]
+    let (stream, input) = AsyncStream.makeStream(of: TranscriptEvent.self)
     let live = LiveSessionLoop(
       config: .initial, dependencies: base.deps(SilentDecisionProvider()),
-      transcriber: FixtureTranscriber(fixture: fixture, speed: 1))
+      transcriber: EndingTranscriber(stream: stream, input: input))
     await live.start()
-    var heard: [Segment] = []
-    for await event in live.events() {
-      if case .utterance(let segment) = event {
-        heard.append(segment)
-        Task { await live.end() }
-      }
-      if case .ended(let result) = event {
-        #expect(result.transcript == heard)
-        #expect(result.transcript.count == 1)
-        #expect(result.records.last == .ended(at: 4.2, byUser: true))
-        #expect(result.state.currentThread.hasSuffix(heard[0].text.suffix(50)))
-      }
-    }
+    var iterator = live.events().makeAsyncIterator()
+    input.yield(.speechStarted(at: first.start))
+    input.yield(.segment(first))
+    input.yield(.speechEnded(at: first.end))
+    _ = await iterator.next(until: \.isSpeechEnded)
+    await live.end()
+    input.yield(.segment(finals[1]))
+    let result = try result(of: await iterator.rest())
+
+    #expect(result.transcript == [first])
+    #expect(result.records.last == .ended(at: first.end, byUser: true))
+    #expect(result.state.currentThread.hasSuffix(first.text.suffix(50)))
   }
 
   @Test func endKeepsTheSegmentTheTranscriberFinalisesOnStop() async throws {
@@ -211,6 +213,17 @@ struct FinalisingTranscriber: Transcriber {
   func stop() async {
     input.yield(.segment(last))
     input.yield(.speechEnded(at: last.end))
+    input.yield(.ended)
+    input.finish()
+  }
+}
+
+/// A transcriber fed by hand whose `stop()` ends the stream and nothing else.
+struct EndingTranscriber: Transcriber {
+  let stream: AsyncStream<TranscriptEvent>
+  let input: AsyncStream<TranscriptEvent>.Continuation
+  func events() -> AsyncStream<TranscriptEvent> { stream }
+  func stop() async {
     input.yield(.ended)
     input.finish()
   }
