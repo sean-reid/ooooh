@@ -395,10 +395,12 @@ final class SessionController {
   private func cancelDelivery() async {
     promptPending = false
     promptPendingSince = nil
+    let wasSpeaking = isSpeaking
     isSpeaking = false
     guard let delivery else { return }
     self.delivery = nil
     delivery.cancel()
+    Self.log.info("prompt cancelled speaking=\(wasSpeaking, privacy: .public)")
     await voice.stop()
   }
 

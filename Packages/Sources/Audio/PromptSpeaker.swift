@@ -1,6 +1,7 @@
 #if os(iOS)
   import AVFAudio
   import Foundation
+  import OSLog
 
   /// Plays one spoken prompt as its bytes arrive. `stop()` is barge-in: a request still waiting on bytes is cancelled, playback halts at once, and the rest of the stream is dropped.
   public actor PromptSpeaker {
@@ -41,6 +42,9 @@
     /// True once a line has built the engine graph.
     public var hasEngine: Bool { engine != nil }
 
+    private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "audio")
+    private var bytes = 0
+
     /// Decodes and plays `audio`. Returns once the last buffer has played, `stop()` cut it off, or the calling task was cancelled.
     public func speak(_ text: String, audio: AsyncThrowingStream<Data, Error>) async throws {
       stop()
@@ -49,6 +53,8 @@
       self.text = text
       scheduled = 0
       ended = false
+      bytes = 0
+      Self.log.info("speak begins chars=\(text.count, privacy: .public)")
       let parser = try AudioStreamParser()
       let decoder = SpeechDecoder(output: output)
       let (engine, player) = graph()
@@ -60,12 +66,16 @@
             if Task.isCancelled { _ = try? await bytes.next() }
             return
           }
+          self.bytes += chunk.count
           for packets in try parser.parse(chunk) {
             guard let pcm = try decoder.decode(packets) else { continue }
             schedule(pcm, on: player, generation: mine)
             if scheduled == 1 {
               try engine.start()
               player.play()
+              Self.log.info(
+                "speak started bytes=\(self.bytes, privacy: .public) format=\(pcm.format.sampleRate, privacy: .public)Hz output=\(engine.outputNode.outputFormat(forBus: 0).sampleRate, privacy: .public)Hz"
+              )
               emit.yield(.started(text: text, at: Date()))
             }
           }
@@ -76,12 +86,16 @@
         do {
           try await feed.value
         } catch {
+          Self.log.error(
+            "speak failed bytes=\(self.bytes, privacy: .public) error=\(String(describing: error), privacy: .public)"
+          )
           if mine == generation { finish() }
           throw error
         }
         guard mine == generation else { return }
         ended = true
         if scheduled == 0 {
+          Self.log.error("speak decoded nothing bytes=\(self.bytes, privacy: .public)")
           finish()
           return
         }
@@ -93,7 +107,9 @@
 
     /// Barge-in. Safe to call when nothing is playing.
     public func stop() {
-      if text != nil { finish() }
+      guard text != nil else { return }
+      Self.log.info("speak cut rendered=\(self.rendered ?? 0, privacy: .public)")
+      finish()
     }
 
     private func cut(_ generation: Int) {
@@ -135,6 +151,7 @@
       player?.stop()
       engine?.stop()
       text = nil
+      Self.log.info("speak finished rendered=\(rendered, privacy: .public)")
       emit.yield(.finished(at: Date(), rendered: rendered))
       done?.resume()
       done = nil
