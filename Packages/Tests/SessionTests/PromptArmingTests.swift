@@ -1,6 +1,7 @@
 import Foundation
 import Governor
 import State
+import TestSupport
 import Testing
 import Transcription
 
@@ -91,7 +92,7 @@ import Transcription
     #expect(armed(start).map(\.kind) == [.intervention(.deepen)])
     #expect(spoken(start).isEmpty)
 
-    while h.clock.sleeping == 0 { await Task.yield() }
+    await wait { h.clock.sleeping > 0 }
     h.advance(to: 1.9)
     #expect(h.clock.sleeping == 1)
     h.advance(to: 2.0)
@@ -189,7 +190,7 @@ import Transcription
     #expect(armed(second).isEmpty)
 
     h.advance(to: 12)
-    while h.clock.sleeping == 0 { await Task.yield() }
+    await wait { h.clock.sleeping > 0 }
     let (events, result) = try await h.finish()
     #expect(spoken(events).isEmpty)
     #expect(result.prompts.map(\.at) == [2.0])

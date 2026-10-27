@@ -1,4 +1,5 @@
 import Foundation
+import TestSupport
 import Testing
 import Transcription
 
@@ -6,14 +7,8 @@ import Transcription
 
 @Suite struct OracleTests {
   @Test func oracleScoresPerfectlyAgainstItsOwnLabels() async throws {
-    let decoder = JSONDecoder()
-    let fixtureURL = Bundle.module.url(
-      forResource: "short", withExtension: "json", subdirectory: "Fixtures")!
-    let labelsURL = Bundle.module.url(
-      forResource: "short.labels", withExtension: "json", subdirectory: "Fixtures")!
-    let fixture = try decoder.decode(
-      FixtureTranscriber.Fixture.self, from: Data(contentsOf: fixtureURL))
-    let labels = try decoder.decode(Labels.self, from: Data(contentsOf: labelsURL))
+    let fixture = try Bundle.module.fixture("short.json", as: FixtureTranscriber.Fixture.self)
+    let labels = try Bundle.module.fixture("short.labels.json", as: Labels.self)
 
     let result = await FixtureDriver.run(
       fixture: fixture, config: .initial,
@@ -38,17 +33,8 @@ import Transcription
 
 @Suite struct OracleCommandTests {
   @Test func oracleIssuesCommandsFromLabelsAndWrapUpEndsTheSession() async throws {
-    let decoder = JSONDecoder()
-    let fixture = try decoder.decode(
-      FixtureTranscriber.Fixture.self,
-      from: Data(
-        contentsOf: Bundle.module.url(
-          forResource: "commands", withExtension: "json", subdirectory: "Fixtures")!))
-    let labels = try decoder.decode(
-      Labels.self,
-      from: Data(
-        contentsOf: Bundle.module.url(
-          forResource: "commands.labels", withExtension: "json", subdirectory: "Fixtures")!))
+    let fixture = try Bundle.module.fixture("commands.json", as: FixtureTranscriber.Fixture.self)
+    let labels = try Bundle.module.fixture("commands.labels.json", as: Labels.self)
     let result = await FixtureDriver.run(
       fixture: fixture, config: .initial,
       dependencies: .init(

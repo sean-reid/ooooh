@@ -2,6 +2,7 @@
   import Persistence
   import SnapshotTesting
   import SwiftUI
+  import TestSupport
   import Testing
   import UIKit
 
@@ -13,42 +14,32 @@
   @Suite struct SettingsSnapshotTests {
     @Test(arguments: [ColorScheme.dark, .light])
     func settings(scheme: ColorScheme) throws {
-      let image = render(try settingsView(), scheme: scheme)
-      assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "402-\(scheme.name)")
+      let image = render(try settingsView(), height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-\(scheme.name)")
     }
 
     @Test(arguments: [ColorScheme.dark, .light])
     func settingsWithChallengeOff(scheme: ColorScheme) throws {
-      let image = render(try settingsView(challengeEnabled: false), scheme: scheme)
-      assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "402-challenge-off-\(scheme.name)")
+      let image = render(try settingsView(challengeEnabled: false), height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-challenge-off-\(scheme.name)")
     }
 
     @Test func settingsAccessibility3() throws {
-      let image = render(try settingsView(), scheme: .dark, type: .accessibility3)
-      assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "402-accessibility3-dark")
+      let image = render(try settingsView(), height: nil, scheme: .dark, type: .accessibility3)
+      assertSnapshot(of: image, as: .pixels, named: "402-accessibility3-dark")
     }
 
     @Test(arguments: [ColorScheme.dark, .light])
     func privacy(scheme: ColorScheme) {
-      let image = render(privacyView(), scheme: scheme)
-      assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "402-\(scheme.name)")
+      let image = render(privacyView(), height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-\(scheme.name)")
     }
 
     /// At accessibility3 the page is taller than ImageRenderer will draw, so this one renders
     /// the device height and shows the top.
     @Test func privacyAccessibility3() {
-      let image = render(privacyView(), height: 874, scheme: .dark, type: .accessibility3)
-      assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "402-accessibility3-dark")
+      let image = render(privacyView(), scheme: .dark, type: .accessibility3, alignment: .top)
+      assertSnapshot(of: image, as: .pixels, named: "402-accessibility3-dark")
     }
 
     private func settingsView(challengeEnabled: Bool = true) throws -> SettingsView {
@@ -69,21 +60,5 @@
       view.scrolls = false
       return view
     }
-
-    private func render(
-      _ view: some View, width: CGFloat = 402, height: CGFloat? = nil, scheme: ColorScheme,
-      type: DynamicTypeSize = .large
-    ) -> UIImage {
-      let renderer = ImageRenderer(
-        content: view.frame(width: width, height: height, alignment: .top).clipped()
-          .environment(\.colorScheme, scheme).dynamicTypeSize(type))
-      renderer.scale = 2
-      renderer.proposedSize = ProposedViewSize(width: width, height: height)
-      return renderer.uiImage ?? UIImage()
-    }
-  }
-
-  extension ColorScheme {
-    fileprivate var name: String { self == .dark ? "dark" : "light" }
   }
 #endif

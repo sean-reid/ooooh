@@ -3,29 +3,10 @@ import Governor
 import Network
 import Session
 import State
-import Synchronization
+import TestSupport
 import Testing
 
 @testable import Proxy
-
-/// Refuses every request at once and counts them, so going offline depends on nothing outside the test.
-final class RefusingProtocol: URLProtocol {
-  static let attempts = Mutex(0)
-
-  static func session() -> URLSession {
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [RefusingProtocol.self]
-    return URLSession(configuration: configuration)
-  }
-
-  override class func canInit(with request: URLRequest) -> Bool { true }
-  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-  override func startLoading() {
-    Self.attempts.withLock { $0 += 1 }
-    client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
-  }
-  override func stopLoading() {}
-}
 
 @Suite struct OfflineGuardTests {
   let input = CheckInput(
@@ -72,7 +53,7 @@ final class RefusingProtocol: URLProtocol {
   @Test func jevGoesQuietOnceTheWorkerIsUnreachable() async throws {
     let guardian = OfflineGuard()
     let client = ProxyClient(
-      baseURL: URL(string: "http://worker.invalid")!, session: RefusingProtocol.session(),
+      baseURL: URL(string: "http://worker.invalid")!, session: UnreachableProtocol.session(),
       offline: guardian)
     let jev = JevDecisionProvider(client: client)
 
@@ -83,16 +64,14 @@ final class RefusingProtocol: URLProtocol {
     #expect(guardian.isOffline)
     let third = try await jev.check(input)
     #expect(third == .quiet)
-    let probes = RefusingProtocol.attempts.withLock { $0 }
+    let probes = UnreachableProtocol.seen.withLock { $0.count }
     let fourth = try await jev.check(input)
     #expect(fourth == .quiet)
-    #expect(RefusingProtocol.attempts.withLock { $0 } == probes)
+    #expect(UnreachableProtocol.seen.withLock { $0.count } == probes)
   }
 
   @Test func oneGoodAnswerBringsTheWorkerBack() async throws {
-    let url = try #require(
-      Bundle.module.url(forResource: "decide", withExtension: "json", subdirectory: "Fixtures"))
-    let server = try await OneShotHTTPServer(body: Data(contentsOf: url))
+    let server = try await OneShotHTTPServer(body: Bundle.module.fixture("decide.json"))
     let guardian = OfflineGuard(offline: true)
     let client = ProxyClient(
       baseURL: URL(string: "http://127.0.0.1:\(server.port)")!, offline: guardian)

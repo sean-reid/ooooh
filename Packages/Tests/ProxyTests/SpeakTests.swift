@@ -1,53 +1,9 @@
 import Foundation
 import Synchronization
+import TestSupport
 import Testing
 
 @testable import Proxy
-
-/// Answers every request through the real URLSession stack. One stub per test, set before the
-/// call; `queue` answers in order first, then `reply` answers everything after.
-final class StubProtocol: URLProtocol {
-  struct Reply: Sendable {
-    var status: Int
-    var chunks: [Data]
-    var headers: [String: String] = [:]
-  }
-  nonisolated(unsafe) static var reply = Reply(status: 200, chunks: [])
-  static let queue = Mutex<[Reply]>([])
-  static let seen = Mutex<[URLRequest]>([])
-
-  override class func canInit(with request: URLRequest) -> Bool { true }
-  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-  override func startLoading() {
-    Self.seen.withLock { $0.append(request) }
-    let reply = Self.queue.withLock { $0.isEmpty ? Self.reply : $0.removeFirst() }
-    let response = HTTPURLResponse(
-      url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: reply.headers)!
-    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-    for chunk in reply.chunks { client?.urlProtocol(self, didLoad: chunk) }
-    client?.urlProtocolDidFinishLoading(self)
-  }
-
-  override func stopLoading() {}
-}
-
-extension URLRequest {
-  /// URLSession hands protocols the body as a stream, so read it back.
-  var bodyBytes: Data {
-    guard let stream = httpBodyStream else { return httpBody ?? Data() }
-    stream.open()
-    defer { stream.close() }
-    var data = Data()
-    var buffer = [UInt8](repeating: 0, count: 4096)
-    while stream.hasBytesAvailable {
-      let read = stream.read(&buffer, maxLength: buffer.count)
-      if read <= 0 { break }
-      data.append(buffer, count: read)
-    }
-    return data
-  }
-}
 
 /// Never answers. Records each request it was handed and each one URLSession took back.
 final class HangingProtocol: URLProtocol {
@@ -65,13 +21,9 @@ final class HangingProtocol: URLProtocol {
 
 extension StubbedTransportTests {
   @Suite struct SpeakTests {
-    let client: ProxyClient = {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [StubProtocol.self]
-      return ProxyClient(
-        baseURL: URL(string: "https://ooooh.test")!, token: "attest",
-        session: URLSession(configuration: config))
-    }()
+    let client = ProxyClient(
+      baseURL: URL(string: "https://ooooh.test")!, token: "attest",
+      session: StubProtocol.session())
 
     let audio = Data((0..<2500).map { UInt8($0 % 251) })
 
@@ -88,7 +40,7 @@ extension StubbedTransportTests {
 
     @Test func postsTheLineAndStreamsTheAudioBack() async throws {
       StubProtocol.reply = .init(status: 200, chunks: [audio.prefix(700), audio.dropFirst(700)])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
       var received = Data()
       var chunks = 0
       for try await chunk in client.speak(text: "Does that settle it?") {
@@ -108,30 +60,20 @@ extension StubbedTransportTests {
     }
 
     @Test func cancellingTheReaderCancelsTheRequest() async throws {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [HangingProtocol.self]
       let client = ProxyClient(
         baseURL: URL(string: "https://ooooh.test")!, token: "attest",
-        session: URLSession(configuration: config))
+        session: .stubbed(by: HangingProtocol.self))
       let reading = Task {
         var chunks = 0
         for try await _ in client.speak(text: "Does that settle it?") { chunks += 1 }
         return chunks
       }
-      await poll { HangingProtocol.started.withLock { $0 } == 1 }
+      await wait { HangingProtocol.started.withLock { $0 } == 1 }
       #expect(HangingProtocol.stopped.withLock { $0 } == 0)
       reading.cancel()
       #expect(try await reading.value == 0)
-      await poll { HangingProtocol.stopped.withLock { $0 } == 1 }
+      await wait { HangingProtocol.stopped.withLock { $0 } == 1 }
       #expect(HangingProtocol.stopped.withLock { $0 } == 1)
-    }
-
-    /// Polls until `condition` holds, two seconds at most.
-    func poll(_ condition: () -> Bool) async {
-      let deadline = ContinuousClock.now + .seconds(2)
-      while !condition(), ContinuousClock.now < deadline {
-        try? await Task.sleep(for: .milliseconds(5))
-      }
     }
 
     @Test func surfacesAWorkerErrorWithItsBody() async throws {

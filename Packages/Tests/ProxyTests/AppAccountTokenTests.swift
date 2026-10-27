@@ -1,4 +1,5 @@
 import Foundation
+import TestSupport
 import Testing
 
 @testable import Proxy
@@ -10,7 +11,8 @@ import Testing
   }
 
   @Test func derivesTheTokenTheWorkerDerivesForEveryFixtureKeyId() throws {
-    let cases = try JSONDecoder().decode([Case].self, from: fixture("app-account-token", "json"))
+    let cases = try JSONDecoder().decode(
+      [Case].self, from: Bundle.module.fixture("app-account-token.json"))
     #expect(cases.count == 3)
     for item in cases {
       #expect(

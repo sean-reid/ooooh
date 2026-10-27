@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import TestSupport
 import Testing
 
 @testable import Design
@@ -172,10 +173,7 @@ struct DesignTokens: Codable, Equatable {
       try current.write(to: url)
       return
     }
-    let url = try #require(
-      Bundle.module.url(
-        forResource: "design-tokens", withExtension: "json", subdirectory: "Fixtures"))
-    let recorded = try JSONDecoder().decode(DesignTokens.self, from: Data(contentsOf: url))
+    let recorded = try Bundle.module.fixture("design-tokens.json", as: DesignTokens.self)
     let normalized = try encoder.encode(recorded) + Data("\n".utf8)
     #expect(
       String(decoding: current, as: UTF8.self) == String(decoding: normalized, as: UTF8.self))

@@ -1,16 +1,13 @@
 import AVFAudio
 import Foundation
+import TestSupport
 import Testing
 
 @testable import Audio
 
 /// The fixture is `say` output encoded with lame at 64 kbps, 44.1 kHz mono, the Worker's format.
 enum Fixture {
-  static func line() throws -> Data {
-    let url = try #require(
-      Bundle.module.url(forResource: "line", withExtension: "mp3", subdirectory: "Fixtures"))
-    return try Data(contentsOf: url)
-  }
+  static func line() throws -> Data { try Bundle.module.fixture("line.mp3") }
 
   static func chunks(_ data: Data, size: Int) -> [Data] {
     stride(from: 0, to: data.count, by: size).map { data[$0..<min($0 + size, data.count)] }
