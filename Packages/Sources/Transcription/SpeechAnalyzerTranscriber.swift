@@ -47,6 +47,7 @@
 
     public let locale: Locale
     public nonisolated let engine: TranscriptionEngine
+    private nonisolated let monitor: TapMonitor
     private let module: Module
     private let audioSink: (any AudioBufferSink)?
     private let stream: AsyncStream<TranscriptEvent>
@@ -73,6 +74,7 @@
     ) {
       self.module = module
       self.engine = module.engine
+      self.monitor = TapMonitor(engine: module.engine)
       self.locale = locale
       self.audioSink = audioSink
       (stream, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
@@ -80,6 +82,8 @@
     }
 
     public nonisolated func events() -> AsyncStream<TranscriptEvent> { stream }
+
+    public nonisolated var audioTime: TimeInterval { monitor.audioTime }
 
     public nonisolated func downloadProgress() -> AsyncStream<Double> { downloads }
 
@@ -220,7 +224,7 @@
         throw SpeechAnalyzerError.audioConversionUnavailable
       }
       let sink = audioSink
-      let monitor = TapMonitor(engine: engine)
+      let monitor = monitor
       node.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { buffer, _ in
         monitor.observe(buffer)
         sink?.write(buffer)

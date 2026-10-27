@@ -65,6 +65,8 @@ final class TapMonitor: @unchecked Sendable {
     self.engine = engine
   }
 
+  var audioTime: TimeInterval { lock.withLock { window.audioTime } }
+
   func observe(_ buffer: AVAudioPCMBuffer) {
     let frames = Int(buffer.frameLength)
     let rms = Self.rms(of: buffer)

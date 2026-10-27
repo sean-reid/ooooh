@@ -49,7 +49,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private let results: AsyncStream<Report>
   private let reports: AsyncStream<Report>.Continuation
   private let audioEngine = AVAudioEngine()
-  let feed: RequestFeed<SFSpeechAudioBufferRecognitionRequest>
+  nonisolated let feed: RequestFeed<SFSpeechAudioBufferRecognitionRequest>
   private var consumer: Task<Void, Never>?
   private var configurationWatch: Task<Void, Never>?
   private var silence: Task<Void, Never>?
@@ -89,6 +89,8 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   }
 
   public nonisolated func events() -> AsyncStream<TranscriptEvent> { stream }
+
+  public nonisolated var audioTime: TimeInterval { feed.audioTime }
 
   /// The recognizer's model ships with iOS, so nothing downloads.
   public nonisolated func downloadProgress() -> AsyncStream<Double> {

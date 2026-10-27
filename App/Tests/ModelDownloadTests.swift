@@ -11,6 +11,7 @@ import Transcription
 /// the next fraction; `finishDownload()` lets `start()` return, or throw `failure`.
 final class DownloadingTranscriber: LiveTranscriber, @unchecked Sendable {
   let engine = TranscriptionEngine.speechTranscriber
+  let audioTime: TimeInterval = 0
   private let fractions: [Double]
   private let failure: (any Error)?
   private let downloads: AsyncStream<Double>

@@ -13,16 +13,32 @@ public final class EchoFilter: Transcriber, Sendable {
   static let minimumWords = 3
 
   private let base: any Transcriber
+  private let clock: @Sendable () -> TimeInterval
   private let state = Mutex(State())
 
-  public init(_ base: any Transcriber) {
+  /// `clock` reads the microphone's audio time, the clock the base's segment times are on.
+  public init(_ base: any Transcriber, clock: @escaping @Sendable () -> TimeInterval) {
     self.base = base
+    self.clock = clock
   }
 
-  /// A line began playing at `start`.
+  public convenience init(_ live: any LiveTranscriber) {
+    self.init(live, clock: { live.audioTime })
+  }
+
+  /// The microphone's audio time now.
+  public var audioTime: TimeInterval { clock() }
+
+  /// A line began playing now.
+  public func spoke(_ text: String) { spoke(text, from: clock()) }
+
+  /// A line began playing at `start` on the microphone's clock.
   public func spoke(_ text: String, from start: TimeInterval) {
     state.withLock { $0.lines.append(Line(words: Set(Self.words(in: text)), start: start)) }
   }
+
+  /// The line playing stopped now, finished or cut.
+  public func finishedSpeaking() { finishedSpeaking(at: clock()) }
 
   /// The line playing stopped at `end`, finished or cut. Nothing playing, nothing changes.
   public func finishedSpeaking(at end: TimeInterval) {

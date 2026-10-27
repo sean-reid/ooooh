@@ -5,12 +5,21 @@ import Testing
 
 /// Every utterance here is what a recognizer emits: a start, growing volatile segments, the final one, an end.
 @Suite struct EchoFilterTests {
-  /// Yields its script in order and finishes; `stop()` is the `.ended` at the end of the script.
-  final class ScriptedTranscriber: Transcriber, @unchecked Sendable {
+  /// A microphone that yields its script in order and finishes; `stop()` is the `.ended` at the
+  /// end of the script. Its audio clock reads `audioTime`.
+  final class ScriptedTranscriber: LiveTranscriber, @unchecked Sendable {
+    let engine = TranscriptionEngine.dictationTranscriber
+    let audioTime: TimeInterval
     let script: [TranscriptEvent]
     private(set) var stops = 0
 
-    init(_ script: [TranscriptEvent]) { self.script = script }
+    init(_ script: [TranscriptEvent], audioTime: TimeInterval = 0) {
+      self.script = script
+      self.audioTime = audioTime
+    }
+
+    func downloadProgress() -> AsyncStream<Double> { AsyncStream { $0.finish() } }
+    func start() async throws {}
 
     func events() -> AsyncStream<TranscriptEvent> {
       AsyncStream { continuation in
@@ -46,6 +55,18 @@ import Testing
     let echo = utterance(["What", "What sits under", line], from: 10.4, to: 11.9)
     let filter = EchoFilter(ScriptedTranscriber(echo + [.ended]))
     filter.spoke(line, from: 10.0)
+
+    #expect(await collect(filter) == [.ended])
+  }
+
+  /// The echo of a line that began 1.5 s into the audio is timed on the microphone's clock,
+  /// whatever the session clock says.
+  @Test func aLineIsTimedOnTheMicrophonesClock() async {
+    let echo = utterance(["What", "What sits under", line], from: 10.1, to: 11.6)
+    let microphone = ScriptedTranscriber(echo + [.ended], audioTime: 10.0)
+    let filter = EchoFilter(microphone)
+    filter.spoke(line)
+    #expect(filter.audioTime == 10.0)
 
     #expect(await collect(filter) == [.ended])
   }
