@@ -189,10 +189,12 @@ test("variants keep the shipping request and change only model, prompt, and effo
   assert.equal(bare.system, phraseRules);
   assert.equal(bare.model, shipping.model);
   assert.deepEqual(bare.messages, shipping.messages);
-  for (const [kind, line] of Object.entries(exemplars)) {
-    assert.ok(shipping.system.includes(`- ${kind}: ${line}`));
-    assert.equal(bare.system.includes(line), false);
-    assert.equal(hardRules(line).pass, true, `${kind}: ${line}`);
+  for (const [kind, lines] of Object.entries(exemplars)) {
+    for (const line of lines) {
+      assert.ok(shipping.system.includes(`- ${kind}: ${line}`));
+      assert.equal(bare.system.includes(line), false);
+      assert.equal(hardRules(line).pass, true, `${kind}: ${line}`);
+    }
   }
   assert.deepEqual(Object.keys(exemplars), [
     "clarify",
@@ -261,7 +263,8 @@ test("hard rules pass a plain question and fail each broken rule", () => {
   assert.equal(hardRules("Isn't slow fine, then?").plain, true);
 });
 
-test("the frame rule fails the three forbidden frames in any wording and passes a named line", () => {
+test("the frame rule fails the five forbidden frames in any wording and passes a named line", () => {
+  assert.equal(forbiddenFrames.length, 5);
   for (const frame of forbiddenFrames) {
     assert.equal(hardRules(`${frame}?`).noStockFrame, false, frame);
   }
@@ -269,14 +272,19 @@ test("the frame rule fails the three forbidden frames in any wording and passes 
     "How does the Friday deadline sit with you?",
     "What makes the small team so important here?",
     "What sits beneath the worry about the cost?",
+    "Why does Friday count, and not the Monday after?",
+    "Why does it matter that the build is slow?",
+    "Why is the small team important here?",
+    "The build takes an hour, so what?",
   ]) {
     assert.equal(hardRules(line).noStockFrame, false, line);
     assert.equal(hardRules(line).pass, false, line);
   }
   for (const line of [
-    "Why does Friday count, and not the Monday after?",
+    "Why Friday, and not the Monday after?",
     "Where does the review queue sit in the slow build?",
     "Is the cost the money, or the time in review?",
+    "The last time the build took an hour, what happened?",
   ]) {
     assert.equal(hardRules(line).noStockFrame, true, line);
   }
