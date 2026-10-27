@@ -53,6 +53,7 @@ jobs:
       - run: >
           node --test ../site/*.test.mjs ../tools/store/*.test.mjs ../tools/synth/*.test.mjs
           ../tools/labeler/*.test.mjs ../tools/judge/*.test.mjs ../tools/label/*.test.mjs
+          ../tools/policy/*.test.mjs
       - run: npm run coverage
       - name: coverage totals
         run: >
