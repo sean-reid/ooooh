@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.seanreid.ooooh.transcribe</string>
+	<key>CFBundleName</key>
+	<string>transcribe</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>transcribe runs synthetic session audio through the speech recognizer to build eval fixtures.</string>
+</dict>
+</plist>

@@ -43,6 +43,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private let recognizer: any SpeechRecognizing
   private let audioSink: (any AudioBufferSink)?
   private let pause: TimeInterval
+  private let onDevice: Bool
   private let stream: AsyncStream<TranscriptEvent>
   private let continuation: AsyncStream<TranscriptEvent>.Continuation
   private let results: AsyncStream<Report>
@@ -75,12 +76,13 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   /// `requestLimit` is the audio one request may hear before the next one takes over.
   init(
     recognizer: any SpeechRecognizing, locale: Locale, audioSink: (any AudioBufferSink)? = nil,
-    requestLimit: TimeInterval = 50, pause: TimeInterval = 1
+    requestLimit: TimeInterval = 50, pause: TimeInterval = 1, onDevice: Bool = true
   ) {
     self.recognizer = recognizer
     self.locale = locale
     self.audioSink = audioSink
     self.pause = pause
+    self.onDevice = onDevice
     self.feed = RequestFeed(limit: requestLimit)
     (stream, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
     (results, reports) = AsyncStream.makeStream(of: Report.self)
@@ -157,7 +159,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     audioEngine.prepare()
   }
 
-  private func rotateAtLimit() {
+  func rotateAtLimit() {
     guard isRunning, feed.elapsedInRequest >= feed.limit else { return }
     rotate()
   }
@@ -168,7 +170,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     let generation = generation
     let request = SFSpeechAudioBufferRecognitionRequest()
     request.shouldReportPartialResults = true
-    request.requiresOnDeviceRecognition = true
+    request.requiresOnDeviceRecognition = onDevice
     request.addsPunctuation = true
     request.taskHint = .dictation
     let (previous, start) = feed.swap(in: request)

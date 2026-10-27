@@ -59,6 +59,9 @@ export function elevenLabsClient({
   apiKey = process.env.ELEVENLABS_API_KEY,
   baseURL = process.env.ELEVENLABS_BASE_URL ?? "https://api.elevenlabs.io",
   voice,
+  model = ELEVENLABS_MODEL,
+  settings,
+  sampleRate = SAMPLE_RATE,
   maxAttempts = 6,
   wait = sleep,
 } = {}) {
@@ -68,9 +71,12 @@ export function elevenLabsClient({
     );
   }
   if (!voice) throw new Error("elevenlabs mode needs --voice <voice id>");
-  const url = `${baseURL}/v1/text-to-speech/${voice}?output_format=pcm_${SAMPLE_RATE}`;
+  const url = `${baseURL}/v1/text-to-speech/${voice}?output_format=pcm_${sampleRate}`;
+  const body = { text: "", model_id: model };
+  if (settings) body.voice_settings = settings;
 
-  // Returns 16-bit mono PCM at SAMPLE_RATE, so the byte count is the duration.
+  // Returns 16-bit mono PCM at sampleRate, so the byte count is the duration.
+  // 429 and 5xx wait out Retry-After, or double from a second, up to maxAttempts.
   async function speak(text) {
     let backoff = 1;
     for (let attempt = 1; ; attempt += 1) {
@@ -81,9 +87,10 @@ export function elevenLabsClient({
           "content-type": "application/json",
           accept: "audio/pcm",
         },
-        body: JSON.stringify({ text, model_id: ELEVENLABS_MODEL }),
+        body: JSON.stringify({ ...body, text }),
       });
-      if (response.status === 429 && attempt < maxAttempts) {
+      const retryable = response.status === 429 || response.status >= 500;
+      if (retryable && attempt < maxAttempts) {
         const retryAfter = Number.parseFloat(
           response.headers.get("retry-after"),
         );
@@ -99,11 +106,15 @@ export function elevenLabsClient({
         );
       }
       const pcm = Buffer.from(await response.arrayBuffer());
-      return { pcm, duration: pcm.length / 2 / SAMPLE_RATE };
+      return {
+        pcm,
+        duration: pcm.length / 2 / sampleRate,
+        characters: text.length,
+      };
     }
   }
 
-  return { speak };
+  return { speak, model, sampleRate };
 }
 
 export function spliceClips(clips, pauses, outputs) {
