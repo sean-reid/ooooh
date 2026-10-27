@@ -68,6 +68,8 @@ final class SessionController {
     var transcriber: (any LiveTranscriber)?
     /// Hears the Worker's start answer for each session, so the billing store reads the free count.
     var freeSessions: FreeSessions?
+    /// The headphone and car buttons, which end the session while it is the now-playing app.
+    var media: (any MediaControls)?
   }
 
   private(set) var stage: Stage = .idle
@@ -204,6 +206,10 @@ final class SessionController {
       if levels != nil { measuredLevel = 0 }
       startedAt = .now
       stage = .running
+      environment.media?.register(MediaCommand.allCases) { [weak self] _ in
+        Task { await self?.end() }
+      }
+      environment.media?.setNowPlaying(title: "ooooh")
       if guardian.isOffline { scheduleOffline(true) }
       await live.start()
       observers = [
@@ -386,6 +392,8 @@ final class SessionController {
     )
     isHearingSpeech = false
     stage = .ended
+    environment.media?.unregister()
+    environment.media?.clearNowPlaying()
     try? environment.audio.deactivate()
     writeNotes(for: result)
   }

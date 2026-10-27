@@ -6,7 +6,7 @@ import Settings
 import SwiftUI
 
 struct RootView: View {
-  @State private var controller = SessionController(environment: .app)
+  private let host = SessionHost.shared
   @AppStorage("onboardingComplete") private var onboardingComplete = false
   /// Unset completion shows the flow; `-onboarding 1` shows it again on a phone that finished it.
   @State private var showsOnboarding =
@@ -29,6 +29,8 @@ struct RootView: View {
   init(launch: LaunchWork = .shared) {
     self.launch = launch
   }
+
+  private var controller: SessionController { host.controller }
 
   var body: some View {
     ZStack {
@@ -223,7 +225,7 @@ struct RootView: View {
 
   /// A new controller for the next session, and the threads the one that just ended left open.
   private func reset() {
-    controller = SessionController(environment: .app)
+    host.reset()
     Task { await loadThreads() }
   }
 
