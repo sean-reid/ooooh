@@ -46,7 +46,7 @@ const cues = (a: Answers) =>
     ]),
   );
 
-export async function decide(request: Request, env: Env): Promise<Response> {
+export async function decide(request: Request, env: Env, device: string): Promise<Response> {
   const input = await readBody(request, body);
   const key = requireSecret(env.TYPESAFE_API_KEY, "TYPESAFE_API_KEY");
 
@@ -62,7 +62,7 @@ export async function decide(request: Request, env: Env): Promise<Response> {
   };
 
   const res = await askJev(key, jevState);
-  await charge(env, "jev", res.usage.input_tokens);
+  await charge(env, device, "jev", res.usage.input_tokens);
   const a = res.answers;
   const answers = {
     goodMoment: noul(a.goodMoment),

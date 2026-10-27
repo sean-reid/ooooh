@@ -25,6 +25,11 @@ describe("settings", () => {
   it("falls back to the defaults when a var is missing, empty, or malformed", () => {
     const bare = settings(env());
     expect(bare.dailyLimit).toEqual({ jev: 20_000_000, anthropic: 700_000, elevenlabs: 20_000 });
+    expect(bare.deviceDailyLimit).toEqual({
+      jev: 1_500_000,
+      anthropic: 100_000,
+      elevenlabs: 6_000,
+    });
     expect(bare.deviceMinuteRequests).toBe(60);
     expect(bare.freeSessionsPerMonth).toBe(3);
     expect(bare.freePromptMinutes).toBe(20);
@@ -45,6 +50,7 @@ describe("settings", () => {
       env({
         JEV_DAILY_TOKENS: "abc",
         DEVICE_MINUTE_REQUESTS: "-5",
+        DEVICE_DAILY_ELEVENLABS_CHARACTERS: "0",
         FREE_PROMPT_MINUTES: "",
         REQUIRE_ATTESTATION: "no",
         APP_ATTEST_ENVIRONMENT: "staging",
@@ -53,6 +59,7 @@ describe("settings", () => {
     );
     expect(bad.dailyLimit.jev).toBe(20_000_000);
     expect(bad.deviceMinuteRequests).toBe(60);
+    expect(bad.deviceDailyLimit.elevenlabs).toBe(6_000);
     expect(bad.freePromptMinutes).toBe(20);
     expect(bad.requireAttestation).toBe(true);
     expect(bad.attestation.environment).toBe("production");
@@ -63,6 +70,7 @@ describe("settings", () => {
     const set = settings(
       env({
         ANTHROPIC_DAILY_TOKENS: "1000",
+        DEVICE_DAILY_JEV_TOKENS: "250",
         FREE_SESSIONS_PER_MONTH: "1",
         REQUIRE_ATTESTATION: "false",
         APP_ATTEST_ENVIRONMENT: "development",
@@ -72,6 +80,7 @@ describe("settings", () => {
       }),
     );
     expect(set.dailyLimit.anthropic).toBe(1000);
+    expect(set.deviceDailyLimit.jev).toBe(250);
     expect(set.freeSessionsPerMonth).toBe(1);
     expect(set.requireAttestation).toBe(false);
     expect(set.attestation).toMatchObject({ environment: "development", rootPem: "attest-root" });

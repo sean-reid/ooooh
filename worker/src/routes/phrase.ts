@@ -35,10 +35,15 @@ const body = obj({
   lastIntervention: optional(intervention),
   said: withDefault(array(intervention), []),
 });
-type Input = ReturnType<typeof body> & { cred: Credential; env: Env; deadlines: Deadlines };
+type Input = ReturnType<typeof body> & {
+  cred: Credential;
+  env: Env;
+  device: string;
+  deadlines: Deadlines;
+};
 
 const spent = (input: Input, message: Anthropic.Beta.BetaMessage) =>
-  chargeModel(input.env, message.model, message.usage);
+  chargeModel(input.env, input.device, message.model, message.usage);
 
 const params = (
   input: Input,
@@ -142,9 +147,9 @@ function phraseStream(client: Anthropic, input: Input): Response {
 
 export const phraseWith =
   (deadlines: Deadlines) =>
-  async (request: Request, env: Env): Promise<Response> => {
+  async (request: Request, env: Env, device: string): Promise<Response> => {
     const cred = credential(env);
-    const input = { ...(await readBody(request, body)), cred, env, deadlines };
+    const input = { ...(await readBody(request, body)), cred, env, device, deadlines };
     const client = anthropicClient(cred);
     if (request.headers.get("accept")?.includes("text/event-stream")) {
       return phraseStream(client, input);

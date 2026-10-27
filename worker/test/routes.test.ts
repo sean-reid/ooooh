@@ -329,7 +329,7 @@ describe("POST /v1/compact", () => {
     expectUpstream({ body: new ReadableStream<Uint8Array>() });
     const started = Date.now();
     await expect(
-      compactWith(100)(jsonRequest("/v1/compact", compactBody), env),
+      compactWith(100)(jsonRequest("/v1/compact", compactBody), env, "direct"),
     ).rejects.toMatchObject({
       status: 503,
       body: { error: "anthropic unavailable", retryAfter: 1 },
@@ -699,6 +699,7 @@ describe("POST /v1/phrase", () => {
     const res = await phraseWith({ callMs: 5000, stallMs: 100 })(
       jsonRequest("/v1/phrase", phraseBody, { accept: "text/event-stream" }),
       env,
+      "direct",
     );
     expect(res.status).toBe(200);
     const started = Date.now();
@@ -831,7 +832,11 @@ describe("POST /v1/speak", () => {
   it("answers a missing secret with 500 misconfigured and no name", async () => {
     expectUpstream();
     await expect(
-      speakWith(deadlines)(jsonRequest("/v1/speak", speakBody), { ...env, ELEVENLABS_API_KEY: "" }),
+      speakWith(deadlines)(
+        jsonRequest("/v1/speak", speakBody),
+        { ...env, ELEVENLABS_API_KEY: "" },
+        "direct",
+      ),
     ).rejects.toMatchObject({ status: 500, body: { error: "misconfigured" } });
   });
 
@@ -841,7 +846,7 @@ describe("POST /v1/speak", () => {
     expectUpstream({ hangs: true });
     const started = Date.now();
     await expect(
-      speakWith({ fetchMs: 100, stallMs: 1000 })(speakRequest(), env),
+      speakWith({ fetchMs: 100, stallMs: 1000 })(speakRequest(), env, "direct"),
     ).rejects.toMatchObject({
       status: 503,
       body: { error: "elevenlabs unavailable", retryAfter: 1 },
@@ -857,7 +862,7 @@ describe("POST /v1/speak", () => {
       },
     });
     expectUpstream({ body: silent, headers: { "content-type": "audio/mpeg" } });
-    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env);
+    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env, "direct");
     expect(res.status).toBe(200);
     const started = Date.now();
     await expect(res.arrayBuffer()).rejects.toMatchObject({ name: "TimeoutError" });
@@ -877,7 +882,7 @@ describe("POST /v1/speak", () => {
       },
     });
     expectUpstream({ body: paced, headers: { "content-type": "audio/mpeg" } });
-    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env);
+    const res = await speakWith({ fetchMs: 5000, stallMs: 100 })(speakRequest(), env, "direct");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(audioBytes);
   });
 });
