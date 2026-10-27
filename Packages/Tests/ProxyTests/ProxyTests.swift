@@ -44,7 +44,8 @@ import Testing
     let notes = response.notes
     #expect(notes.title == "Queue or sync layer")
     #expect(notes.summary == nil)
-    #expect(notes.sections.map(\.name) == ["Ideas", "Questions", "Open threads", "Quotes"])
+    #expect(
+      notes.sections.map(\.section.title) == ["Ideas", "Questions", "Open threads", "Quotes"])
     #expect(notes.ideas.first?.span == TranscriptSpan(start: 120, end: 126))
     #expect(notes.openThreads.first?.span == nil)
     #expect(notes.quotes.allSatisfy { !$0.edited && !$0.resolved })

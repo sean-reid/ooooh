@@ -7,6 +7,7 @@ import SwiftUI
 struct HistoryView: View {
   let store: SessionStore
   @State private var model: HistoryModel
+  @State private var path: [UUID] = []
   @Environment(\.dismiss) private var dismiss
 
   init(store: SessionStore) {
@@ -15,7 +16,7 @@ struct HistoryView: View {
   }
 
   var body: some View {
-    NavigationStack {
+    NavigationStack(path: $path) {
       ZStack {
         Palette.sky.ignoresSafeArea()
         VStack(spacing: 16) {
@@ -45,6 +46,9 @@ struct HistoryView: View {
     .tint(Palette.accent)
     .task { await model.load() }
     .task(id: model.query) { await model.search() }
+    .onChange(of: path) { _, path in
+      if path.isEmpty { Task { await model.search() } }
+    }
   }
 
   private var header: some View {
@@ -168,29 +172,28 @@ struct StoredNotesScreen: View {
   let store: SessionStore
   let sessionID: UUID
   @State private var detail: SessionDetail?
+  @State private var editor: NotesEditor?
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
     ZStack {
       Palette.sky.ignoresSafeArea()
-      if let detail {
-        if let notes = detail.notes {
-          NotesView(notes: notes, transcript: detail.transcript, date: detail.summary.startedAt) {
-            dismiss()
-          }
-          .accessibilityElement(children: .contain)
-          .accessibilityIdentifier("notes.view")
-        } else {
-          PendingNotesView(
-            state: detail.state ?? .empty, transcript: detail.transcript,
-            line: PendingNotesView.noNotes
-          ) {
-            dismiss()
-          }
+      if let editor {
+        EditableNotesView(editor: editor) { dismiss() }
+      } else if let detail {
+        PendingNotesView(
+          state: detail.state ?? .empty, transcript: detail.transcript,
+          line: PendingNotesView.noNotes
+        ) {
+          dismiss()
         }
       }
     }
-    .task { detail = try? await store.detail(sessionID) }
+    .task {
+      guard let detail = try? await store.detail(sessionID) else { return }
+      editor = NotesEditor(store: store, detail: detail)
+      self.detail = detail
+    }
   }
 }
 

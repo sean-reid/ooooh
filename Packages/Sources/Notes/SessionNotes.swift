@@ -36,12 +36,50 @@ public struct SessionNotes: Codable, Equatable, Sendable {
     self.quotes = quotes
   }
 
-  public var sections: [(name: String, items: [NoteItem])] {
-    [
-      ("Ideas", ideas), ("Decisions", decisions), ("Questions", questions),
-      ("Insights", insights), ("Actions", actions), ("Open threads", openThreads),
-      ("Quotes", quotes),
-    ].filter { !$0.1.isEmpty }
+  /// The sections with an item in them, in reading order.
+  public var sections: [(section: NoteSection, items: [NoteItem])] {
+    NoteSection.allCases.map { ($0, self[$0]) }.filter { !$0.items.isEmpty }
+  }
+
+  public subscript(section: NoteSection) -> [NoteItem] {
+    get {
+      switch section {
+      case .ideas: ideas
+      case .decisions: decisions
+      case .questions: questions
+      case .insights: insights
+      case .actions: actions
+      case .openThreads: openThreads
+      case .quotes: quotes
+      }
+    }
+    set {
+      switch section {
+      case .ideas: ideas = newValue
+      case .decisions: decisions = newValue
+      case .questions: questions = newValue
+      case .insights: insights = newValue
+      case .actions: actions = newValue
+      case .openThreads: openThreads = newValue
+      case .quotes: quotes = newValue
+      }
+    }
+  }
+}
+
+public enum NoteSection: String, CaseIterable, Sendable, Codable {
+  case ideas, decisions, questions, insights, actions, openThreads, quotes
+
+  public var title: String {
+    switch self {
+    case .ideas: "Ideas"
+    case .decisions: "Decisions"
+    case .questions: "Questions"
+    case .insights: "Insights"
+    case .actions: "Actions"
+    case .openThreads: "Open threads"
+    case .quotes: "Quotes"
+    }
   }
 }
 

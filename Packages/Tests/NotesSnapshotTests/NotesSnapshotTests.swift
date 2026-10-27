@@ -34,10 +34,35 @@
       assertSnapshot(of: image, as: .pixels, named: "\(sample.name)-402-accessibility3-dark")
     }
 
-    private func view(_ notes: SessionNotes, revealed: Set<String>) -> NotesView {
+    /// The Edit control in the bar, the items still read-only.
+    @Test(arguments: [ColorScheme.dark, .light])
+    func editable(scheme: ColorScheme) {
+      let image = render(view(NotesSample.full, revealed: [], editable: true), scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "full-402-\(scheme.name)")
+    }
+
+    @Test(arguments: [ColorScheme.dark, .light])
+    func editing(scheme: ColorScheme) {
+      let image = render(
+        view(NotesSample.full, revealed: [], editable: true, isEditing: true), scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "full-402-\(scheme.name)")
+    }
+
+    @Test func editingAccessibility3() {
+      let image = render(
+        view(NotesSample.full, revealed: [], editable: true, isEditing: true), scheme: .dark,
+        type: .accessibility3)
+      assertSnapshot(of: image, as: .pixels, named: "full-402-accessibility3-dark")
+    }
+
+    private func view(
+      _ notes: SessionNotes, revealed: Set<String>, editable: Bool = false, isEditing: Bool = false
+    ) -> NotesView {
+      let hooks = NoteEditing(
+        edit: { _, _, _ in }, delete: { _, _ in }, add: { _, _ in }, resolve: { _, _ in })
       var view = NotesView(
         notes: notes, transcript: NotesSample.transcript, date: NotesSample.date,
-        revealed: revealed
+        revealed: revealed, editing: editable ? hooks : nil, isEditing: isEditing
       ) {}
       view.scrolls = false
       return view
