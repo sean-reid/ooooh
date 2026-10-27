@@ -1,5 +1,6 @@
 import Foundation
 import Notes
+import State
 import Testing
 import Transcription
 
@@ -273,12 +274,50 @@ import Transcription
     }
   }
 
+  @Test func savesTheLinesTheAppSaidInPlaceAndMarksOneBad() async throws {
+    let store = try Support.store()
+    let result = try await Support.shortResult()
+    let utc = TimeZone(identifier: "UTC")!
+    let lines = [
+      SpokenLine(
+        text: "What sits underneath that?", kind: .intervention(.deepen), at: 15.5, spoken: true,
+        cut: true),
+      SpokenLine(text: "Done for now?", kind: .finishedQuestion, at: 89.3, spoken: false),
+    ]
+    let id = try await store.save(
+      result: result, lines: lines, notes: nil, title: "Pricing",
+      startedAt: Date(timeIntervalSince1970: 1_792_900_000))
+    #expect(try await store.detail(id)?.lines == lines)
+    #expect(try await store.counts().lines == 2)
+
+    try await store.markLine(lines[1].id, bad: true)
+    let detail = try #require(try await store.detail(id))
+    #expect(detail.lines.map(\.bad) == [false, true])
+    #expect(detail.lines.map(\.cut) == [true, false])
+    #expect(detail.lines.map(\.spoken) == [true, false])
+    let markdown = try #require(try await store.exportMarkdown(timeZone: utc).first).contents
+    #expect(
+      markdown.contains(
+        "\n0:10 but I don't know if people will pay seven dollars\n"
+          + "0:15 [deepen] What sits underneath that?\n0:17 um\n"))
+    #expect(
+      markdown.hasSuffix("1:26 okay I'm done for now\n1:29 [finished, marked bad] Done for now?\n"))
+
+    try await store.delete(session: id)
+    #expect(try await store.counts().lines == 0)
+    await #expect(throws: StoreError.missingLine(lines[0].id)) {
+      try await store.markLine(lines[0].id, bad: false)
+    }
+  }
+
   @Test func deleteEverythingLeavesNoRows() async throws {
     let store = try Support.store()
     let result = try await Support.shortResult()
+    let line = SpokenLine(text: "And then?", kind: .intervention(.clarify), at: 9.2, spoken: false)
     for _ in 0..<3 {
-      try await store.save(result: result, notes: Support.notes, title: "")
+      try await store.save(result: result, lines: [line], notes: Support.notes, title: "")
     }
+    #expect(try await store.counts().lines == 3)
     try await store.deleteEverything()
     #expect(try await store.counts() == .init(sessions: 0, segments: 0, items: 0, threads: 0))
     #expect(try await store.sessions().isEmpty)

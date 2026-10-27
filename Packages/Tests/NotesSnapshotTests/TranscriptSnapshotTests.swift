@@ -1,5 +1,6 @@
 #if canImport(UIKit)
   import Design
+  import Notes
   import SnapshotTesting
   import SwiftUI
   import Testing
@@ -18,6 +19,14 @@
         named: "\(expanded ? "expanded" : "collapsed")-402-\(scheme.name)")
     }
 
+    @Test(arguments: [ColorScheme.dark, .light])
+    func transcriptWithLines(scheme: ColorScheme) {
+      let image = render(section(expanded: true, lines: NotesSample.lines), scheme: scheme)
+      assertSnapshot(
+        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+        named: "lines-402-\(scheme.name)")
+    }
+
     @Test func transcriptAccessibility3() {
       let image = render(section(expanded: true), scheme: .dark, type: .accessibility3)
       assertSnapshot(
@@ -33,11 +42,11 @@
 
     /// Laid out at its natural height and clipped, the way NotesView renders for a snapshot,
     /// so a frame shorter than the text shows the overflow cut off rather than truncated.
-    private func section(expanded: Bool) -> some View {
+    private func section(expanded: Bool, lines: [SpokenLine] = []) -> some View {
       ZStack(alignment: .top) {
         Palette.sky.ignoresSafeArea()
         GeometryReader { _ in
-          TranscriptView(transcript: NotesSample.transcript, expanded: expanded)
+          TranscriptView(transcript: NotesSample.transcript, lines: lines, expanded: expanded)
             .padding(.horizontal, 24)
             .padding(.top, 32)
             .fixedSize(horizontal: false, vertical: true)

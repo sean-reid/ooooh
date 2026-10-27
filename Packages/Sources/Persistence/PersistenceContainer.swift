@@ -13,7 +13,8 @@ public enum PersistenceContainer {
   public static let cloudContainerIdentifier = "iCloud.com.seanreid.ooooh"
 
   public static let schema = Schema([
-    StoredSession.self, StoredSegment.self, StoredNoteItem.self, StoredThread.self,
+    StoredSession.self, StoredSegment.self, StoredLine.self, StoredNoteItem.self,
+    StoredThread.self,
   ])
 
   public static func make(_ configuration: StoreConfiguration) throws -> ModelContainer {

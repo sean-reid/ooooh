@@ -1,5 +1,6 @@
 import Billing
 import Design
+import Notes
 import NotesUI
 import Persistence
 import Settings
@@ -101,21 +102,21 @@ struct RootView: View {
     switch controller.notes {
     case .written(let notes):
       if let editor = controller.editor {
-        EditableNotesView(editor: editor) { reset() }
+        EditableNotesView(
+          editor: editor, lines: controller.lines, onMarkBad: markLine, onDone: reset)
       } else {
-        NotesView(notes: notes, transcript: transcript, date: controller.startedAt ?? .now) {
-          reset()
-        }
+        NotesView(
+          notes: notes, transcript: transcript, lines: controller.lines,
+          date: controller.startedAt ?? .now, onMarkBad: markLine, onDone: reset
+        )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("notes.view")
       }
     case .unavailable:
       PendingNotesView(
         state: controller.result?.state ?? .empty, transcript: transcript,
-        line: PendingNotesView.line(for: controller)
-      ) {
-        reset()
-      }
+        line: PendingNotesView.line(for: controller), lines: controller.lines,
+        onMarkBad: markLine, done: reset)
     case .empty:
       EmptySessionView { reset() }
     case .writing, nil:
@@ -224,6 +225,10 @@ struct RootView: View {
   }
 
   /// A new controller for the next session, and the threads the one that just ended left open.
+  private func markLine(_ line: SpokenLine, bad: Bool) {
+    controller.markLine(line.id, bad: bad)
+  }
+
   private func reset() {
     host.reset()
     Task { await loadThreads() }

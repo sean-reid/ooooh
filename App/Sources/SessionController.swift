@@ -79,6 +79,8 @@ final class SessionController {
   /// The moment End was tapped, or the loop ended on its own; the session the user is charged for.
   private(set) var endedAt: Date?
   private(set) var lastPrompt: String?
+  /// Every line delivered so far, with how it went; saved with the session at the end.
+  private(set) var lines: [SpokenLine] = []
   private(set) var isOffline = false
   private(set) var quietMode = true
   private(set) var result: SessionResult?
@@ -110,6 +112,7 @@ final class SessionController {
   private var echo: EchoFilter?
   private var observers: [Task<Void, Never>] = []
   private var delivery: Task<Void, Never>?
+  private var deliveringLine: UUID?
   private var writing: Task<Void, Never>?
   private var offlineChange: Task<Void, Never>?
   private var gate: SessionGate?
@@ -296,10 +299,10 @@ final class SessionController {
       promptPendingSince = .now
     case .promptCancelled:
       await cancelDelivery()
-    case .promptRequested(_, let text, _):
-      deliver(text)
-    case .askedIfFinished:
-      deliver("Done for now?", quietly: true)
+    case .promptRequested(let kind, let text, let at):
+      deliver(text, kind: .intervention(kind), at: at)
+    case .askedIfFinished(let at):
+      deliver("Done for now?", kind: .finishedQuestion, at: at, quietly: true)
     case .compactionApplied:
       compactions += 1
     case .offline(let offline):
@@ -311,7 +314,10 @@ final class SessionController {
 
   /// Keeps the orb in aboutToSpeak for at least the configured hold since it armed, then speaks.
   /// The orb turns to speaking when sound starts, not when the request goes out.
-  private func deliver(_ text: String, quietly: Bool = false) {
+  private func deliver(
+    _ text: String, kind: SpokenLine.Kind, at: TimeInterval, quietly: Bool = false
+  ) {
+    if delivery != nil { cutDeliveringLine() }
     delivery?.cancel()
     delivery = nil
     guard !text.isEmpty else {
@@ -319,12 +325,18 @@ final class SessionController {
       return
     }
     lastPrompt = text
+    let line = SpokenLine(text: text, kind: kind, at: at, spoken: !(quietMode || quietly))
+    lines.append(line)
+    deliveringLine = line.id
     let since = promptPendingSince.map { Date.now.timeIntervalSince($0) } ?? 0
     let hold = environment.aboutToSpeakHold - .seconds(since)
     delivery = Task {
       if hold > .zero { try? await Task.sleep(for: hold) }
       guard !Task.isCancelled, stage == .running else { return }
       let quiet = quietMode || quietly
+      if let index = lines.firstIndex(where: { $0.id == line.id }) {
+        lines[index].spoken = !quiet
+      }
       let speaker: any PromptSpeaking = quiet ? SilentSpeaker() : voice
       for await event in speaker.speak(text: text) {
         guard !Task.isCancelled else { return }
@@ -352,6 +364,30 @@ final class SessionController {
       promptPending = false
       isSpeaking = false
       delivery = nil
+      deliveringLine = nil
+    }
+  }
+
+  private func cutDeliveringLine() {
+    guard let id = deliveringLine, let index = lines.firstIndex(where: { $0.id == id }) else {
+      return
+    }
+    lines[index].cut = true
+    deliveringLine = nil
+  }
+
+  /// Sets or clears the bad mark on a line, here and in the store once the session is saved.
+  func markLine(_ lineID: UUID, bad: Bool) {
+    guard let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
+    lines[index].bad = bad
+    Task {
+      await writing?.value
+      guard savedSessionID != nil, let store = environment.store else { return }
+      do {
+        try await store.markLine(lineID, bad: bad)
+      } catch {
+        Self.log.error("Line mark failed: \(String(describing: error), privacy: .public)")
+      }
     }
   }
 
@@ -363,6 +399,7 @@ final class SessionController {
     let wasSpeaking = isSpeaking
     isSpeaking = false
     guard let delivery else { return }
+    cutDeliveringLine()
     self.delivery = nil
     delivery.cancel()
     Self.log.info("prompt cancelled speaking=\(wasSpeaking, privacy: .public)")
@@ -412,7 +449,8 @@ final class SessionController {
     notes = generator == nil ? .unavailable : .writing
     writing = Task {
       let saved = try? await store?.save(
-        result: result, notes: nil, title: "", startedAt: startedAt, endedAt: endedAt)
+        result: result, lines: lines, notes: nil, title: "", startedAt: startedAt,
+        endedAt: endedAt)
       savedSessionID = saved
       if let generator {
         do {

@@ -60,7 +60,8 @@ extension SessionStore {
     return SessionDetail(
       summary: Self.summary(session), endedAt: session.endedAt,
       modeAtEnd: CompactState.Mode(rawValue: session.modeAtEnd), state: state,
-      transcript: Self.transcript(of: session), notes: Self.notes(of: session, items: items),
+      transcript: Self.transcript(of: session), lines: Self.lines(of: session),
+      notes: Self.notes(of: session, items: items),
       items: items, audioPath: session.audioPath, keepAudio: session.keepAudio)
   }
 
@@ -91,6 +92,15 @@ extension SessionStore {
   static func transcript(of session: StoredSession) -> [Segment] {
     (session.segments ?? []).sorted { $0.order < $1.order }.map {
       Segment(text: $0.text, start: $0.start, end: $0.end, isFinal: true)
+    }
+  }
+
+  static func lines(of session: StoredSession) -> [SpokenLine] {
+    (session.lines ?? []).sorted { $0.order < $1.order }.compactMap { stored in
+      guard let kind = SpokenLine.Kind(name: stored.kind) else { return nil }
+      return SpokenLine(
+        id: stored.id, text: stored.text, kind: kind, at: stored.at, spoken: stored.spoken,
+        cut: stored.cut, bad: stored.bad)
     }
   }
 

@@ -27,6 +27,17 @@ enum NotesSample {
       start: 180, end: 188, isFinal: true),
   ]
 
+  /// Two lines the app said, the deepen one marked bad.
+  static let lines = [
+    SpokenLine(
+      id: UUID(uuidString: "5A1D6E2C-0F3B-4C7A-9E8D-1B2C3D4E5F60")!,
+      text: "What would those seven and a half hours go to?", kind: .intervention(.deepen),
+      at: 75.4, spoken: true, bad: true),
+    SpokenLine(
+      id: UUID(uuidString: "7C2E8F4A-1B5D-4E9C-8A7B-2C3D4E5F6071")!, text: "Done for now?",
+      kind: .finishedQuestion, at: 190.2, spoken: false),
+  ]
+
   static let full = SessionNotes(
     title: "Carver Street versus the apartment by the park",
     ideas: [

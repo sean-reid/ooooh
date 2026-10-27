@@ -161,15 +161,14 @@ final class HandFedMicrophone: LiveTranscriber, @unchecked Sendable {
     input.yield(.segment(Segment(text: "and the other", start: at, end: at + 0.6, isFinal: false)))
   }
 
-  /// One finished utterance, over by `utteranceEnd` on the session clock.
-  func say() {
-    input.yield(.speechStarted(at: 0))
-    input.yield(
-      .segment(
-        Segment(
-          text: "so the thing I keep coming back to is pricing", start: 0, end: Self.utteranceEnd,
-          isFinal: true)))
-    input.yield(.speechEnded(at: Self.utteranceEnd))
+  /// One finished utterance, over by `end` on the session clock.
+  func say(
+    _ text: String = "so the thing I keep coming back to is pricing", from start: TimeInterval = 0,
+    to end: TimeInterval = utteranceEnd
+  ) {
+    input.yield(.speechStarted(at: start))
+    input.yield(.segment(Segment(text: text, start: start, end: end, isFinal: true)))
+    input.yield(.speechEnded(at: end))
   }
 }
 

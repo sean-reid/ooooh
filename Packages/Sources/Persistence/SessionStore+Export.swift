@@ -19,7 +19,8 @@ extension SessionStore {
       return MarkdownDocument(
         filename: slug.isEmpty ? "\(stamp).md" : "\(stamp)-\(slug).md",
         contents: notes.markdown(
-          date: session.startedAt, timeZone: timeZone, transcript: Self.transcript(of: session)))
+          date: session.startedAt, timeZone: timeZone, transcript: Self.transcript(of: session),
+          lines: Self.lines(of: session)))
     }
   }
 

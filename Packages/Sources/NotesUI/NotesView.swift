@@ -9,24 +9,31 @@ import Transcription
 public struct NotesView: View {
   public var notes: SessionNotes
   public var transcript: [Segment]
+  public var lines: [SpokenLine]
   public var date: Date
   public var editing: NoteEditing?
   /// One line under the bar, for an edit the store refused.
   public var notice: String?
   public var onDone: () -> Void
+  /// Hears every bad-mark toggle on a line the app said.
+  public var onMarkBad: (SpokenLine, Bool) -> Void
   /// ImageRenderer draws a ScrollView empty, so snapshots render the content unscrolled.
   var scrolls = true
+  var transcriptExpanded = false
   @State private var revealed: Set<String>
   @State private var isEditing: Bool
   @State private var drafts: [NoteDraft: String] = [:]
 
   public init(
-    notes: SessionNotes, transcript: [Segment], date: Date = .now, revealed: Set<String> = [],
-    editing: NoteEditing? = nil, isEditing: Bool = false, notice: String? = nil,
+    notes: SessionNotes, transcript: [Segment], lines: [SpokenLine] = [], date: Date = .now,
+    revealed: Set<String> = [], editing: NoteEditing? = nil, isEditing: Bool = false,
+    notice: String? = nil, onMarkBad: @escaping (SpokenLine, Bool) -> Void = { _, _ in },
     onDone: @escaping () -> Void
   ) {
     self.notes = notes
     self.transcript = transcript
+    self.lines = lines
+    self.onMarkBad = onMarkBad
     self.date = date
     self.editing = editing
     self.notice = notice
@@ -102,7 +109,8 @@ public struct NotesView: View {
           }
         }
       }
-      TranscriptView(transcript: transcript)
+      TranscriptView(
+        transcript: transcript, lines: lines, expanded: transcriptExpanded, onMarkBad: onMarkBad)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 24)
