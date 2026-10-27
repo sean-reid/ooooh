@@ -20,11 +20,19 @@ struct WireSignals: Encodable {
   var pauseLength: TimeInterval
   var speechDensity: Double
   var awaitingFinishedReply: Bool
+  var secondsSinceStart: TimeInterval
+  var wordsSoFar: Int
+  var promptsSoFar: Int
+  var secondsSincePrompt: TimeInterval?
 
   init(_ signals: Signals) {
     pauseLength = signals.pauseLength
     speechDensity = signals.speechDensity
     awaitingFinishedReply = signals.awaitingFinishedReply
+    secondsSinceStart = signals.now
+    wordsSoFar = signals.wordsSoFar
+    promptsSoFar = signals.promptsSoFar
+    secondsSincePrompt = signals.secondsSincePrompt
   }
 }
 

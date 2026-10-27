@@ -41,7 +41,9 @@ extension StubbedTransportTests {
     @Test func decide() async throws {
       let input = CheckInput(
         state: Self.state, recentTranscript: Self.segments,
-        signals: Signals(now: 135.5, pauseLength: 2.5, speechDensity: 0.6), checkIndex: 0)
+        signals: Signals(
+          now: 135.5, pauseLength: 2.5, speechDensity: 0.6, wordsSoFar: 27, promptsSoFar: 1,
+          secondsSincePrompt: 75.5), checkIndex: 0)
       try await compare("decide", reply: fixture("decide", "json")) {
         _ = try await JevDecisionProvider(client: client).decide(input)
       }

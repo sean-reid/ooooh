@@ -99,9 +99,18 @@ describe("POST /v1/decide", () => {
       "trailsOff",
       "unnamedDecision",
     ]);
-    const state = sent.state as { recentTranscript: string; signals: { pauseLength: number } };
+    const state = sent.state as { recentTranscript: string; signals: Record<string, unknown> };
     expect(state.recentTranscript.split("\n")).toHaveLength(2);
-    expect(state.signals.pauseLength).toBe(2.5);
+    expect(state.signals).toEqual(decideBody.signals);
+  });
+
+  it("tells Jev there has been no prompt yet with a null, not a missing key", async () => {
+    expectUpstream({ body: jevReply });
+    const signals = { ...decideBody.signals, promptsSoFar: 0, secondsSincePrompt: undefined };
+    const res = await post("/v1/decide", { ...decideBody, signals });
+    expect(res.status).toBe(200);
+    const sent = bodyOf(upstream.requests[0]).state as { signals: Record<string, unknown> };
+    expect(sent.signals).toEqual({ ...signals, secondsSincePrompt: null });
   });
 
   it("backs off twice on 429 then returns 503 with retryAfter", async () => {
@@ -144,6 +153,18 @@ describe("POST /v1/decide", () => {
     expect(await res.json()).toEqual({
       error: "invalid",
       field: "signals.pauseLength",
+      expected: "number",
+    });
+  });
+
+  it("returns 422 when a phone sends no word count", async () => {
+    expectUpstream();
+    const signals = { ...decideBody.signals, wordsSoFar: undefined };
+    const res = await post("/v1/decide", { ...decideBody, signals });
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      error: "invalid",
+      field: "signals.wordsSoFar",
       expected: "number",
     });
   });
