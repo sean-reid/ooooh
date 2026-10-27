@@ -3,7 +3,10 @@ import SwiftUI
 
 @main
 struct OooohApp: App {
-  init() { LaunchTiming.mark("app init") }
+  init() {
+    LaunchTiming.mark("app init")
+    LaunchWork.openStore()
+  }
 
   var body: some Scene {
     WindowGroup {

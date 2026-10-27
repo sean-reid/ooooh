@@ -21,7 +21,7 @@ extension SessionController.Environment {
       environment.haptic = { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
       environment.announce = { AccessibilityNotification.Announcement($0).post() }
       environment.store = AppStore.shared
-      environment.attestor = AppAttestor.shared
+      environment.attestor = environment.workerURL.map { _ in DeferredAttestor() }
       environment.settings = AppSettings()
       #if DEBUG
         environment.forceVoice = UserDefaults.standard.bool(forKey: "force-voice")
@@ -30,6 +30,43 @@ extension SessionController.Environment {
       return environment
     }
   }
+}
+
+/// The launch work the first frame does not wait on. The store opens on a background thread from
+/// the app's init, so the root view finds it open or waits for what is left of the open. The root
+/// view's task builds the attestor on a background thread, and the billing store on the main actor
+/// once the attestor exists, since the store's poster reads it.
+@MainActor
+final class LaunchWork {
+  static let shared = LaunchWork()
+  private(set) var isDone = false
+  private var started = false
+
+  /// Opens the store while UIKit brings the scene up.
+  nonisolated static func openStore() {
+    Task.detached(priority: .userInitiated) { _ = AppStore.shared }
+  }
+
+  func run() {
+    guard !started else { return }
+    started = true
+    Task.detached(priority: .utility) {
+      _ = AppAttestor.shared
+      await MainActor.run {
+        _ = AppBilling.store
+        self.isDone = true
+      }
+    }
+  }
+}
+
+/// Signs with `AppAttestor.shared`, built on the first request rather than in the first frame.
+struct DeferredAttestor: Attestor {
+  func assertion(clientDataHash: Data) async throws -> Assertion? {
+    try await AppAttestor.shared?.assertion(clientDataHash: clientDataHash)
+  }
+
+  func keyId() async throws -> String? { try await AppAttestor.shared?.keyId() }
 }
 
 /// Times one piece of launch work and logs it, so the first frame's cost is read, not guessed.

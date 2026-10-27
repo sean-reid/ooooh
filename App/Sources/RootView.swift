@@ -23,7 +23,12 @@ struct RootView: View {
   #endif
 
   private let store = AppStore.shared
-  private let billing = AppBilling.store
+  private var billing: BillingStore { AppBilling.store }
+  private let launch: LaunchWork
+
+  init(launch: LaunchWork = .shared) {
+    self.launch = launch
+  }
 
   var body: some View {
     ZStack {
@@ -52,6 +57,7 @@ struct RootView: View {
     .animation(.easeInOut(duration: 0.4), value: controller.notes)
     .animation(.easeInOut(duration: 0.4), value: showsOnboarding)
     .task {
+      launch.run()
       ExportFile.removeExports()
       #if DEBUG
         if let store { await DebugHistory.apply(to: store) }
