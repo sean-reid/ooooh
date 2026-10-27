@@ -117,6 +117,7 @@ struct OrbPainter {
     _ scene: Scene, in context: inout GraphicsContext, disc: GraphicsContext.ResolvedImage?
   ) {
     let pose = frame.pose
+    guard pose.glow > 0 else { return }
     guard let disc else {
       Self.blurredHalo(
         in: &context, center: scene.center, base: scene.base, tint: tint, pose: pose,
@@ -157,6 +158,7 @@ struct OrbPainter {
 
   private func under(_ scene: Scene, in context: inout GraphicsContext) {
     let pose = frame.pose
+    guard pose.dim < 1 else { return }
     let under = OrbGeometry.blob(
       center: scene.center, radius: scene.base * OrbLayers.under.radius, clock: frame.clock,
       drift: pose.drift, breath: frame.breath, stretch: pose.stretch)
@@ -196,6 +198,7 @@ struct OrbPainter {
     let pose = frame.pose
     let alpha =
       (OrbLayers.sheen.floor + OrbLayers.sheen.glow * pose.glow) * (1 - pose.dim) * tint.sheen
+    guard alpha > 0 else { return }
     let coreCenter = coreCenter(scene)
     let base = scene.base
     context.drawLayer { layer in
