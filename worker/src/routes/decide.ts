@@ -2,7 +2,8 @@ import { charge } from "../budget";
 import { json, readBody, requireSecret } from "../http";
 import { askJev, type JevResponse } from "../jev/client";
 import { cueQuestions, questionsVersion } from "../jev/questions";
-import { compactState, intervention, segment, transcriptLines } from "../schema";
+import { transcriptLines } from "../phrasing";
+import { compactState, intervention, segment } from "../schema";
 import { array, bool, num, obj, optional } from "../validate";
 
 /// Jev reads the last few utterances verbatim; everything older lives in the compact state.
