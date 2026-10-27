@@ -29,7 +29,7 @@
     }
 
     override func tearDown() {
-      session.clearTransactions()
+      session?.clearTransactions()
       session = nil
       store = nil
     }
