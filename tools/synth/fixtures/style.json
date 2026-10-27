@@ -1,0 +1,70 @@
+{
+  "sessions": 4,
+  "session": {
+    "meanSeconds": 170.5,
+    "meanUtterances": 28,
+    "meanWords": 320,
+    "wordsPerMinute": 113
+  },
+  "wordsPerUtterance": {
+    "count": 112,
+    "min": 1,
+    "p25": 4,
+    "median": 10,
+    "p75": 16,
+    "p90": 24,
+    "max": 50,
+    "mean": 11.5
+  },
+  "wordsPerRun": {
+    "count": 24,
+    "min": 1,
+    "p25": 12,
+    "median": 45,
+    "p75": 70,
+    "p90": 110,
+    "max": 260,
+    "mean": 53
+  },
+  "pauses": {
+    "count": 108,
+    "min": 0,
+    "p25": 0,
+    "median": 0.25,
+    "p75": 0.6,
+    "p90": 1.5,
+    "max": 12,
+    "mean": 0.7,
+    "shareUnderOneSecond": 0.8,
+    "perSessionOverOneSecond": 4,
+    "perSessionOverFiveSeconds": 0.5,
+    "overOneSecond": {
+      "count": 16,
+      "min": 1.2,
+      "p25": 1.4,
+      "median": 1.6,
+      "p75": 3.5,
+      "p90": 8,
+      "max": 12,
+      "mean": 3
+    }
+  },
+  "fillersPer100Words": 1.2,
+  "restartsPer100Words": 1,
+  "repeatsPer100Words": 0.3,
+  "abandonedPerUtterance": 0.07,
+  "questionsPerUtterance": 0.02,
+  "endings": {
+    "meanWords": 5,
+    "questionShare": 0,
+    "closerShare": 0,
+    "meanGapBefore": 1
+  },
+  "labelsPerSession": {
+    "deepen": 0.5,
+    "leave": 1.25,
+    "finished": 1,
+    "summarize": 0.25,
+    "clarify": 0.25
+  }
+}
