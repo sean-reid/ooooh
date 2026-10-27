@@ -1,9 +1,7 @@
 import Foundation
 import Synchronization
 
-/// Drops what the microphone hears of the app's own lines. The app reports each line it plays
-/// with its start and end in the seconds `Segment.start` counts; a segment that starts inside a
-/// line's window and shares most of its words with the line is echo and never reaches the loop.
+/// Drops what the microphone hears of the app's own lines: a segment inside a spoken line's window that shares most of its words.
 public final class EchoFilter: Transcriber, Sendable {
   /// How far a line's window reaches before it starts and after it ends, for the recognizer's lag.
   static let leadIn: TimeInterval = 0.3
