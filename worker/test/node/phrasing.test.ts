@@ -38,8 +38,8 @@ describe("the phrase prompt", () => {
     }
   });
 
-  it("gives deepen four moves and tells the model to skip the one already said", () => {
-    for (const move of [/cost/, /instance/, /first time/, /turned out false/]) {
+  it("gives deepen five moves, connect among them, and tells the model to skip the one already said", () => {
+    for (const move of [/cost/, /instance/, /first time/, /turned out false/, /connect it/]) {
       expect(kindGuide.deepen).toMatch(move);
     }
     expect(kindGuide.deepen).toMatch(/not one already used in the lines said/);
@@ -47,6 +47,12 @@ describe("the phrase prompt", () => {
     for (const kind of ["clarify", "challenge"] as const) {
       expect(kindGuide[kind], kind).toMatch(/, then ask .*, or /);
     }
+    for (const kind of ["deepen", "challenge"] as const) {
+      expect(kindGuide[kind], kind).toMatch(/open question, main idea, or uncertainty/);
+    }
+    expect(phraseRules).toMatch(
+      /names one thing the speaker said in their last two utterances.*a connect line names that thing and one open question, main idea, or uncertainty/,
+    );
   });
 
   it("lists each forbidden frame once, in the rule that forbids it", () => {
@@ -95,11 +101,11 @@ describe("the phrase prompt", () => {
     }
   });
 
-  it("ships exemplars per kind, two for deepen, each within 12 words, the hard rules, and the frame rule", () => {
+  it("ships exemplars per kind, two for deepen and challenge, each within 12 words, the hard rules, and the frame rule", () => {
     expect(Object.keys(exemplars)).toEqual([...interventionKinds]);
     expect(phraseRules).toContain(`under ${wordLimit} words, the named thing counted in`);
     for (const [kind, lines] of Object.entries(exemplars)) {
-      expect(lines.length, kind).toBe(kind === "deepen" ? 2 : 1);
+      expect(lines.length, kind).toBe(kind === "deepen" || kind === "challenge" ? 2 : 1);
       for (const line of lines) {
         expect(sentences(line), kind).toBe(1);
         expect(wordCount(line), kind).toBeLessThanOrEqual(12);
@@ -111,7 +117,8 @@ describe("the phrase prompt", () => {
     }
     for (const line of exemplars.deepen) expect(line).not.toMatch(/\bwhy\b/i);
     expect(exemplars.deepen[0].split(" ")[0]).not.toBe(exemplars.deepen[1].split(" ")[0]);
-    expect(phraseSystem).toMatch(/one per kind and two for deepen/);
+    expect(exemplars.challenge[1]).toMatch(/\bopen\b.*\bFriday\b/);
+    expect(phraseSystem).toMatch(/one per kind and two for deepen and challenge/);
     expect(phraseSystem).toMatch(/show the standard, not a template/);
     expect(phraseSystem.startsWith(phraseRules)).toBe(true);
   });

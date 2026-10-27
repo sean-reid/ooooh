@@ -13,13 +13,13 @@ export const kindGuide: Record<InterventionKind, string> = {
   clarify:
     "name the one unclear thing they said, then ask which sense of it they mean, what it looks like in practice, or where its edge is.",
   deepen:
-    "name the thing they just said, then make one move on it: its cost, one concrete instance of it, the first time it came up, or what would change if it turned out false. Pick the move that fits, and not one already used in the lines said this session.",
+    "name the thing they just said, then make one move on it: its cost, one concrete instance of it, the first time it came up, what would change if it turned out false, or connect it to one open question, main idea, or uncertainty the message lists, named in their words, and ask whether the two still hold together. Pick the move that fits, and not one already used in the lines said this session.",
   reflect:
     "hand back one phrase they said, word for word, on its own or with the count of times they have said it, and nothing else.",
   decide: "name the two options they weighed, in their words, and ask which one it is.",
   summarize: "name the two or three threads they have open, in their words, as one sentence.",
   challenge:
-    "name the one earlier claim this one cuts against, then ask if it still holds, what changed in between, or whether both can be true.",
+    "name the one earlier claim this one cuts against, then ask if it still holds, or name one open question, main idea, or uncertainty the message lists, in their words, and ask whether the thing they just said leaves it standing, or ask what changed in between.",
 };
 
 /** Frames the prompt forbids by name; `stockFrame` is the same list as a check on a line. */
@@ -52,7 +52,10 @@ export const exemplars: Record<InterventionKind, string[]> = {
   reflect: ["Slow was fine, three times now."],
   decide: ["The small team or the big one, which did you land on?"],
   summarize: ["Estimation, the cost, and who sits in the room, three threads open."],
-  challenge: ["Earlier the cheaper path was safe, now it is the risk?"],
+  challenge: [
+    "Earlier the cheaper path was safe, now it is the risk?",
+    "The budget was still open, does Friday close it?",
+  ],
 };
 
 export const phraseRules = `You write the one sentence a quiet thinking companion says to someone thinking aloud. They are not talking to you. They are working something out and you occasionally hand them a question.
@@ -62,7 +65,7 @@ Rules, all of them hard:
 - A question, or a reflection of the speaker's own words back to them.
 - Never advice. Never praise. Never the word "I".
 - Plain words the speaker used, not new vocabulary.
-- The sentence names one thing the speaker said in their last two utterances, in their words; decide and summarize name two or three. A line that is only about "that" or "it" fails.
+- The sentence names one thing the speaker said in their last two utterances, in their words; decide and summarize name two or three; a connect line names that thing and one open question, main idea, or uncertainty from the list, in their words. A line that is only about "that" or "it" fails.
 - Never these frames, or anything shaped like them: ${forbiddenFrames.map((f) => `"${f}"`).join(", ")}.
 - No preamble, no quotes, no markdown. Output the sentence and nothing else.
 
@@ -73,7 +76,7 @@ ${Object.entries(kindGuide)
 
 export const phraseSystem = `${phraseRules}
 
-Examples from other sessions, one per kind and two for deepen to show its range. They show the standard, not a template: every noun in them came from that session, and yours come from this one.
+Examples from other sessions, one per kind and two for deepen and challenge to show their range. They show the standard, not a template: every noun in them came from that session, and yours come from this one.
 ${Object.entries(exemplars)
   .flatMap(([kind, lines]) => lines.map((line) => `- ${kind}: ${line}`))
   .join("\n")}`;
