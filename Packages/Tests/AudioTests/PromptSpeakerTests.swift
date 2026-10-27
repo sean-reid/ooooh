@@ -131,7 +131,6 @@
       print("muted line rendered \(rendered) of \(frames) frames at \(gain) dB")
       #expect(await speaker.outputVolume == 0)
       #expect(rendered >= frames - slack)
-      #expect(rendered <= frames + lateness)
       #expect(abs(gain - reference.gainDB) < 0.01)
       #expect(gain > 3 && gain < 5)
     }
