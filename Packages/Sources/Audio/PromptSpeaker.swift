@@ -28,6 +28,7 @@
     private var normalizer = LoudnessNormalizer()
     private var generation = 0
     private var scheduled = 0
+    private var started = false
     private var ended = false
     private var feeding: Task<Void, Error>?
     private var done: CheckedContinuation<Void, Never>?
@@ -56,6 +57,7 @@
       let mine = generation
       self.text = text
       scheduled = 0
+      started = false
       ended = false
       bytes = 0
       Self.log.info("speak begins chars=\(text.count, privacy: .public)")
@@ -76,14 +78,15 @@
             guard let pcm = try decoder.decode(packets) else { continue }
             normalizer.apply(to: pcm)
             schedule(pcm, on: player, generation: mine)
-            if scheduled == 1 {
-              try engine.start()
-              player.play()
-              Self.log.info(
-                "speak started bytes=\(self.bytes, privacy: .public) format=\(pcm.format.sampleRate, privacy: .public)Hz output=\(engine.outputNode.outputFormat(forBus: 0).sampleRate, privacy: .public)Hz"
-              )
-              emit.yield(.started(text: text, at: Date()))
-            }
+            // The player may drain between chunks on a slow host; the line still starts once.
+            guard !started else { continue }
+            started = true
+            try engine.start()
+            player.play()
+            Self.log.info(
+              "speak started bytes=\(self.bytes, privacy: .public) format=\(pcm.format.sampleRate, privacy: .public)Hz output=\(engine.outputNode.outputFormat(forBus: 0).sampleRate, privacy: .public)Hz"
+            )
+            emit.yield(.started(text: text, at: Date()))
           }
         }
       }
@@ -101,7 +104,9 @@
         guard mine == generation else { return }
         ended = true
         if scheduled == 0 {
-          Self.log.error("speak decoded nothing bytes=\(self.bytes, privacy: .public)")
+          if !started {
+            Self.log.error("speak decoded nothing bytes=\(self.bytes, privacy: .public)")
+          }
           finish()
           return
         }
@@ -149,7 +154,9 @@
       if ended && scheduled == 0 { finish() }
     }
 
+    /// Ends the current line once; a second call for the same line is a no-op.
     private func finish() {
+      guard text != nil else { return }
       generation += 1
       feeding?.cancel()
       feeding = nil

@@ -118,6 +118,41 @@
       #expect(gain > 3 && gain < 5)
     }
 
+    /// The first chunk plays out before the second arrives, so the player drains mid-line.
+    @Test func startsOnceWhenThePlayerDrainsBetweenChunks() async throws {
+      let speaker = PromptSpeaker()
+      let collected = Task {
+        var events: [PromptSpeaker.Event] = []
+        for await event in speaker.events {
+          events.append(event)
+          if case .finished = event { break }
+        }
+        return events
+      }
+      let (release, releasing) = AsyncStream.makeStream(of: Void.self)
+      let audio = try network(firstByte: { _ in }, holding: 1, until: release)
+      let speaking = Task { try await speaker.speak(text, audio: audio) }
+      let firstChunk = try Fixture.frames(chunked: 1024, count: 1)
+      #expect(firstChunk > 0)
+      await wait { await (speaker.rendered ?? 0) >= firstChunk + slack }
+      try await Task.sleep(for: .milliseconds(100))
+      let drainedAt = try #require(await speaker.rendered)
+      releasing.yield(())
+      try await speaking.value
+      let events = await collected.value
+      let frames = try Fixture.frames(chunked: 1024)
+      print("player drained at \(drainedAt) frames after \(firstChunk) from the first chunk")
+      #expect(drainedAt >= firstChunk + slack)
+      #expect(events.count == 2)
+      guard case .started = try #require(events.first),
+        case .finished(_, let rendered) = try #require(events.last)
+      else {
+        Issue.record("expected started then finished, got \(events)")
+        return
+      }
+      #expect(rendered >= frames - slack)
+    }
+
     @Test func stopCutsPlaybackAndDropsTheRest() async throws {
       let speaker = PromptSpeaker()
       var events = speaker.events.makeAsyncIterator()
