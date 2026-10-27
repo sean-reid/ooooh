@@ -27,6 +27,70 @@ public struct Labels: Codable, Equatable, Sendable {
   public static let finishedKind = "finished"
   public static let leaveKind = "leave"
   public static let commandKinds: Set<String> = ["recall", "wrapUp"]
+
+  /// What the scorer would make of a prompt at `at`.
+  public enum Expectation: Equatable, Sendable {
+    case speak(kind: String)
+    case leave
+    case finished
+    case wait
+
+    public var name: String {
+      switch self {
+      case .speak: "speak"
+      case .leave: "leave"
+      case .finished: "finished"
+      case .wait: "wait"
+      }
+    }
+
+    public var kind: String? {
+      if case .speak(let kind) = self { kind } else { nil }
+    }
+  }
+
+  /// A moment label within tolerance wins, then a leave window, then a finished label within
+  /// tolerance. A command label is not a moment to speak, so it reads as wait.
+  public func expectation(at: TimeInterval, ends: UtteranceEnds) -> Expectation {
+    let within = labels.compactMap { label in
+      ends.lateness(of: label, at: at).map { (label, $0) }
+    }
+    let moments = within.filter {
+      $0.0.kind != Self.leaveKind && $0.0.kind != Self.finishedKind
+        && !Self.commandKinds.contains($0.0.kind)
+    }
+    if let moment = moments.min(by: { $0.1 < $1.1 }) { return .speak(kind: moment.0.kind) }
+    if labels.contains(where: { $0.kind == Self.leaveKind && ends.inside($0, at: at) }) {
+      return .leave
+    }
+    if within.contains(where: { $0.0.kind == Labels.finishedKind }) { return .finished }
+    return .wait
+  }
+}
+
+/// The utterance ends of a session, so lateness is counted one way wherever a label meets a time.
+public struct UtteranceEnds: Equatable, Sendable {
+  let ends: [TimeInterval]
+
+  public init(_ transcript: [Segment]) {
+    ends = transcript.map(\.end).sorted()
+  }
+
+  public func count(after from: TimeInterval, through to: TimeInterval) -> Int {
+    ends.filter { $0 > from && $0 <= to }.count
+  }
+
+  /// Utterances from the label to `at`, nil when the label comes later or is past the tolerance.
+  public func lateness(of label: Labels.Label, at: TimeInterval) -> Int? {
+    guard label.at <= at else { return nil }
+    let late = count(after: label.at, through: at)
+    return late <= EvalReport.tolerance ? late : nil
+  }
+
+  /// Whether `at` is still inside the utterance the label marks.
+  public func inside(_ label: Labels.Label, at: TimeInterval) -> Bool {
+    label.at <= at && count(after: label.at, through: at) == 0
+  }
 }
 
 /// Precision, recall, and lateness of a session's decisions against labels.
@@ -105,10 +169,7 @@ public struct EvalReport: Equatable, Sendable {
   public static let tolerance = 1
 
   public static func score(_ result: SessionResult, against labels: Labels) -> EvalReport {
-    let ends = result.transcript.map(\.end).sorted()
-    func utterancesBetween(_ from: TimeInterval, _ to: TimeInterval) -> Int {
-      ends.filter { $0 > from && $0 <= to }.count
-    }
+    let ends = UtteranceEnds(result.transcript)
 
     var byKind: [String: Kind] = [:]
     var overall = Kind()
@@ -118,15 +179,13 @@ public struct EvalReport: Equatable, Sendable {
 
     func match(at: TimeInterval, kind: String?) -> (Labels.Label, Int)? {
       let candidates = unmatched.enumerated().compactMap { index, label -> (Int, Int)? in
-        guard label.at <= at else { return nil }
         if let kind, label.kind != kind { return nil }
         if kind == nil,
           label.kind == Labels.finishedKind || Labels.commandKinds.contains(label.kind)
         {
           return nil
         }
-        let late = utterancesBetween(label.at, at)
-        return late <= tolerance ? (index, late) : nil
+        return ends.lateness(of: label, at: at).map { (index, $0) }
       }
       guard let best = candidates.min(by: { $0.1 < $1.1 }) else { return nil }
       let label = unmatched.remove(at: best.0)
@@ -179,7 +238,7 @@ public struct EvalReport: Equatable, Sendable {
 
     let leaves = labels.labels.filter { $0.kind == Labels.leaveKind }
     let intrusions = result.prompts.filter { prompt in
-      leaves.contains { utterancesBetween($0.at, prompt.at) == 0 && $0.at <= prompt.at }
+      leaves.contains { ends.inside($0, at: prompt.at) }
     }.count
     let starts = result.transcript.map(\.start).sorted()
     let collisions = result.spokenDecisions.filter { decidedAt in

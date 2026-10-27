@@ -9,6 +9,7 @@ import Transcription
 // eval --corpus <dir> --answers-dir <dir> --gate precision=0.28,recall=0.45,...
 // eval --corpus <dir> --live <worker url> --record-dir <dir>
 // eval --corpus <dir> --answers-dir <run1> --answers-dir <run2> --sweep "bar=0.8,0.9;trailsOff=1,1.38"
+// eval --corpus <dir> --answers-dir <dir> --features <csv>
 // Any form takes --arming-delay <seconds> to override the config's, 0 to speak at the decision.
 //
 // --live asks the real Jev through the Worker at every check, writes one JSON
@@ -23,6 +24,9 @@ import Transcription
 // --sweep replays every --answers-dir through each point of the grid and prints
 // one row per point, best first: the points whose recall clears --recall-floor
 // (0.45) on every run, by their lowest precision; then the rest.
+// --features writes one CSV row per check: the signals, every number Jev gave, the
+// governor's decision, and what the scorer would make of a prompt there. tools/policy
+// fits the speak policy from it.
 
 let args = Array(CommandLine.arguments.dropFirst())
 
@@ -141,11 +145,12 @@ struct Outcome {
   var silent: Int
   /// Checks the recording has no answer for, which replayed as quiet.
   var unanswered: Int
+  var features: [FeatureRow]
 }
 
 @MainActor func evaluate(_ run: Run, config base: GovernorConfig) async throws -> Outcome {
   var config = base
-  let decisions: any DecisionProvider
+  var decisions: any DecisionProvider
   var recorder: RecordingDecisionProvider?
   var recorded: RecordedDecisionProvider?
   var live: (client: ProxyClient, jev: LiveJev)?
@@ -172,6 +177,8 @@ struct Outcome {
     config.floor = .init(min: 0, max: 0)
     decisions = OracleDecisionProvider(labels: run.labels)
   }
+  let signals = SignalRecordingProvider(decisions)
+  decisions = signals
   let result = await FixtureDriver.run(
     fixture: run.fixture, config: config,
     dependencies: .init(
@@ -195,21 +202,22 @@ struct Outcome {
   let checks = result.records.compactMap {
     if case .check(let at, _, _, _) = $0 { at } else { nil }
   }
+  var captured: [TimeInterval: Signals] = [:]
+  for at in checks { captured[at] = await signals.signals(at: at) }
   return Outcome(
     report: EvalReport.score(result, against: run.labels), checks: checks.count,
     silent: checks.filter { !ends.contains($0) }.count,
-    unanswered: recorded.map { replay in checks.filter { !replay.hasAnswer(at: $0) }.count } ?? 0)
+    unanswered: recorded.map { replay in checks.filter { !replay.hasAnswer(at: $0) }.count } ?? 0,
+    features: FeatureRow.rows(
+      fixture: run.name, result: result, labels: run.labels, signals: { captured[$0] }))
 }
 
-/// One line per check: time, answers, and whether a label sits within one utterance before it.
+/// One line per check: time, answers, and what the scorer would make of a prompt there.
 func dump(_ run: Run, _ result: SessionResult) {
-  let ends = result.transcript.map(\.end).sorted()
+  let ends = UtteranceEnds(result.transcript)
   func labeled(at: TimeInterval) -> String {
-    for label in run.labels.labels where label.at <= at {
-      let between = ends.filter { $0 > label.at && $0 <= at }.count
-      if between <= EvalReport.tolerance { return label.kind }
-    }
-    return "-"
+    let expectation = run.labels.expectation(at: at, ends: ends)
+    return expectation.kind ?? (expectation == .wait ? "-" : expectation.name)
   }
   for record in result.records {
     guard case .check(let at, _, let a, let decision) = record else { continue }
@@ -328,6 +336,11 @@ if runs.contains(where: { $0.answers != nil }) {
 }
 print(counts)
 if liveURL != nil { print("jev input tokens \(jevTokens)") }
+if let path = option("--features") {
+  let rows = outcomes.flatMap(\.features)
+  try FeatureRow.csv(rows).write(toFile: path, atomically: true, encoding: .utf8)
+  print("features \(rows.count) rows -> \(path)")
+}
 
 if args.contains("--require-perfect"), !reports.allSatisfy(\.isPerfect) {
   fail("oracle did not score 1.00 on every session")

@@ -62,6 +62,29 @@ import Transcription
     #expect(report.summary.contains("finished   p 1.00  r 1.00  late 0.0"))
   }
 
+  @Test func expectationReadsAsTheScorerWould() {
+    let ends = UtteranceEnds(transcript)
+    let labels = Labels(
+      fixture: "t",
+      labels: [
+        .init(utterance: 1, at: 15, kind: Labels.leaveKind),
+        .init(utterance: 2, at: 25, kind: "deepen"),
+        .init(utterance: 4, at: 45, kind: "recall"),
+        .init(utterance: 5, at: 55, kind: Labels.finishedKind),
+      ])
+    #expect(labels.expectation(at: 5, ends: ends) == .wait)
+    #expect(labels.expectation(at: 15, ends: ends) == .leave)
+    #expect(labels.expectation(at: 20, ends: ends) == .leave)
+    #expect(labels.expectation(at: 25, ends: ends) == .speak(kind: "deepen"))
+    #expect(labels.expectation(at: 35, ends: ends) == .speak(kind: "deepen"))
+    #expect(labels.expectation(at: 40, ends: ends) == .speak(kind: "deepen"))
+    #expect(labels.expectation(at: 45, ends: ends) == .wait)
+    #expect(labels.expectation(at: 55, ends: ends) == .finished)
+    #expect(labels.expectation(at: 58, ends: ends) == .finished)
+    #expect(Labels.Expectation.speak(kind: "deepen").name == "speak")
+    #expect(Labels.Expectation.leave.kind == nil)
+  }
+
   @Test func countsPromptsTheNextUtteranceWouldTalkOver() {
     let labels = Labels(fixture: "t", labels: [])
     let early = EvalReport.score(result(prompts: [(6.0, .deepen)]), against: labels)
