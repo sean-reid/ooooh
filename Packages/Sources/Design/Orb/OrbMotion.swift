@@ -49,6 +49,8 @@ final class OrbMotion {
   nonisolated static let riseTau = 0.12
   nonisolated static let fallTau = 0.45
   nonisolated static let poseTau = 0.3
+  /// Breath under this reads as a flat room.
+  nonisolated static let flatBreath = 0.02
 
   private var frame = OrbFrame(clock: 0, breath: 0, pose: .target(for: .resting))
   private var lastDate: Date?
@@ -56,6 +58,8 @@ final class OrbMotion {
   private(set) var frames = 0
   /// True once the frame has settled where the next one would repeat it.
   private(set) var rests = false
+  /// True while the pose sits on its target and the breath is flat, so only the drift moves.
+  private(set) var flat = false
 
   nonisolated init() {}
 
@@ -68,6 +72,7 @@ final class OrbMotion {
       frame.breath = level
       frame.pose = target
       rests = target.speed == 0
+      flat = level < Self.flatBreath
       return frame
     }
     let dt = min(max(date.timeIntervalSince(last), 0), 0.1)
@@ -76,6 +81,7 @@ final class OrbMotion {
     frame.pose.approach(target, by: 1 - exp(-dt / Self.poseTau))
     frame.clock += dt * frame.pose.speed
     rests = frame.pose == target && frame.breath == level && target.speed == 0
+    flat = frame.pose == target && frame.breath < Self.flatBreath
     return frame
   }
 

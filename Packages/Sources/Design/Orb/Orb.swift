@@ -10,6 +10,7 @@ public struct Orb: View {
   @Environment(\.colorScheme) private var colorScheme
   @State private var motion: OrbMotion
   @State private var rests = false
+  @State private var flat = false
 
   /// A fixed `time` renders one still frame; nil animates.
   public init(level: Double, phase: OrbPhase, time: TimeInterval? = nil) {
@@ -33,10 +34,13 @@ public struct Orb: View {
         canvas(OrbMotion.still(at: time, level: level, phase: phase))
       } else {
         TimelineView(
-          .animation(minimumInterval: 1 / 30, paused: Self.pauses(rests, level, phase))
+          .animation(
+            minimumInterval: Self.interval(flat, level, phase),
+            paused: Self.pauses(rests, level, phase))
         ) { context in
           canvas(motion.advance(to: context.date, level: level, phase: phase))
             .onChange(of: motion.rests, initial: true) { _, value in rests = value }
+            .onChange(of: motion.flat, initial: true) { _, value in flat = value }
         }
       }
     }
@@ -50,6 +54,12 @@ public struct Orb: View {
   /// read here: the pause holds only while the frame rests and nothing has changed.
   static func pauses(_ rests: Bool, _ level: Double, _ phase: OrbPhase) -> Bool {
     rests && phase == .resting && level <= 0
+  }
+
+  /// Listening to a flat room moves only the drift, which reads as continuous at 15 fps; a rising
+  /// level or another phase brings 30 back on the next body.
+  static func interval(_ flat: Bool, _ level: Double, _ phase: OrbPhase) -> TimeInterval {
+    flat && phase == .listening && level < OrbMotion.flatBreath ? 1 / 15 : 1 / 30
   }
 
   private var stillOpacity: Double {

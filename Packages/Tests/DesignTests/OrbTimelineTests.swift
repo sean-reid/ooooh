@@ -39,6 +39,26 @@
       #expect(motion.frames >= atRest + 5, "drew \(motion.frames - atRest) frames after waking")
     }
 
+    @Test func listeningToAFlatRoomDrawsAtHalfRate() async throws {
+      let input = OrbInput()
+      input.phase = .listening
+      let motion = OrbMotion()
+      let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 240, height: 240))
+      window.rootViewController = UIHostingController(
+        rootView: HostedOrb(input: input, motion: motion))
+      window.makeKeyAndVisible()
+      defer { window.isHidden = true }
+      try await Task.sleep(for: .milliseconds(500))
+      let settled = motion.frames
+      try await Task.sleep(for: .seconds(1))
+      let flat = motion.frames - settled
+      #expect(flat >= 8 && flat <= 22, "drew \(flat) frames in a flat second")
+      input.level = 0.4
+      try await Task.sleep(for: .seconds(1))
+      let woken = motion.frames - settled - flat
+      #expect(woken > flat, "drew \(woken) frames in a loud second")
+    }
+
     @Test func listeningOrbKeepsDrawing() async throws {
       let input = OrbInput()
       input.phase = .listening
