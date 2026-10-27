@@ -27,7 +27,7 @@ import { phraseWith } from "../src/routes/phrase";
 import { deadlines, speakWith } from "../src/routes/speak";
 import { memoryKV } from "./kv";
 import { jsonRequest, startRequest } from "./request";
-import { post as postJson, spent as spentOn } from "./workers";
+import { post as postJson, settled, spent as spentOn } from "./workers";
 
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   postJson(path, body, { "x-device": "routes", ...headers });
@@ -50,7 +50,8 @@ const spent = () => spentOn("anthropic");
 let upstream: FakeUpstream;
 const expectUpstream = (...replies: Reply[]) => (upstream = stubUpstream(...replies));
 
-afterEach(() => {
+afterEach(async () => {
+  await settled();
   expect(upstream.pending()).toBe(0);
   vi.unstubAllGlobals();
 });
