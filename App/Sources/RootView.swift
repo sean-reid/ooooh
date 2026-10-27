@@ -1,6 +1,6 @@
 import Billing
 import Design
-import Notes
+import NotesUI
 import Persistence
 import Settings
 import SwiftUI

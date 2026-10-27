@@ -4,7 +4,9 @@
   import Testing
   import UIKit
 
-  @testable import Notes
+  import Notes
+
+  @testable import NotesUI
 
   /// Reference PNGs live in __Snapshots__ and are rendered on the iPhone 17 Pro simulator.
   @MainActor

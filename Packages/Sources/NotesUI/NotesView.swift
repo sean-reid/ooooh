@@ -1,4 +1,5 @@
 import Design
+import Notes
 import SwiftUI
 import Transcription
 
