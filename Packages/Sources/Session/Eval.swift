@@ -137,7 +137,7 @@ public struct EvalReport: Equatable, Sendable {
   /// Decisions that armed and were cut short by speech before they spoke.
   public var cancelled: Int = 0
 
-  /// Seconds from a decision to the end of the spoken prompt: 1.5 s to the first syllable plus about 3 s of speech.
+  /// Seconds from a decision to the end of the spoken prompt: 2.5 s to the first syllable plus about 2 s of speech.
   public static let speakWindow: TimeInterval = 4.5
 
   /// Precision and recall of 1 wherever a label or a decision exists.

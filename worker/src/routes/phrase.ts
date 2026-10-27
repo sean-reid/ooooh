@@ -25,7 +25,7 @@ import { array, obj, oneOf, optional, withDefault } from "../validate";
 
 export type Deadlines = { callMs: number; stallMs: number };
 
-/** The phone prompts on a 1.5 s budget: 5 s for one sentence, body included, 3 s for any gap in the stream. */
+/** The phone prompts on a 2.5 s budget: 5 s for one sentence, body included, 3 s for any gap in the stream. */
 export const deadlines: Deadlines = { callMs: 5_000, stallMs: 3_000 };
 
 const body = obj({

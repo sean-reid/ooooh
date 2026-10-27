@@ -174,7 +174,7 @@ struct Outcome {
     recorded = replay
     decisions = replay
   } else {
-    config.floor = .init(min: 0, max: 0)
+    config = config.floorsOff
     decisions = OracleDecisionProvider(labels: run.labels)
   }
   let signals = SignalRecordingProvider(decisions)

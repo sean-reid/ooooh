@@ -27,7 +27,7 @@ import Transcription
 
   @Test func matchesTheFixtureDriverAtInfiniteSpeed() async throws {
     let fixture = try base.fixture()
-    let deps = base.deps(base.firing(.deepen, afterUtteranceEnding: 14.0))
+    let deps = base.deps(base.firing(.deepen, afterUtterancesEnding: [80.6]))
     let expected = await FixtureDriver.run(fixture: fixture, config: .initial, dependencies: deps)
 
     let live = LiveSessionLoop(
@@ -48,14 +48,14 @@ import Transcription
       if case .promptArmed(let at, let k) = $0 { (at, k) } else { nil }
     }
     #expect(armed.count == 1)
-    #expect(armed.first?.0 == 14.0)
+    #expect(armed.first?.0 == 80.6)
     #expect(armed.first?.1 == .intervention(.deepen))
     let prompts = events.compactMap {
       if case .promptRequested(_, let text, let at) = $0 { (text, at) } else { nil }
     }
     #expect(prompts.count == 1)
     #expect(prompts.first?.0 == "What sits underneath that?")
-    #expect(prompts.first?.1 == 15.5)
+    #expect(prompts.first?.1 == 83.1)
   }
 
   @Test func timerFiresPauseChecksWhileNoSpeechArrives() async throws {

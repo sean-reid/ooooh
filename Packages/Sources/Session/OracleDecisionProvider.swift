@@ -2,6 +2,16 @@ import Foundation
 import Governor
 import State
 
+extension GovernorConfig {
+  /// The same numbers with the floor and the warm-up off, so every label gets its prompt.
+  public var floorsOff: GovernorConfig {
+    var config = self
+    config.floor = .init(min: 0, max: 0)
+    config.warmUp = 0
+    return config
+  }
+}
+
 /// Answers straight from the labels, once per label at the utterance end.
 /// Scores perfectly if the loop and the scorer agree, so it checks the harness, not the model.
 public struct OracleDecisionProvider: DecisionProvider {
