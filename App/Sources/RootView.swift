@@ -22,7 +22,7 @@ struct RootView: View {
     @State private var isRecordingFixture = false
   #endif
 
-  private let store = AppStore.shared
+  private var store: SessionStore? { AppStore.shared.current }
   private var billing: BillingStore { AppBilling.store }
   private let launch: LaunchWork
 

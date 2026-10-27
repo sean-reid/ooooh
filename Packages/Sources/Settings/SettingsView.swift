@@ -8,6 +8,7 @@ public struct SettingsView: View {
   var store: SessionStore
   var version: String
   var transcription: String?
+  var cloudSync: CloudSyncState
   var subscribeAction: () -> Void
   var openHistory: () -> Void
   var onDone: (() -> Void)?
@@ -24,18 +25,20 @@ public struct SettingsView: View {
   public static let siteURL = URL(string: "https://ooooh.app")!
   public static let termsURL = URL(string: "https://ooooh.app/terms.html")!
 
-  /// `transcription` names the engine Start runs on this phone; `subscribeAction` opens the
-  /// paywall; `openHistory` opens the list where one session can be deleted; `onDone` adds a
-  /// Done button when the screen is presented as a sheet.
+  /// `transcription` names the engine Start runs on this phone; `cloudSync` is what the iCloud row
+  /// says; `subscribeAction` opens the paywall; `openHistory` opens the list where one session can
+  /// be deleted; `onDone` adds a Done button when the screen is presented as a sheet.
   public init(
     settings: AppSettings, store: SessionStore, version: String = SettingsView.bundleVersion,
-    transcription: String? = nil, subscribeAction: @escaping () -> Void,
-    openHistory: @escaping () -> Void, onDone: (() -> Void)? = nil
+    transcription: String? = nil, cloudSync: CloudSyncState,
+    subscribeAction: @escaping () -> Void, openHistory: @escaping () -> Void,
+    onDone: (() -> Void)? = nil
   ) {
     self.settings = settings
     self.store = store
     self.version = version
     self.transcription = transcription
+    self.cloudSync = cloudSync
     self.subscribeAction = subscribeAction
     self.openHistory = openHistory
     self.onDone = onDone
@@ -43,12 +46,13 @@ public struct SettingsView: View {
 
   init(
     settings: AppSettings, store: SessionStore, version: String, transcription: String?,
-    sessionCount: Int?, subscribeAction: @escaping () -> Void,
+    cloudSync: CloudSyncState, sessionCount: Int?, subscribeAction: @escaping () -> Void,
     openHistory: @escaping () -> Void, onDone: (() -> Void)?
   ) {
     self.init(
       settings: settings, store: store, version: version, transcription: transcription,
-      subscribeAction: subscribeAction, openHistory: openHistory, onDone: onDone)
+      cloudSync: cloudSync, subscribeAction: subscribeAction, openHistory: openHistory,
+      onDone: onDone)
     _sessionCount = State(initialValue: sessionCount)
     scrolls = false
   }
@@ -90,9 +94,7 @@ public struct SettingsView: View {
     ) {
       Button("Delete everything", role: .destructive) { deleteEverything() }
     } message: {
-      Text(
-        "Removes every session, with its notes and transcript, from this phone. There is no undo."
-      )
+      Text(deleteMessage)
     }
   }
 
@@ -159,6 +161,12 @@ public struct SettingsView: View {
     SettingsSection(
       title: "Your data", footer: "The export is a zip with one Markdown file per session."
     ) {
+      Toggle(isOn: $settings.cloudSyncEnabled) {
+        RowLabel(title: "iCloud sync", detail: cloudSync.line)
+      }
+      .toggleStyle(SkyToggleStyle())
+      .accessibilityIdentifier("settings.cloudSync")
+      RowDivider()
       ShareLink(
         item: ExportFile(store: store),
         preview: SharePreview("ooooh export", image: Image(systemName: "doc.zipper"))
@@ -232,6 +240,11 @@ public struct SettingsView: View {
     case 1: "1 session on this phone"
     case let count?: "\(count) sessions on this phone"
     }
+  }
+
+  private var deleteMessage: String {
+    let from = cloudSync == .syncing ? "from this phone and from iCloud" : "from this phone"
+    return "Removes every session, with its notes and transcript, \(from). There is no undo."
   }
 
   private var deleteTitle: String {
