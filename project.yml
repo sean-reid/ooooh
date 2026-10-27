@@ -159,6 +159,8 @@ schemes:
         "-worker-url https://api.ooooh.app": true
     test:
       config: Debug
+      environmentVariables:
+        OOOOH_SILENT_TESTS: "1"
       targets:
         - oooohTests
         - oooohUITests

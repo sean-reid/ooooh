@@ -11,6 +11,10 @@
       case finished(at: Date, rendered: AVAudioFramePosition)
     }
 
+    /// OOOOH_SILENT_TESTS=1 mutes the mixer; the player renders and the normalizer levels the line as before.
+    public static let mutedByEnvironment =
+      ProcessInfo.processInfo.environment["OOOOH_SILENT_TESTS"] == "1"
+
     public nonisolated let events: AsyncStream<Event>
     /// The line being spoken, for the caption. Nil between prompts.
     public private(set) var text: String?
@@ -22,6 +26,7 @@
 
     private let emit: AsyncStream<Event>.Continuation
     private let output: AVAudioFormat
+    private let muted: Bool
     /// Built by the first line, so a session that never speaks never opens the audio server.
     private var engine: AVAudioEngine?
     private var player: AVAudioPlayerNode?
@@ -33,16 +38,20 @@
     private var feeding: Task<Void, Error>?
     private var done: CheckedContinuation<Void, Never>?
 
-    public init() {
+    public init(muted: Bool = PromptSpeaker.mutedByEnvironment) {
       (events, emit) = AsyncStream.makeStream(of: Event.self)
       guard let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) else {
         preconditionFailure("mono 44.1 kHz float is always available")
       }
       output = format
+      self.muted = muted
     }
 
     /// True once a line has built the engine graph.
     public var hasEngine: Bool { engine != nil }
+
+    /// The mixer's gain, 0 when muted. Nil until a line has built the graph.
+    var outputVolume: Float? { engine?.mainMixerNode.outputVolume }
 
     private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "audio")
     private var bytes = 0
@@ -133,6 +142,7 @@
       let player = AVAudioPlayerNode()
       engine.attach(player)
       engine.connect(player, to: engine.mainMixerNode, format: output)
+      if muted { engine.mainMixerNode.outputVolume = 0 }
       engine.prepare()
       self.engine = engine
       self.player = player

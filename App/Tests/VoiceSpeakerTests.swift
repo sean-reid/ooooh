@@ -90,6 +90,7 @@ import Testing
       for await event in speaker.speak(text: line) { events.append(event) }
     }
     print("the line played in \(took)")
+    #expect(ProcessInfo.processInfo.environment["OOOOH_SILENT_TESTS"] == "1")
     #expect(events == [.started, .finished])
     #expect(transport.ended == ["finished"])
     #expect(await speaker.hasEngine)

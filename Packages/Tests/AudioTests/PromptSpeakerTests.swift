@@ -115,6 +115,31 @@
       #expect(await speaker.rendered == nil)
       #expect(await speaker.text == nil)
       #expect(await speaker.hasEngine)
+      #expect(await speaker.outputVolume == 0)
+      #expect(gain > 3 && gain < 5)
+    }
+
+    /// The mute sits on the mixer, after the normalizer and the player's frame clock.
+    @Test func muteLeavesTheFrameCountAndTheLineGainAlone() async throws {
+      let speaker = PromptSpeaker(muted: true)
+      var events = speaker.events.makeAsyncIterator()
+      try await speaker.speak(text, audio: try network { _ in })
+      var rendered: AVAudioFramePosition = -1
+      while let event = await events.next() {
+        if case .finished(_, let frames) = event {
+          rendered = frames
+          break
+        }
+      }
+      var reference = LoudnessNormalizer()
+      for pcm in try Fixture.decoded(chunked: 1024) { reference.apply(to: pcm) }
+      let frames = try Fixture.frames(chunked: 1024)
+      let gain = await speaker.lineGainDB
+      print("muted line rendered \(rendered) of \(frames) frames at \(gain) dB")
+      #expect(await speaker.outputVolume == 0)
+      #expect(rendered >= frames - slack)
+      #expect(rendered <= frames + lateness)
+      #expect(abs(gain - reference.gainDB) < 0.01)
       #expect(gain > 3 && gain < 5)
     }
 
