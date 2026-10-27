@@ -19,6 +19,7 @@ let package = Package(
     .library(name: "Settings", targets: ["Settings"]),
     .library(name: "TestSupport", targets: ["TestSupport"]),
     .executable(name: "eval", targets: ["eval"]),
+    .executable(name: "transcribe", targets: ["transcribe"]),
     .executable(name: "render-icon", targets: ["render-icon"]),
   ],
   dependencies: [
@@ -39,6 +40,15 @@ let package = Package(
     .target(name: "Billing", dependencies: ["Design", "Proxy"]),
     .target(name: "Settings", dependencies: ["Persistence", "Design", "Notes"]),
     .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
+    // The speech recognizer needs a usage description, which a command-line tool carries in an embedded Info.plist.
+    .executableTarget(
+      name: "transcribe", dependencies: ["Session", "Transcription"], exclude: ["Info.plist"],
+      linkerSettings: [
+        .unsafeFlags([
+          "-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist",
+          "-Xlinker", "Sources/transcribe/Info.plist",
+        ])
+      ]),
     .executableTarget(name: "render-icon", dependencies: ["Design"]),
     .target(
       name: "TestSupport",
