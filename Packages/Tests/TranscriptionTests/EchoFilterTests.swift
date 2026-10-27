@@ -59,13 +59,42 @@ import Testing
     #expect(await collect(filter) == later + [.ended])
   }
 
-  @Test func aRealUtteranceDuringTheLinePassesWithItsStart() async {
+  @Test func aRealUtteranceDuringTheLinePassesOnceItHasThreeWords() async {
     let real = utterance(
       ["I think", "I think the price is wrong"], from: 10.5, to: 12.0)
     let filter = EchoFilter(ScriptedTranscriber(real + [.ended]))
     filter.spoke(line, from: 10.0)
 
-    #expect(await collect(filter) == real + [.ended])
+    let passed = await collect(filter)
+    #expect(passed.first == .speechStarted(at: 10.5))
+    #expect(
+      passed.contains(
+        .segment(Segment(text: "I think the price is wrong", start: 10.5, end: 12.0, isFinal: true))
+      ))
+    #expect(
+      !passed.contains(.segment(Segment(text: "I think", start: 10.5, end: 12.0, isFinal: false))))
+    #expect(passed.last == .ended)
+  }
+
+  @Test func aShortFragmentDuringTheLineIsDroppedWhateverItSays() async {
+    let filter = EchoFilter(ScriptedTranscriber([]))
+    filter.spoke(line, from: 10.0)
+    let fragment = Segment(text: "Whats", start: 10.5, end: 10.8, isFinal: false)
+    let outside = Segment(text: "Whats", start: 20.0, end: 20.3, isFinal: false)
+
+    #expect(filter.filter(.segment(fragment)).isEmpty)
+    filter.finishedSpeaking(at: 12.0)
+    #expect(filter.filter(.segment(outside)) == [.segment(outside)])
+  }
+
+  @Test func aPrefixCountsAsTheSameWord() async {
+    let filter = EchoFilter(ScriptedTranscriber([]))
+    filter.spoke(line, from: 10.0)
+    let heard = Segment(text: "whats sits under the", start: 10.5, end: 11, isFinal: false)
+    let other = Segment(text: "I think the price", start: 10.5, end: 11, isFinal: false)
+
+    #expect(filter.filter(.segment(heard)).isEmpty)
+    #expect(filter.filter(.segment(other)) == [.segment(other)])
   }
 
   @Test func anUtteranceThatStartsAsEchoKeepsTheUsersWordsFromTheFirstRealSegment() async {

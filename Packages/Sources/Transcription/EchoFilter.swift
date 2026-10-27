@@ -8,6 +8,9 @@ public final class EchoFilter: Transcriber, Sendable {
   static let tail: TimeInterval = 1.0
   /// The fraction of a segment's words that must be in the line for the segment to be echo.
   static let threshold = 0.6
+  /// A fragment shorter than this inside a line's window is too little to judge and is dropped;
+  /// the recognizer's next, longer result carries the same words again.
+  static let minimumWords = 3
 
   private let base: any Transcriber
   private let state = Mutex(State())
@@ -106,6 +109,13 @@ public final class EchoFilter: Transcriber, Sendable {
     var start: TimeInterval
     var end: TimeInterval?
 
+    /// Equal, or one word a prefix of the other from three letters on, so "whats" meets "what".
+    func matches(_ word: String) -> Bool {
+      if words.contains(word) { return true }
+      guard word.count >= 3 else { return false }
+      return words.contains { $0.count >= 3 && ($0.hasPrefix(word) || word.hasPrefix($0)) }
+    }
+
     func covers(_ time: TimeInterval) -> Bool {
       guard time >= start - leadIn else { return false }
       guard let end else { return true }
@@ -137,16 +147,19 @@ public final class EchoFilter: Transcriber, Sendable {
       return [.speechStarted(at: held)]
     }
 
-    /// The best match among the lines whose window holds the segment's start, when it clears the threshold.
+    /// The best match among the lines whose window holds the segment's start, when it clears the
+    /// threshold or the segment is too short to judge.
     mutating func echo(_ segment: Segment) -> Echo? {
       lines.removeAll { $0.isPast(segment.start) }
       let words = EchoFilter.words(in: segment.text)
       guard !words.isEmpty else { return nil }
+      let covering = lines.filter { $0.covers(segment.start) }
+      guard !covering.isEmpty else { return nil }
       let overlap =
-        lines.filter { $0.covers(segment.start) }
-        .map { line in Double(words.count { line.words.contains($0) }) / Double(words.count) }
-        .max() ?? 0
-      guard overlap >= threshold else { return nil }
+        covering.map { line in
+          Double(words.count { line.matches($0) }) / Double(words.count)
+        }.max() ?? 0
+      guard overlap >= threshold || words.count < minimumWords else { return nil }
       return Echo(overlap: overlap, words: words.count)
     }
   }
