@@ -24,6 +24,7 @@ extension SessionController.Environment {
       environment.attestor = environment.workerURL.map { _ in DeferredAttestor() }
       environment.settings = AppSettings()
       environment.freeSessions = AppBilling.freeSessions
+      environment.media = SystemMediaControls()
       #if DEBUG
         environment.forceVoice = UserDefaults.standard.bool(forKey: "force-voice")
         if UserDefaults.standard.bool(forKey: "free-exhausted") { environment.gate = .exhausted }
