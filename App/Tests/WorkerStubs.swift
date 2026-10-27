@@ -1,10 +1,9 @@
 import Foundation
 import Synchronization
-import Testing
+import TestSupport
 
 /// Answers the Worker routes by host and path, so the tests run side by side; an unanswered
-/// path is a 404 and the end a 204. Reads each body back, since URLSession hands it over as
-/// a stream.
+/// path is a 404 and the end a 204.
 final class GateProtocol: URLProtocol {
   struct Request: Sendable {
     var host: String
@@ -24,11 +23,7 @@ final class GateProtocol: URLProtocol {
     answers.withLock { $0[host, default: [:]][path] = (status, body) }
   }
 
-  static func session() -> URLSession {
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [GateProtocol.self]
-    return URLSession(configuration: configuration)
-  }
+  static func session() -> URLSession { .stubbed(by: GateProtocol.self) }
 
   static func requests(to host: String) -> [Request] {
     seen.withLock { $0.filter { $0.host == host } }
@@ -43,7 +38,8 @@ final class GateProtocol: URLProtocol {
     Self.seen.withLock {
       $0.append(
         Request(
-          host: host, path: path, headers: request.allHTTPHeaderFields ?? [:], body: readBody()))
+          host: host, path: path, headers: request.allHTTPHeaderFields ?? [:],
+          body: request.bodyBytes))
     }
     let (status, body): (Int, Data) =
       Self.answers.withLock { $0[host]?[path] }
@@ -56,64 +52,4 @@ final class GateProtocol: URLProtocol {
   }
 
   override func stopLoading() {}
-
-  private func readBody() -> Data {
-    guard let stream = request.httpBodyStream else { return request.httpBody ?? Data() }
-    stream.open()
-    defer { stream.close() }
-    var data = Data()
-    var buffer = [UInt8](repeating: 0, count: 4096)
-    while stream.hasBytesAvailable {
-      let read = stream.read(&buffer, maxLength: buffer.count)
-      if read <= 0 { break }
-      data.append(buffer, count: read)
-    }
-    return data
-  }
-}
-
-/// Refuses every request at once, so going offline does not depend on the host's network stack.
-final class UnreachableProtocol: URLProtocol {
-  /// Every path refused, with the seconds since the first, for the failure message.
-  static let seen = Mutex<[String]>([])
-  static let started = Mutex<Date?>(nil)
-
-  static func session() -> URLSession {
-    seen.withLock { $0 = [] }
-    started.withLock { $0 = nil }
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.protocolClasses = [UnreachableProtocol.self]
-    return URLSession(configuration: configuration)
-  }
-
-  override class func canInit(with request: URLRequest) -> Bool { true }
-  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-  override func startLoading() {
-    let now = Date()
-    let first = Self.started.withLock { started -> Date in
-      if let started { return started }
-      started = now
-      return now
-    }
-    let path = request.url?.path ?? "?"
-    Self.seen.withLock {
-      $0.append("\(path)@\(String(format: "%.2f", now.timeIntervalSince(first)))s")
-    }
-    client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
-  }
-  override func stopLoading() {}
-}
-
-/// Polls until `condition` holds, and records a failure at the caller when `seconds` pass first.
-@MainActor func wait(
-  _ condition: @MainActor () -> Bool, seconds: Double = 10,
-  sourceLocation: SourceLocation = #_sourceLocation
-) async {
-  let deadline = ContinuousClock.now + .seconds(seconds)
-  while !condition(), ContinuousClock.now < deadline {
-    try? await Task.sleep(for: .milliseconds(10))
-  }
-  if !condition() {
-    Issue.record("the condition did not hold within \(seconds) s", sourceLocation: sourceLocation)
-  }
 }

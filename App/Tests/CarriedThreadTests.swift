@@ -17,8 +17,6 @@ import Transcription
   let policy = CompactionPolicy(everySeconds: 30, everyWords: 600)
   let secondCompaction: TimeInterval = 60.2
 
-  final class Marker {}
-
   /// One patch per compaction from `script`, keeping the state each one was handed.
   final class ScriptedCompactor: Compactor, Sendable {
     let states = Mutex<[CompactState]>([])
@@ -53,9 +51,7 @@ import Transcription
   }
 
   func fixture() throws -> FixtureTranscriber.Fixture {
-    let url = try #require(
-      Bundle(for: Marker.self).url(forResource: "short", withExtension: "json"))
-    return try JSONDecoder().decode(FixtureTranscriber.Fixture.self, from: Data(contentsOf: url))
+    try Bundle.tests.fixture("short.json", as: FixtureTranscriber.Fixture.self)
   }
 
   /// A thread the way the carryover card offers one: saved with an earlier session's notes.

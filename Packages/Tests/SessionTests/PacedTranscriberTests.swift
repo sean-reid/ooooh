@@ -1,4 +1,5 @@
 import Foundation
+import TestSupport
 import Testing
 import Transcription
 
@@ -14,7 +15,7 @@ import Transcription
     for segment in fixture.segments where segment.isFinal {
       for expected in [segment.start, segment.end] {
         let due = TestClock.Instant(offset: .seconds(expected / 40))
-        while clock.sleeping == 0 { await Task.yield() }
+        await wait { clock.sleeping > 0 }
         clock.advance(to: due)
         let event = await iterator.next()
         #expect(clock.now == due)

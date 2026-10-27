@@ -1,6 +1,7 @@
 import Foundation
 import Governor
 import State
+import TestSupport
 import Testing
 import Transcription
 
@@ -72,9 +73,9 @@ import Transcription
     continuation.yield(.segment(Segment(text: "one", start: 0, end: 0.5, isFinal: true)))
     continuation.yield(.speechEnded(at: 0.5))
     _ = await iterator.next(until: \.isSpeechEnded)
-    while clock.sleeping == 0 { await Task.yield() }
+    await wait { clock.sleeping > 0 }
     clock.advance(to: .init(offset: .seconds(2.3)))
-    while clock.sleeping == 0 { await Task.yield() }
+    await wait { clock.sleeping > 0 }
     await live.end()
     let result = try result(of: await iterator.rest())
 
@@ -126,7 +127,7 @@ import Transcription
     _ = await iterator.next(until: \.isSpeechEnded)
     input.yield(.speechStarted(at: 1.0))
     input.yield(.segment(Segment(text: "and that", start: 1.0, end: 1.4, isFinal: false)))
-    while clock.sleeping == 0 { await Task.yield() }
+    await wait { clock.sleeping > 0 }
     await live.end()
     let events = await iterator.rest()
     let result = try result(of: events)
@@ -153,9 +154,9 @@ import Transcription
     input.yield(.segment(Segment(text: "one", start: 0, end: 0.5, isFinal: true)))
     input.yield(.speechEnded(at: 0.5))
     _ = await iterator.next(until: \.isSpeechEnded)
-    while clock.sleeping == 0 { await Task.yield() }
+    await wait { clock.sleeping > 0 }
     let ending = Task { await live.end() }
-    while !clock.deadlines.contains(LiveSessionLoop.stopGrace) { await Task.yield() }
+    await wait { clock.deadlines.contains(LiveSessionLoop.stopGrace) }
     #expect(clock.deadlines == [LiveSessionLoop.stopGrace])
     clock.advance(by: LiveSessionLoop.stopGrace - .milliseconds(1))
     #expect(clock.sleeping == 1)

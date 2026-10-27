@@ -1,6 +1,8 @@
 #if os(iOS) && canImport(StoreKitTest)
   import StoreKit
   import StoreKitTest
+  import TestSupport
+  import Testing
   import XCTest
 
   @testable import Billing
@@ -82,7 +84,9 @@
 
     func testUpdatesStreamSeesAPurchaseMadeOutsideTheStore() async throws {
       _ = try await session.buyProduct(identifier: ProductID.monthly.rawValue)
-      try await waitUntil("the store sees the purchase") { store.entitlement.isPaid }
+      await TestSupport.wait(for: "the store sees the purchase", seconds: 5) {
+        store.entitlement.isPaid
+      }
     }
 
     func testGracePeriodKeepsAccess() async throws {
@@ -93,16 +97,6 @@
       await store.refresh()
       XCTAssertEqual(store.entitlement, .inGrace)
       XCTAssertTrue(store.entitlement.isPaid)
-    }
-
-    private func waitUntil(
-      _ what: String, timeout: Duration = .seconds(5), _ condition: () -> Bool
-    ) async throws {
-      let deadline = ContinuousClock.now + timeout
-      while !condition() {
-        if ContinuousClock.now > deadline { return XCTFail("timed out waiting for \(what)") }
-        try await Task.sleep(for: .milliseconds(50))
-      }
     }
   }
 #endif

@@ -3,22 +3,17 @@ import Foundation
 import Governor
 import Notes
 import State
+import TestSupport
 import Testing
 
 @testable import Proxy
 
-/// A file the Worker wrote with `WRITE_FIXTURES=1 npx vitest run --project node`.
-func fixture(_ name: String, _ ext: String) throws -> Data {
-  let url = try #require(
-    Bundle.module.url(forResource: name, withExtension: ext, subdirectory: "Fixtures"))
-  return try Data(contentsOf: url)
-}
-
-/// Decodes what the Worker emits.
+/// Decodes what the Worker emits, read from the files it wrote with
+/// `WRITE_FIXTURES=1 npx vitest run --project node`.
 @Suite struct ProxyTests {
   @Test func decideDecodesIntoJevAnswers() throws {
     let response = try JSONDecoder().decode(
-      JevDecisionProvider.Response.self, from: fixture("decide", "json"))
+      JevDecisionProvider.Response.self, from: Bundle.module.fixture("decide.json"))
     #expect(response.questionsVersion == 2)
     #expect(response.answers.cues["hangingQuestion"] == 0.61)
     #expect(response.answers.cues.count == 5)
@@ -34,7 +29,7 @@ func fixture(_ name: String, _ ext: String) throws -> Data {
 
   @Test func compactDecodesIntoAPatchThatApplies() throws {
     let response = try JSONDecoder().decode(
-      HaikuCompactor.Response.self, from: fixture("compact", "json"))
+      HaikuCompactor.Response.self, from: Bundle.module.fixture("compact.json"))
     #expect(response.patch.mode == .converging)
     #expect(response.patch.add.map(\.list) == [.uncertainties])
     #expect(response.usage == ProviderUsage(inputTokens: 980, outputTokens: 120))
@@ -45,7 +40,7 @@ func fixture(_ name: String, _ ext: String) throws -> Data {
 
   @Test func notesDecodeIntoSessionNotes() throws {
     let response = try JSONDecoder().decode(
-      OpusNotesGenerator.Response.self, from: fixture("notes", "json"))
+      OpusNotesGenerator.Response.self, from: Bundle.module.fixture("notes.json"))
     let notes = response.notes
     #expect(notes.title == "Queue or sync layer")
     #expect(notes.summary == nil)
@@ -58,7 +53,7 @@ func fixture(_ name: String, _ ext: String) throws -> Data {
 
   @Test func phraseDecodesToOneShortSentence() throws {
     let response = try JSONDecoder().decode(
-      SonnetPhraser.Response.self, from: fixture("phrase", "json"))
+      SonnetPhraser.Response.self, from: Bundle.module.fixture("phrase.json"))
     #expect(response.text.split(separator: " ").count <= 15)
     #expect(response.text.hasSuffix("?"))
   }
@@ -73,7 +68,8 @@ func fixture(_ name: String, _ ext: String) throws -> Data {
       var canonical: String
       var hash: String
     }
-    let signed = try JSONDecoder().decode(Signed.self, from: fixture("clientdata", "json"))
+    let signed = try JSONDecoder().decode(
+      Signed.self, from: Bundle.module.fixture("clientdata.json"))
     let clientData = ClientData(
       method: signed.method, path: signed.path, time: signed.time,
       bodyHash: Data(SHA256.hash(data: Data(signed.body.utf8))))
@@ -82,7 +78,7 @@ func fixture(_ name: String, _ ext: String) throws -> Data {
   }
 
   @Test func phraseStreamParsesDeltasThenDone() async throws {
-    let text = String(decoding: try fixture("phrase", "sse"), as: UTF8.self)
+    let text = String(decoding: try Bundle.module.fixture("phrase.sse"), as: UTF8.self)
     let lines = AsyncStream<String> { continuation in
       for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
         continuation.yield(String(line))

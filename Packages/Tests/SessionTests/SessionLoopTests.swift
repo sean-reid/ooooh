@@ -1,18 +1,15 @@
 import Foundation
 import Governor
 import State
+import TestSupport
 import Testing
 import Transcription
 
 @testable import Session
 
 @Suite struct SessionLoopTests {
-  static let fixtureURL = Bundle.module.url(
-    forResource: "short", withExtension: "json", subdirectory: "Fixtures")!
-
   func fixture() throws -> FixtureTranscriber.Fixture {
-    try JSONDecoder().decode(
-      FixtureTranscriber.Fixture.self, from: Data(contentsOf: Self.fixtureURL))
+    try Bundle.module.fixture("short.json", as: FixtureTranscriber.Fixture.self)
   }
 
   func deps(_ decisions: any DecisionProvider) -> SessionLoop.Dependencies {
@@ -142,9 +139,9 @@ import Transcription
     await loop.handle(.segment(Segment(text: "first", start: 0, end: 1, isFinal: true)))
     let second = Segment(text: "and the last", start: 300, end: 301, isFinal: true)
     let handling = Task { await loop.handle(.segment(second)) }
-    while await compactor.calls.count < 1 { await Task.yield() }
+    await wait { await compactor.calls.count >= 1 }
     let ending = Task { await loop.finish() }
-    while await !loop.ending { await Task.yield() }
+    await wait { await loop.ending }
     await compactor.release()
     await handling.value
     let result = await ending.value
@@ -166,11 +163,11 @@ import Transcription
     let first = Task {
       await loop.handle(.segment(Segment(text: "first", start: 300, end: 301, isFinal: true)))
     }
-    while await compactor.calls.count < 1 { await Task.yield() }
+    await wait { await compactor.calls.count >= 1 }
     let second = Task {
       await loop.handle(.segment(Segment(text: "second", start: 302, end: 303, isFinal: true)))
     }
-    while await loop.uncompacted.count < 2 { await Task.yield() }
+    await wait { await loop.uncompacted.count >= 2 }
     await compactor.release()
     await first.value
     await second.value

@@ -6,6 +6,8 @@ struct SessionView: View {
   let controller: SessionController
   /// A fixed time renders one still orb, as the snapshots do.
   var orbTime: TimeInterval?
+  /// A fixed elapsed time renders one clock reading, as the snapshots do.
+  var elapsed: TimeInterval?
   @ScaledMetric(relativeTo: .title2) private var promptMinHeight = 72
 
   var body: some View {
@@ -46,7 +48,7 @@ struct SessionView: View {
 
   private var clock: some View {
     TimelineView(.periodic(from: .now, by: 1)) { context in
-      let text = Self.clockText(controller.elapsed(at: context.date))
+      let text = Self.clockText(elapsed ?? controller.elapsed(at: context.date))
       Text(text)
         .font(Typography.caption)
         .monospacedDigit()

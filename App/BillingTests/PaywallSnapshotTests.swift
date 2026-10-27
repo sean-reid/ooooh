@@ -1,6 +1,7 @@
 import Foundation
 import SnapshotTesting
 import SwiftUI
+import TestSupport
 import Testing
 import UIKit
 
@@ -22,8 +23,7 @@ import UIKit
       }
       var subscriptionGroups: [Group]
     }
-    let url = Bundle(for: Marker.self).url(forResource: "Products", withExtension: "storekit")!
-    let catalog = try! JSONDecoder().decode(Catalog.self, from: Data(contentsOf: url))
+    let catalog = try! Bundle(for: Marker.self).fixture("Products.storekit", as: Catalog.self)
     let dollars = Decimal.FormatStyle.Currency(code: "USD", locale: Locale(identifier: "en_US"))
     let plans = catalog.subscriptionGroups.flatMap(\.subscriptions).compactMap { product in
       guard let id = ProductID(rawValue: product.productID),
@@ -45,60 +45,42 @@ import UIKit
 
   @Test(arguments: [ColorScheme.dark, .light])
   func paywall(scheme: ColorScheme) {
-    let image = render(scheme: scheme)
-    assertSnapshot(
-      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-      named: "402-\(scheme.name)")
+    assertSnapshot(of: render(scheme: scheme), as: .pixels, named: "402-\(scheme.name)")
   }
 
   @Test(arguments: [ColorScheme.dark, .light])
   func paywallAccessibility3(scheme: ColorScheme) {
-    let image = render(scheme: scheme, type: .accessibility3)
     assertSnapshot(
-      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+      of: render(scheme: scheme, type: .accessibility3), as: .pixels,
       named: "402-accessibility3-\(scheme.name)")
   }
 
   @Test(arguments: [ColorScheme.dark, .light])
   func paywallWithoutPlans(scheme: ColorScheme) {
-    let image = render(store: BillingStore(plans: []), scheme: scheme)
     assertSnapshot(
-      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
+      of: render(store: BillingStore(plans: []), scheme: scheme), as: .pixels,
       named: "402-\(scheme.name)")
   }
 
   @Test(arguments: [ColorScheme.dark, .light])
   func paywallLoading(scheme: ColorScheme) {
-    let image = render(store: BillingStore(plans: [], hasLoadedPlans: false), scheme: scheme)
     assertSnapshot(
-      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-      named: "402-\(scheme.name)")
+      of: render(store: BillingStore(plans: [], hasLoadedPlans: false), scheme: scheme),
+      as: .pixels, named: "402-\(scheme.name)")
   }
 
   @Test(arguments: [ColorScheme.dark, .light])
   func paywallUnconfirmed(scheme: ColorScheme) {
     let store = BillingStore(plans: Self.plans, confirmation: .refused(reason: "wrong-device"))
-    let image = render(store: store, scheme: scheme)
     assertSnapshot(
-      of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-      named: "402-\(scheme.name)")
+      of: render(store: store, scheme: scheme), as: .pixels, named: "402-\(scheme.name)")
   }
 
   private func render(
-    store: BillingStore? = nil, scheme: ColorScheme, width: CGFloat = 402, height: CGFloat = 874,
-    type: DynamicTypeSize = .large
+    store: BillingStore? = nil, scheme: ColorScheme, type: DynamicTypeSize = .large
   ) -> UIImage {
     var view = PaywallView(store: store ?? BillingStore(plans: Self.plans)) {}
     view.scrolls = false
-    let renderer = ImageRenderer(
-      content: view.frame(width: width, height: height).environment(\.colorScheme, scheme)
-        .dynamicTypeSize(type))
-    renderer.scale = 2
-    renderer.proposedSize = ProposedViewSize(width: width, height: height)
-    return renderer.uiImage ?? UIImage()
+    return TestSupport.render(view, scheme: scheme, type: type)
   }
-}
-
-extension ColorScheme {
-  fileprivate var name: String { self == .dark ? "dark" : "light" }
 }

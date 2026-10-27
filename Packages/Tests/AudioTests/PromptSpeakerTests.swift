@@ -2,6 +2,7 @@
   import AVFAudio
   import Foundation
   import Synchronization
+  import TestSupport
   import Testing
 
   @testable import Audio
@@ -61,14 +62,6 @@
       }
 
       var all: [String] { reasons.withLock { $0 } }
-    }
-
-    /// Polls until `condition` holds, two seconds at most.
-    func wait(for condition: () async -> Bool) async {
-      let deadline = ContinuousClock.now + .seconds(2)
-      while await !condition(), ContinuousClock.now < deadline {
-        try? await Task.sleep(for: .milliseconds(5))
-      }
     }
 
     @Test func buildsNoEngineUntilALineIsSpoken() async {

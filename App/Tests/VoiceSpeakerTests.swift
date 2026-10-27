@@ -1,5 +1,6 @@
 import Foundation
 import Synchronization
+import TestSupport
 import Testing
 
 @testable import ooooh
@@ -7,8 +8,6 @@ import Testing
 /// The real actor over its player. The scripted transport streams the AudioTests line.mp3 the way
 /// bytes land from the Worker; the simulator's engine renders it.
 @Suite(.serialized) struct VoiceSpeakerTests {
-  final class Marker {}
-
   let line = "Which part feels least clear, the queue or the sync?"
 
   /// How each audio stream ended: `cancelled` when the player dropped it.
@@ -51,9 +50,7 @@ import Testing
     var ended: [String] { endings.all }
 
     init() throws {
-      let url = try #require(
-        Bundle(for: Marker.self).url(forResource: "line", withExtension: "mp3"))
-      let data = try Data(contentsOf: url)
+      let data = try Bundle.tests.fixture("line.mp3")
       chunks = stride(from: 0, to: data.count, by: 1024).map {
         data[$0..<min($0 + 1024, data.count)]
       }

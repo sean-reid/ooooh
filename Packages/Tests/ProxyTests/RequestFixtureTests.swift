@@ -2,6 +2,7 @@ import Foundation
 import Governor
 import Session
 import State
+import TestSupport
 import Testing
 import Transcription
 
@@ -11,12 +12,8 @@ extension StubbedTransportTests {
   /// The bodies the phone posts, one per route, for the Worker's node project to run through its
   /// validators. Regenerate with `WRITE_REQUEST_FIXTURES=1 swift test --package-path Packages`.
   @Suite struct RequestFixtureTests {
-    let client: ProxyClient = {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [StubProtocol.self]
-      return ProxyClient(
-        baseURL: URL(string: "https://ooooh.test")!, session: URLSession(configuration: config))
-    }()
+    let client = ProxyClient(
+      baseURL: URL(string: "https://ooooh.test")!, session: StubProtocol.session())
 
     static let requestsDir = URL(filePath: #filePath).deletingLastPathComponent()
       .appending(path: "Fixtures/requests")
@@ -44,27 +41,27 @@ extension StubbedTransportTests {
         signals: Signals(
           now: 135.5, pauseLength: 2.5, speechDensity: 0.6, wordsSoFar: 27, promptsSoFar: 1,
           secondsSincePrompt: 75.5), checkIndex: 0)
-      try await compare("decide", reply: fixture("decide", "json")) {
+      try await compare("decide", reply: Bundle.module.fixture("decide.json")) {
         _ = try await JevDecisionProvider(client: client).decide(input)
       }
     }
 
     @Test func compact() async throws {
-      try await compare("compact", reply: fixture("compact", "json")) {
+      try await compare("compact", reply: Bundle.module.fixture("compact.json")) {
         _ = try await HaikuCompactor(client: client).compact(
           state: Self.state, transcript: Self.segments)
       }
     }
 
     @Test func phrase() async throws {
-      try await compare("phrase", reply: fixture("phrase", "json")) {
+      try await compare("phrase", reply: Bundle.module.fixture("phrase.json")) {
         _ = try await SonnetPhraser(client: client).phrase(
           .clarify, state: Self.state, recent: Self.segments)
       }
     }
 
     @Test func notes() async throws {
-      try await compare("notes", reply: fixture("notes", "json")) {
+      try await compare("notes", reply: Bundle.module.fixture("notes.json")) {
         _ = try await OpusNotesGenerator(client: client).generate(
           state: Self.state, transcript: Self.segments)
       }
@@ -78,7 +75,7 @@ extension StubbedTransportTests {
     }
 
     @Test func sessionStart() async throws {
-      try await compare("session-start", reply: fixture("session-start-free", "json")) {
+      try await compare("session-start", reply: Bundle.module.fixture("session-start-free.json")) {
         _ = try await client.startSession()
       }
     }
@@ -89,7 +86,7 @@ extension StubbedTransportTests {
       async throws
     {
       StubProtocol.reply = .init(status: 200, chunks: [reply])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
       try await send()
       let request = try #require(StubProtocol.seen.withLock { $0.first })
       let encoder = JSONEncoder()

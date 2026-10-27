@@ -1,6 +1,7 @@
 #if canImport(UIKit)
   import SnapshotTesting
   import SwiftUI
+  import TestSupport
   import Testing
   import UIKit
 
@@ -9,52 +10,40 @@
   /// Reference PNGs live in __Snapshots__ and are rendered on the iPhone 17 Pro simulator.
   @MainActor
   @Suite struct OnboardingSnapshotTests {
-    nonisolated static let looks:
-      [(name: String, width: CGFloat, height: CGFloat, scheme: ColorScheme)] = [
-        ("375", 375, 667, .dark), ("375", 375, 667, .light),
-        ("440", 440, 956, .dark), ("440", 440, 956, .light),
-      ]
+    nonisolated static let looks: [(device: Device, scheme: ColorScheme)] = [
+      (.small, .dark), (.small, .light), (.large, .dark), (.large, .light),
+    ]
 
     @Test(arguments: OnboardingPage.allCases, looks)
-    func page(
-      page: OnboardingPage,
-      look: (name: String, width: CGFloat, height: CGFloat, scheme: ColorScheme)
-    ) {
+    func page(page: OnboardingPage, look: (device: Device, scheme: ColorScheme)) {
       let image = render(
-        screen(page), width: look.width, height: look.height, scheme: look.scheme)
+        screen(page), width: look.device.width, height: look.device.height, scheme: look.scheme)
       assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "\(page.rawValue)-\(look.name)-\(look.scheme.name)")
+        of: image, as: .pixels, named: "\(page.rawValue)-\(look.device.name)-\(look.scheme.name)")
     }
 
     @Test(arguments: OnboardingPage.allCases, [ColorScheme.dark, .light])
     func pageAccessibility3(page: OnboardingPage, scheme: ColorScheme) {
-      let image = render(
-        screen(page), width: 402, height: 874, scheme: scheme, type: .accessibility3)
+      let image = render(screen(page), scheme: scheme, type: .accessibility3)
       assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "\(page.rawValue)-402-accessibility3-\(scheme.name)")
+        of: image, as: .pixels, named: "\(page.rawValue)-402-accessibility3-\(scheme.name)")
     }
 
     @Test(arguments: CaptureDenial.allCases, looks)
-    func recovery(
-      denial: CaptureDenial,
-      look: (name: String, width: CGFloat, height: CGFloat, scheme: ColorScheme)
-    ) {
+    func recovery(denial: CaptureDenial, look: (device: Device, scheme: ColorScheme)) {
       let image = render(
-        recoveryScreen(denial), width: look.width, height: look.height, scheme: look.scheme)
+        recoveryScreen(denial), width: look.device.width, height: look.device.height,
+        scheme: look.scheme)
       assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "\(denial.rawValue)-\(look.name)-\(look.scheme.name)")
+        of: image, as: .pixels,
+        named: "\(denial.rawValue)-\(look.device.name)-\(look.scheme.name)")
     }
 
     @Test(arguments: CaptureDenial.allCases, [ColorScheme.dark, .light])
     func recoveryAccessibility3(denial: CaptureDenial, scheme: ColorScheme) {
-      let image = render(
-        recoveryScreen(denial), width: 402, height: 874, scheme: scheme, type: .accessibility3)
+      let image = render(recoveryScreen(denial), scheme: scheme, type: .accessibility3)
       assertSnapshot(
-        of: image, as: .image(precision: 0.999, perceptualPrecision: 0.97),
-        named: "\(denial.rawValue)-402-accessibility3-\(scheme.name)")
+        of: image, as: .pixels, named: "\(denial.rawValue)-402-accessibility3-\(scheme.name)")
     }
 
     private func screen(_ page: OnboardingPage) -> some View {

@@ -1,5 +1,6 @@
 import Foundation
 import Speech
+import TestSupport
 import Testing
 
 @testable import Transcription
@@ -27,10 +28,7 @@ import Testing
     func cancelAll() { lock.withLock { cancelled += 1 } }
 
     func waitForRequests(_ count: Int) async {
-      let deadline = ContinuousClock.now + .seconds(2)
-      while requests < count, ContinuousClock.now < deadline {
-        try? await Task.sleep(for: .milliseconds(5))
-      }
+      await wait(for: "request \(count)") { requests >= count }
     }
 
     func report(_ result: RecognitionResult?, error: (any Error)? = nil, request: Int) async {

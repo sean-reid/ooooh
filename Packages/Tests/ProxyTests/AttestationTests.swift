@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import Synchronization
+import TestSupport
 import Testing
 
 @testable import Proxy
@@ -33,10 +34,8 @@ extension StubbedTransportTests {
     func client(
       _ attestor: any Attestor, offline: OfflineGuard? = nil, clock: WorkerClock = WorkerClock()
     ) -> ProxyClient {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [StubProtocol.self]
-      return ProxyClient(
-        baseURL: URL(string: "https://ooooh.test")!, session: URLSession(configuration: config),
+      ProxyClient(
+        baseURL: URL(string: "https://ooooh.test")!, session: StubProtocol.session(),
         attestor: attestor, offline: offline, clock: clock)
     }
 
@@ -67,7 +66,7 @@ extension StubbedTransportTests {
       var stale = stale
       stale.headers = ["Date": server.header]
       StubProtocol.queue.withLock { $0 = [stale, phrased] }
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
 
       let response: SonnetPhraser.Response = try await client(signing, clock: clock).post(
         "v1/phrase", body: ["kind": "clarify"])
@@ -87,7 +86,7 @@ extension StubbedTransportTests {
       let changes = clock.changes()
       StubProtocol.queue.withLock { $0 = [stale, stale] }
       StubProtocol.reply = phrased
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
 
       await #expect(throws: ProxyError.clockSkew) {
         let _: SonnetPhraser.Response = try await client(signing, clock: clock).post(
@@ -105,7 +104,7 @@ extension StubbedTransportTests {
     @Test func aStaleAnswerLeavesTheOfflineGuardOnline() async throws {
       let guardian = OfflineGuard()
       StubProtocol.queue.withLock { $0 = [stale, stale] }
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
 
       await #expect(throws: ProxyError.clockSkew) {
         let _: SonnetPhraser.Response = try await client(signing, offline: guardian).post(
@@ -121,7 +120,7 @@ extension StubbedTransportTests {
       let attestor = FakeAttestor(
         reply: Assertion(keyId: "key-1", assertion: Data([0xa2, 0x01, 0x02])))
       StubProtocol.reply = .init(status: 200, chunks: [Data(#"{"text":"Which part?"}"#.utf8)])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
 
       let before = Int(Date().timeIntervalSince1970)
       let response: SonnetPhraser.Response = try await client(attestor).post(
@@ -144,7 +143,7 @@ extension StubbedTransportTests {
     @Test func sendsNoAttestationHeadersWhenTheAttestorHasNone() async throws {
       let attestor = FakeAttestor(reply: nil)
       StubProtocol.reply = .init(status: 200, chunks: [Data(#"{"text":"Which part?"}"#.utf8)])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
 
       let _: SonnetPhraser.Response = try await client(attestor).post(
         "v1/phrase", body: ["kind": "clarify"])
@@ -159,7 +158,7 @@ extension StubbedTransportTests {
     @Test func anAttestorFailureCountsAgainstTheOfflineGuard() async throws {
       let guardian = OfflineGuard(failuresToTrip: 1)
       let attestor = FakeAttestor(reply: nil, failure: ProxyError.attestation("server-unavailable"))
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
       var client = client(attestor)
       client.offline = guardian
 

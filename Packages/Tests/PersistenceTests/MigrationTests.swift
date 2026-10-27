@@ -1,5 +1,6 @@
 import Foundation
 import Notes
+import TestSupport
 import Testing
 
 @testable import Persistence
@@ -8,9 +9,7 @@ import Testing
   /// `Fixtures/before-summary.store` holds two sessions from a schema with no
   /// `StoredSession.summary`: the pricing fixture with its notes, then Garden with none.
   @Test func aStoreWithoutTheSummaryColumnOpensAndTakesOne() async throws {
-    let fixture = try #require(
-      Bundle.module.url(
-        forResource: "before-summary", withExtension: "store", subdirectory: "Fixtures"))
+    let fixture = try Bundle.module.fixtureURL("before-summary.store")
     let directory = FileManager.default.temporaryDirectory
       .appendingPathComponent("ooooh-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

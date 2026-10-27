@@ -1,6 +1,7 @@
 import Foundation
 import Governor
 import State
+import TestSupport
 import Testing
 
 @testable import Proxy
@@ -8,16 +9,12 @@ import Testing
 extension StubbedTransportTests {
   /// `config.json` is what the Worker's `/v1/config` serves, written by its node project.
   @Suite struct ConfigTests {
-    let client: ProxyClient = {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [StubProtocol.self]
-      return ProxyClient(
-        baseURL: URL(string: "https://ooooh.test")!, session: URLSession(configuration: config))
-    }()
+    let client = ProxyClient(
+      baseURL: URL(string: "https://ooooh.test")!, session: StubProtocol.session())
 
     @Test func fetchesAndDecodesEveryField() async throws {
-      StubProtocol.reply = .init(status: 200, chunks: [try fixture("config", "json")])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reply = .init(status: 200, chunks: [try Bundle.module.fixture("config.json")])
+      StubProtocol.reset()
 
       let config = try await client.config()
 
@@ -48,7 +45,7 @@ extension StubbedTransportTests {
     /// Re-encoding what was decoded has to give the served object back, so a field added on one
     /// side and not the other shows up as a missing or extra key.
     @Test func servesExactlyTheFieldsTheDecoderReads() throws {
-      let served = try fixture("config", "json")
+      let served = try Bundle.module.fixture("config.json")
       let decoded = try JSONDecoder().decode(GovernorConfig.self, from: served)
       let reencoded = try JSONEncoder().encode(decoded)
       let servedObject = try JSONSerialization.jsonObject(with: served) as? NSDictionary
@@ -58,7 +55,7 @@ extension StubbedTransportTests {
 
     @Test func aWorkerErrorSurfacesWithItsStatus() async throws {
       StubProtocol.reply = .init(status: 503, chunks: [Data(#"{"error":"budget"}"#.utf8)])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
       await #expect(throws: ProxyError.status(503, body: #"{"error":"budget"}"#)) {
         try await client.config()
       }

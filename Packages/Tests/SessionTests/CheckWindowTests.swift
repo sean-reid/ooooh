@@ -1,6 +1,7 @@
 import Foundation
 import Governor
 import State
+import TestSupport
 import Testing
 import Transcription
 
@@ -22,7 +23,7 @@ import Transcription
     )
     await loop.handle(.segment(Segment(text: "one", start: 0, end: 1, isFinal: true)))
     await loop.handle(.segment(Segment(text: "two", start: 300, end: 301, isFinal: true)))
-    while await phraser.recent.isEmpty { await Task.yield() }
+    await wait { await !phraser.recent.isEmpty }
     let result = await loop.finish()
 
     let compactions = result.records.compactMap {

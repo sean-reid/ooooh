@@ -114,6 +114,8 @@ targets:
         buildPhase: resources
     dependencies:
       - target: ooooh
+      - package: Packages
+        product: TestSupport
       - package: SnapshotTesting
         product: SnapshotTesting
     settings:
@@ -130,6 +132,8 @@ targets:
         buildPhase: resources
     dependencies:
       - target: ooooh
+      - package: Packages
+        product: TestSupport
       - package: SnapshotTesting
         product: SnapshotTesting
     settings:

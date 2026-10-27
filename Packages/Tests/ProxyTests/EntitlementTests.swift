@@ -1,22 +1,20 @@
 import Foundation
+import TestSupport
 import Testing
 
 @testable import Proxy
 
 extension StubbedTransportTests {
   @Suite struct EntitlementTests {
-    let client: ProxyClient = {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [StubProtocol.self]
-      return ProxyClient(
-        baseURL: URL(string: "https://ooooh.test")!, session: URLSession(configuration: config))
-    }()
+    let client = ProxyClient(
+      baseURL: URL(string: "https://ooooh.test")!, session: StubProtocol.session())
 
     let jws = "eyJhbGciOiJFUzI1NiJ9.eyJwcm9kdWN0SWQiOiJtb250aGx5In0.c2ln"
 
     @Test func postsTheTransactionAndDecodesAPaidAnswer() async throws {
-      StubProtocol.reply = .init(status: 200, chunks: [try fixture("entitlement-paid", "json")])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reply = .init(
+        status: 200, chunks: [try Bundle.module.fixture("entitlement-paid.json")])
+      StubProtocol.reset()
 
       let response = try await client.submitEntitlement(transactionJWS: jws)
       #expect(
@@ -33,8 +31,9 @@ extension StubbedTransportTests {
     }
 
     @Test func decodesAFreeAnswerWithTheExpiryThatPassed() async throws {
-      StubProtocol.reply = .init(status: 200, chunks: [try fixture("entitlement-free", "json")])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reply = .init(
+        status: 200, chunks: [try Bundle.module.fixture("entitlement-free.json")])
+      StubProtocol.reset()
 
       let response = try await client.submitEntitlement(transactionJWS: jws)
       #expect(
@@ -46,7 +45,7 @@ extension StubbedTransportTests {
     @Test func decodesAFreeAnswerWithoutAnExpiry() async throws {
       StubProtocol.reply = .init(
         status: 200, chunks: [Data(#"{"entitlement":"free","expiresDate":null}"#.utf8)])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
 
       let response = try await client.submitEntitlement(transactionJWS: jws)
       #expect(response == EntitlementResponse(entitlement: .free))
@@ -54,8 +53,8 @@ extension StubbedTransportTests {
 
     @Test func aRefusalCarriesTheWorkersReason() async throws {
       StubProtocol.reply = .init(
-        status: 401, chunks: [try fixture("entitlement-refused", "json")])
-      StubProtocol.seen.withLock { $0 = [] }
+        status: 401, chunks: [try Bundle.module.fixture("entitlement-refused.json")])
+      StubProtocol.reset()
 
       await #expect(throws: ProxyError.unauthorized(reason: "wrong-device")) {
         try await client.submitEntitlement(transactionJWS: jws)
@@ -64,7 +63,7 @@ extension StubbedTransportTests {
 
     @Test func anotherUnauthorizedBodyKeepsItsStatus() async throws {
       StubProtocol.reply = .init(status: 401, chunks: [Data(#"{"error":"other"}"#.utf8)])
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
 
       await #expect(throws: ProxyError.status(401, body: #"{"error":"other"}"#)) {
         try await client.submitEntitlement(transactionJWS: jws)

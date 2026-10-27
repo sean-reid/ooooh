@@ -2,6 +2,7 @@ import CryptoKit
 import DeviceCheck
 import Foundation
 import Synchronization
+import TestSupport
 import Testing
 
 @testable import Proxy
@@ -71,10 +72,8 @@ extension StubbedTransportTests {
     let keychainFailure = ProxyError.attestation("keychain write -34018")
 
     func attestor(_ service: FakeAppAttestService, _ store: MemoryKeyIdStore) -> DeviceAttestation {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [StubProtocol.self]
-      return DeviceAttestation(
-        baseURL: URL(string: "https://ooooh.test")!, session: URLSession(configuration: config),
+      DeviceAttestation(
+        baseURL: URL(string: "https://ooooh.test")!, session: StubProtocol.session(),
         service: service, store: store)
     }
 
@@ -82,7 +81,7 @@ extension StubbedTransportTests {
       StubProtocol.reply = .init(
         status: status, chunks: [Data(#"{"challenge":"\#(challenge.base64EncodedString())"}"#.utf8)]
       )
-      StubProtocol.seen.withLock { $0 = [] }
+      StubProtocol.reset()
     }
 
     var requested: [String] { StubProtocol.seen.withLock { $0.compactMap { $0.url?.path() } } }
