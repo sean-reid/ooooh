@@ -1,7 +1,7 @@
 import AVFAudio
 import Foundation
 
-/// Brings one spoken line toward a target level, buffer by buffer, as the bytes arrive. The gain tracks the running RMS of the line's voiced blocks, so a soft line comes up and a hot one comes down, with a 10 ms ramp between buffers so nothing clicks. A limiter then holds every peak under the ceiling in 5 ms blocks, one block ahead, without clipping.
+/// Levels one spoken line toward a target as its buffers arrive, then limits the peaks.
 public struct LoudnessNormalizer {
   public static let targetDBFS: Float = -16
   public static let ceilingDBFS: Float = -1

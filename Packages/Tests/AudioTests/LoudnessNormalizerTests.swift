@@ -4,7 +4,7 @@ import Testing
 
 @testable import Audio
 
-/// Peak and RMS of a run of buffers in dBFS: `rmsDB` over every sample, `voicedDB` over the 20 ms blocks above the normalizer's gate, the way it measures a line.
+/// Peak and RMS of a run of buffers in dBFS, the voiced figure gated the way the normalizer gates.
 struct Level {
   var peak: Float = 0
   var sumSquares: Double = 0
