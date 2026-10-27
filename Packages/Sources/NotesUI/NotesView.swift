@@ -4,24 +4,35 @@ import SwiftUI
 import Transcription
 
 /// The notes screen shown when a session ends. Tapping an item shows the words it came from.
+/// With `editing` set, Edit turns every item into a field with a delete, gives each section an
+/// add row, and puts a resolved mark on the open threads.
 public struct NotesView: View {
   public var notes: SessionNotes
   public var transcript: [Segment]
   public var date: Date
+  public var editing: NoteEditing?
+  /// One line under the bar, for an edit the store refused.
+  public var notice: String?
   public var onDone: () -> Void
   /// ImageRenderer draws a ScrollView empty, so snapshots render the content unscrolled.
   var scrolls = true
   @State private var revealed: Set<String>
+  @State private var isEditing: Bool
+  @State private var drafts: [NoteDraft: String] = [:]
 
   public init(
     notes: SessionNotes, transcript: [Segment], date: Date = .now, revealed: Set<String> = [],
+    editing: NoteEditing? = nil, isEditing: Bool = false, notice: String? = nil,
     onDone: @escaping () -> Void
   ) {
     self.notes = notes
     self.transcript = transcript
     self.date = date
+    self.editing = editing
+    self.notice = notice
     self.onDone = onDone
     _revealed = State(initialValue: revealed)
+    _isEditing = State(initialValue: isEditing && editing != nil)
   }
 
   public var body: some View {
@@ -29,6 +40,15 @@ public struct NotesView: View {
       Palette.sky.ignoresSafeArea()
       VStack(spacing: 0) {
         bar
+        if let notice {
+          Text(notice)
+            .font(Typography.caption)
+            .foregroundStyle(Palette.accent)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .accessibilityIdentifier("notes.notice")
+        }
         if scrolls {
           ScrollView { content }
         } else {
@@ -49,7 +69,7 @@ public struct NotesView: View {
           .font(Typography.body)
           .foregroundStyle(Palette.ink)
       }
-      ForEach(notes.sections, id: \.section) { section in
+      ForEach(sections, id: \.section) { section in
         VStack(alignment: .leading, spacing: 4) {
           Text(section.section.title)
             .font(Typography.title)
@@ -57,13 +77,28 @@ public struct NotesView: View {
             .padding(.bottom, 8)
             .accessibilityAddTraits(.isHeader)
           ForEach(section.items) { item in
-            NoteItemRow(item: item, transcript: transcript, revealed: revealed.contains(item.id)) {
-              if revealed.contains(item.id) {
-                revealed.remove(item.id)
-              } else {
-                revealed.insert(item.id)
+            if isEditing, let editing {
+              EditableNoteRow(
+                section: section.section, item: item,
+                text: draft(.item(section.section, item.id), fallback: item.text),
+                commit: { commit(.item(section.section, item.id)) },
+                delete: { editing.delete(section.section, item) },
+                resolve: { editing.resolve(item, $0) })
+            } else {
+              NoteItemRow(item: item, transcript: transcript, revealed: revealed.contains(item.id))
+              {
+                if revealed.contains(item.id) {
+                  revealed.remove(item.id)
+                } else {
+                  revealed.insert(item.id)
+                }
               }
             }
+          }
+          if isEditing {
+            AddNoteRow(
+              section: section.section, text: draft(.add(section.section), fallback: ""),
+              commit: { commit(.add(section.section)) })
           }
         }
       }
@@ -72,6 +107,11 @@ public struct NotesView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .padding(.horizontal, 24)
     .padding(.bottom, 48)
+  }
+
+  /// Every section while editing, so an empty one can take an item; otherwise the filled ones.
+  private var sections: [(section: NoteSection, items: [NoteItem])] {
+    isEditing ? NoteSection.allCases.map { ($0, notes[$0]) } : notes.sections
   }
 
   private var bar: some View {
@@ -83,67 +123,54 @@ public struct NotesView: View {
       }
       .accessibilityLabel("Share notes")
       Spacer()
-      Button(action: onDone) { Text("Done").tapTarget() }
-        .accessibilityIdentifier("notes.done")
-        .font(.body.weight(.semibold))
+      if isEditing {
+        Button(action: finishEditing) { Text("Done").tapTarget() }
+          .accessibilityLabel("Done editing")
+          .accessibilityIdentifier("notes.editing.done")
+          .font(.body.weight(.semibold))
+      } else {
+        if editing != nil {
+          Button {
+            isEditing = true
+          } label: {
+            Text("Edit").tapTarget()
+          }
+          .accessibilityLabel("Edit notes")
+          .accessibilityIdentifier("notes.edit")
+          .font(.body.weight(.medium))
+        }
+        Button(action: onDone) { Text("Done").tapTarget() }
+          .accessibilityIdentifier("notes.done")
+          .font(.body.weight(.semibold))
+      }
     }
     .foregroundStyle(Palette.accent)
     .padding(.horizontal, 12)
     .padding(.top, 4)
   }
-}
 
-struct NoteItemRow: View {
-  var item: NoteItem
-  var transcript: [Segment]
-  var revealed: Bool
-  var toggle: () -> Void
-  @ScaledMetric(relativeTo: .body) private var dot = 8.0
-  @ScaledMetric(relativeTo: .body) private var dotLift = 4.5
+  private func draft(_ key: NoteDraft, fallback: String) -> Binding<String> {
+    Binding(get: { drafts[key] ?? fallback }, set: { drafts[key] = $0 })
+  }
 
-  var body: some View {
-    if let span = item.span {
-      Button(action: toggle) {
-        VStack(alignment: .leading, spacing: 6) {
-          line
-          if revealed {
-            Text(span.text(in: transcript))
-              .font(Typography.body)
-              .foregroundStyle(Palette.inkDim)
-              .padding(.leading, 18)
-          }
-        }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .contentShape(Rectangle())
+  /// Writes one field's text through the hooks. Blank text on an item reverts it.
+  private func commit(_ key: NoteDraft) {
+    guard let editing, let typed = drafts.removeValue(forKey: key) else { return }
+    let text = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !text.isEmpty else { return }
+    switch key {
+    case .item(let section, let id):
+      guard let item = notes[section].first(where: { $0.id == id }), item.text != text else {
+        return
       }
-      .buttonStyle(.plain)
-      .accessibilityElement(children: .combine)
-      .accessibilityLabel(label)
-      .accessibilityHint(revealed ? "Hides the words it came from" : "Shows the words it came from")
-    } else {
-      line
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(label)
+      editing.edit(section, item, text)
+    case .add(let section):
+      editing.add(section, text)
     }
   }
 
-  private var line: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 10) {
-      Circle()
-        .fill(item.resolved ? Palette.amberDim : Palette.accent)
-        .frame(width: dot, height: dot)
-        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + dotLift }
-      Text(item.text)
-        .font(Typography.body)
-        .strikethrough(item.resolved)
-        .foregroundStyle(item.resolved ? Palette.inkDim : Palette.ink)
-        .multilineTextAlignment(.leading)
-    }
-    .padding(.vertical, 6)
-  }
-
-  private var label: String {
-    item.resolved ? "\(item.text), resolved" : item.text
+  private func finishEditing() {
+    for key in drafts.keys { commit(key) }
+    isEditing = false
   }
 }
