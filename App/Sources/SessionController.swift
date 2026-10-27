@@ -104,7 +104,6 @@ final class SessionController {
   private var delivery: Task<Void, Never>?
   private var writing: Task<Void, Never>?
   private var offlineChange: Task<Void, Never>?
-  private var admitting: Task<Void, Never>?
   private var gate: SessionGate?
   private let environment: Environment
   private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "session")
@@ -177,58 +176,18 @@ final class SessionController {
       quietOverride = environment.settings?.quietModeOverride ?? .auto
       quietMode = isQuiet(environment.audio.route())
 
-      let guardian = OfflineGuard(
-        offline: environment.workerURL == nil && environment.dependencies == nil)
       let clockChanges = environment.clock.changes()
       clockRefused = environment.clock.isRefused
-      let client = environment.workerURL.map {
-        ProxyClient(
-          baseURL: $0, session: environment.session, attestor: environment.attestor,
-          offline: guardian, clock: environment.clock)
-      }
-      // The start and end are bookkeeping; the guard watches the provider calls, as it did before
-      // the session routes, so a Worker nobody reaches shows offline at the first prompt check.
-      gate =
-        environment.gate
-        ?? environment.workerURL.map {
-          SessionGate.worker(
-            ProxyClient(
-              baseURL: $0, session: environment.session, attestor: environment.attestor,
-              clock: environment.clock))
-        }
-      let admission = gate.map { gate in
-        Admission(start: Task { await Self.admit(gate) }) { [weak self] reason in
-          Task { @MainActor in self?.cutoff = reason }
-        }
-      }
-      if let admission { admitting = Task { self.admission = await admission.start.value } }
-      if let speaker = environment.speaker {
-        voice = speaker
-      } else if let client {
-        voice = VoiceSpeaker { text in
-          let audio = client.speak(text: text)
-          return admission?.admit(audio) ?? audio
-        }
-      }
-      generator = environment.notesGenerator ?? client.map { OpusNotesGenerator(client: $0) }
-      var dependencies =
-        environment.dependencies ?? client?.sessionDependencies()
-        ?? SessionLoop.Dependencies(
-          decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
-          phraser: TemplatePhraser())
-      if let admission { dependencies = admission.wrap(dependencies) }
-      if let thread {
-        dependencies = CarriedThread(thread).wrap(dependencies)
-      }
-      let config: GovernorConfig
-      if let fixed = environment.config {
-        config = fixed
-      } else {
-        config = await fetchConfig(client)
-      }
-      if environment.settings?.challengeEnabled == false {
-        dependencies = ChallengeFilter(config: config).wrap(dependencies)
-      }
+      let assembly = await SessionAssembly.make(
+        environment: environment, carrying: thread,
+        admitted: { [weak self] start in self?.admission = start },
+        cutOff: { [weak self] reason in Task { @MainActor in self?.cutoff = reason } })
+      gate = assembly.gate
+      voice = assembly.voice
+      generator = assembly.generator
+      let guardian = assembly.guardian
+      let config = assembly.config
+      let dependencies = assembly.dependencies
 
       let live = LiveSessionLoop(
         config: config, dependencies: dependencies, transcriber: transcriber, levels: levels,
@@ -280,16 +239,6 @@ final class SessionController {
     await observers.first?.value
   }
 
-  /// Nil when the start fails, which leaves the prompts to the offline guard.
-  private static func admit(_ gate: SessionGate) async -> SessionStart? {
-    do {
-      return try await gate.start()
-    } catch {
-      log.error("Session start failed: \(String(describing: error), privacy: .public)")
-      return nil
-    }
-  }
-
   /// Posts the minutes from Start to End after the notes, since the Worker answers nothing for a
   /// session it has closed.
   private func postEnd() {
@@ -310,17 +259,6 @@ final class SessionController {
     case .quiet: true
     case .auto: !(environment.forceVoice || shouldSpeak(route: route))
     }
-  }
-
-  private func fetchConfig(_ client: ProxyClient?) async -> GovernorConfig {
-    guard let client else { return .initial }
-    let fetch = Task { try await client.config() }
-    let deadline = Task {
-      try await Task.sleep(for: environment.configTimeout)
-      fetch.cancel()
-    }
-    defer { deadline.cancel() }
-    return (try? await fetch.value) ?? .initial
   }
 
   private func handle(_ event: SessionEvent) async {
