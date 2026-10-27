@@ -3,12 +3,13 @@ import Governor
 import State
 import Transcription
 
-/// When the raw transcript gets folded into the compact state.
+/// When the raw transcript gets folded into the compact state. Jev's repeat and contradiction
+/// cues and Sonnet's lines read the state, so it has to exist within the first minute or two.
 public struct CompactionPolicy: Equatable, Sendable {
   public var everySeconds: TimeInterval
   public var everyWords: Int
 
-  public init(everySeconds: TimeInterval = 300, everyWords: Int = 600) {
+  public init(everySeconds: TimeInterval = 75, everyWords: Int = 150) {
     self.everySeconds = everySeconds
     self.everyWords = everyWords
   }
