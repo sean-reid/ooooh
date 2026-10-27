@@ -59,53 +59,100 @@ struct OrbPainter {
   var frame: OrbFrame
   var tint: OrbTint
 
+  /// The layers in paint order.
+  enum Layer: String, CaseIterable {
+    case halo, under, body, sheen, grain
+  }
+
+  /// What every layer measures from: the body radius after breath, and the body outline.
+  struct Scene {
+    var size: CGSize
+    var center: CGPoint
+    var base: CGFloat
+    var body: Path
+
+    init(frame: OrbFrame, size: CGSize) {
+      self.size = size
+      center = CGPoint(x: size.width / 2, y: size.height / 2)
+      base =
+        min(size.width, size.height) * OrbLayers.body * (1 + OrbLayers.breathGrow * frame.breath)
+      body = OrbGeometry.blob(
+        center: center, radius: base, clock: frame.clock, drift: frame.pose.drift,
+        breath: frame.breath, stretch: frame.pose.stretch)
+    }
+  }
+
   func paint(in context: inout GraphicsContext, size: CGSize, grain: GraphicsContext.ResolvedImage?)
   {
+    let scene = Scene(frame: frame, size: size)
+    for layer in Layer.allCases {
+      paint(layer, scene, in: &context, grain: grain)
+    }
+  }
+
+  func paint(
+    _ layer: Layer, in context: inout GraphicsContext, size: CGSize,
+    grain: GraphicsContext.ResolvedImage?
+  ) {
+    paint(layer, Scene(frame: frame, size: size), in: &context, grain: grain)
+  }
+
+  private func paint(
+    _ layer: Layer, _ scene: Scene, in context: inout GraphicsContext,
+    grain: GraphicsContext.ResolvedImage?
+  ) {
+    switch layer {
+    case .halo: halo(scene, in: &context)
+    case .under: under(scene, in: &context)
+    case .body: body(scene, in: &context)
+    case .sheen: sheen(scene, in: &context)
+    case .grain: if let grain { self.grain(scene, in: &context, tile: grain) }
+    }
+  }
+
+  private func halo(_ scene: Scene, in context: inout GraphicsContext) {
     let pose = frame.pose
-    let center = CGPoint(x: size.width / 2, y: size.height / 2)
-    let base =
-      min(size.width, size.height) * OrbLayers.body * (1 + OrbLayers.breathGrow * frame.breath)
-    let body = OrbGeometry.blob(
-      center: center, radius: base, clock: frame.clock, drift: pose.drift, breath: frame.breath,
-      stretch: pose.stretch)
     let halo = OrbGeometry.blob(
-      center: center, radius: base * OrbLayers.halo.radius,
+      center: scene.center, radius: scene.base * OrbLayers.halo.radius,
       clock: frame.clock * OrbLayers.halo.clock, drift: pose.drift * OrbLayers.halo.drift,
       breath: 0, stretch: pose.stretch)
-    let under = OrbGeometry.blob(
-      center: center, radius: base * OrbLayers.under.radius, clock: frame.clock,
-      drift: pose.drift, breath: frame.breath, stretch: pose.stretch)
-    let lit = 1 - pose.dim
-    let dim = pose.dim * 0.85
-    let bodyAlpha = 1 - 0.3 * pose.dim
     let glow = tint.glow.color
-    let ash = tint.ash.color
-
     var glowContext = context
     glowContext.blendMode = tint.glowBlend
     glowContext.drawLayer { layer in
-      layer.addFilter(.blur(radius: base * OrbLayers.halo.blur))
+      layer.addFilter(.blur(radius: scene.base * OrbLayers.halo.blur))
       layer.fill(
         halo,
         with: .radialGradient(
-          gradient(OrbLayers.haloStops) { glow.opacity($0 * tint.glowAlpha * pose.glow) },
-          center: center, startRadius: base * OrbLayers.halo.start,
-          endRadius: base * OrbLayers.halo.radius))
+          Self.gradient(OrbLayers.haloStops) { glow.opacity($0 * tint.glowAlpha * pose.glow) },
+          center: scene.center, startRadius: scene.base * OrbLayers.halo.start,
+          endRadius: scene.base * OrbLayers.halo.radius))
     }
+  }
 
+  private func under(_ scene: Scene, in context: inout GraphicsContext) {
+    let pose = frame.pose
+    let under = OrbGeometry.blob(
+      center: scene.center, radius: scene.base * OrbLayers.under.radius, clock: frame.clock,
+      drift: pose.drift, breath: frame.breath, stretch: pose.stretch)
+    let lit = 1 - pose.dim
+    let glow = tint.glow.color
     context.drawLayer { layer in
-      layer.addFilter(.blur(radius: base * OrbLayers.under.blur))
+      layer.addFilter(.blur(radius: scene.base * OrbLayers.under.blur))
       layer.fill(
         under,
         with: .radialGradient(
-          gradient(OrbLayers.underStops) { glow.opacity($0 * lit) },
-          center: center, startRadius: 0, endRadius: base * OrbLayers.under.radius))
+          Self.gradient(OrbLayers.underStops) { glow.opacity($0 * lit) },
+          center: scene.center, startRadius: 0, endRadius: scene.base * OrbLayers.under.radius))
     }
+  }
 
-    let coreCenter = CGPoint(
-      x: center.x - base * OrbLayers.core.x, y: center.y - base * OrbLayers.core.y)
+  private func body(_ scene: Scene, in context: inout GraphicsContext) {
+    let dim = frame.pose.dim * 0.85
+    let bodyAlpha = 1 - 0.3 * frame.pose.dim
+    let ash = tint.ash.color
     context.fill(
-      body,
+      scene.body,
       with: .radialGradient(
         Gradient(stops: [
           .init(color: tint.core.color.mix(with: ash, by: dim).opacity(bodyAlpha), location: 0),
@@ -117,49 +164,61 @@ struct OrbPainter {
             location: tint.rimStart),
           .init(color: tint.rim.color.mix(with: ash, by: dim).opacity(bodyAlpha), location: 1),
         ]),
-        center: coreCenter, startRadius: 0, endRadius: base * OrbLayers.core.end))
+        center: coreCenter(scene), startRadius: 0, endRadius: scene.base * OrbLayers.core.end))
+  }
 
+  private func sheen(_ scene: Scene, in context: inout GraphicsContext) {
+    let pose = frame.pose
+    let alpha =
+      (OrbLayers.sheen.floor + OrbLayers.sheen.glow * pose.glow) * (1 - pose.dim) * tint.sheen
+    let coreCenter = coreCenter(scene)
+    let base = scene.base
     context.drawLayer { layer in
-      layer.clip(to: body)
+      layer.clip(to: scene.body)
       layer.addFilter(.blur(radius: base * OrbLayers.sheen.blur))
       let highlight = Path(
         ellipseIn: CGRect(
           x: coreCenter.x - base * OrbLayers.sheen.width,
           y: coreCenter.y - base * OrbLayers.sheen.height,
           width: base * OrbLayers.sheen.width * 2, height: base * OrbLayers.sheen.height * 2))
-      layer.fill(
-        highlight,
-        with: .color(
-          .white.opacity(
-            (OrbLayers.sheen.floor + OrbLayers.sheen.glow * pose.glow) * lit * tint.sheen)))
+      layer.fill(highlight, with: .color(.white.opacity(alpha)))
     }
+  }
 
-    guard let grain else { return }
+  private func grain(
+    _ scene: Scene, in context: inout GraphicsContext, tile: GraphicsContext.ResolvedImage
+  ) {
     var grainContext = context
     grainContext.blendMode = .softLight
-    grainContext.opacity = OrbLayers.grain.alpha + 0.1 * pose.dim
+    grainContext.opacity = OrbLayers.grain.alpha + 0.1 * frame.pose.dim
     grainContext.drawLayer { layer in
-      layer.clip(to: body)
+      layer.clip(to: scene.body)
       let step = CGFloat(OrbGrain.tile) * 0.75
       var y: CGFloat = 0
-      while y < size.height {
+      while y < scene.size.height {
         var x: CGFloat = 0
-        while x < size.width {
-          layer.draw(grain, in: CGRect(x: x, y: y, width: step, height: step))
+        while x < scene.size.width {
+          layer.draw(tile, in: CGRect(x: x, y: y, width: step, height: step))
           x += step
         }
         y += step
       }
       layer.blendMode = .destinationIn
       layer.fill(
-        body,
+        scene.body,
         with: .radialGradient(
-          gradient(OrbLayers.grainFade) { .white.opacity($0) },
-          center: center, startRadius: 0, endRadius: base * OrbLayers.grain.end))
+          Self.gradient(OrbLayers.grainFade) { .white.opacity($0) },
+          center: scene.center, startRadius: 0, endRadius: scene.base * OrbLayers.grain.end))
     }
   }
 
-  private func gradient(
+  private func coreCenter(_ scene: Scene) -> CGPoint {
+    CGPoint(
+      x: scene.center.x - scene.base * OrbLayers.core.x,
+      y: scene.center.y - scene.base * OrbLayers.core.y)
+  }
+
+  private static func gradient(
     _ stops: [(location: Double, alpha: Double)], _ color: (Double) -> Color
   ) -> Gradient {
     Gradient(stops: stops.map { .init(color: color($0.alpha), location: $0.location) })
