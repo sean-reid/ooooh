@@ -49,9 +49,9 @@ public struct NotesView: View {
           .font(Typography.body)
           .foregroundStyle(Palette.ink)
       }
-      ForEach(notes.sections, id: \.name) { section in
+      ForEach(notes.sections, id: \.section) { section in
         VStack(alignment: .leading, spacing: 4) {
-          Text(section.name)
+          Text(section.section.title)
             .font(Typography.title)
             .foregroundStyle(Palette.ink)
             .padding(.bottom, 8)

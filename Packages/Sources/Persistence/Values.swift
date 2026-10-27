@@ -38,22 +38,6 @@ public struct SessionDetail: Sendable, Equatable {
   public var keepAudio: Bool
 }
 
-public enum NoteSection: String, CaseIterable, Sendable, Codable {
-  case ideas, decisions, questions, insights, actions, openThreads, quotes
-
-  public var title: String {
-    switch self {
-    case .ideas: "Ideas"
-    case .decisions: "Decisions"
-    case .questions: "Questions"
-    case .insights: "Insights"
-    case .actions: "Actions"
-    case .openThreads: "Open threads"
-    case .quotes: "Quotes"
-    }
-  }
-}
-
 /// A stored note item with the handle the edit calls take.
 public struct NoteEntry: Sendable, Equatable, Identifiable {
   public var id: UUID
