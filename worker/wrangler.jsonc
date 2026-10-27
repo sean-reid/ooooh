@@ -14,6 +14,9 @@
     "ANTHROPIC_DAILY_TOKENS": "700000",
     "ELEVENLABS_DAILY_CHARACTERS": "20000",
     "DEVICE_MINUTE_REQUESTS": "60",
+    "DEVICE_DAILY_JEV_TOKENS": "1500000",
+    "DEVICE_DAILY_ANTHROPIC_TOKENS": "100000",
+    "DEVICE_DAILY_ELEVENLABS_CHARACTERS": "6000",
     // River, a pre-made ElevenLabs voice: neutral, calm, conversational. Override per deployment.
     "ELEVENLABS_VOICE_ID": "SAz9YHcvj6GT2YYXdXww",
     // App Attest: every provider and session route needs an assertion from an attested key.
@@ -60,6 +63,9 @@
         "ANTHROPIC_DAILY_TOKENS": "700000",
         "ELEVENLABS_DAILY_CHARACTERS": "20000",
         "DEVICE_MINUTE_REQUESTS": "60",
+        "DEVICE_DAILY_JEV_TOKENS": "1500000",
+        "DEVICE_DAILY_ANTHROPIC_TOKENS": "100000",
+        "DEVICE_DAILY_ELEVENLABS_CHARACTERS": "6000",
         "ELEVENLABS_VOICE_ID": "SAz9YHcvj6GT2YYXdXww",
         "REQUIRE_ATTESTATION": "true",
         "APP_ATTEST_APP_ID": "C6UWR42ZAP.com.seanreid.ooooh",

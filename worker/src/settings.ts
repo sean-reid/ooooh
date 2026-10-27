@@ -8,6 +8,9 @@ export const defaults = {
   ANTHROPIC_DAILY_TOKENS: 700_000,
   ELEVENLABS_DAILY_CHARACTERS: 20_000,
   DEVICE_MINUTE_REQUESTS: 60,
+  DEVICE_DAILY_JEV_TOKENS: 1_500_000,
+  DEVICE_DAILY_ANTHROPIC_TOKENS: 100_000,
+  DEVICE_DAILY_ELEVENLABS_CHARACTERS: 6_000,
   ELEVENLABS_VOICE_ID: "SAz9YHcvj6GT2YYXdXww",
   REQUIRE_ATTESTATION: "true",
   APP_ATTEST_APP_ID: "C6UWR42ZAP.com.seanreid.ooooh",
@@ -22,6 +25,7 @@ export type VarName = keyof typeof defaults;
 
 export interface Settings {
   dailyLimit: Record<Provider, number>;
+  deviceDailyLimit: Record<Provider, number>;
   deviceMinuteRequests: number;
   freeSessionsPerMonth: number;
   freePromptMinutes: number;
@@ -57,6 +61,11 @@ const read = (env: Env): Settings => ({
     jev: number(env, "JEV_DAILY_TOKENS"),
     anthropic: number(env, "ANTHROPIC_DAILY_TOKENS"),
     elevenlabs: number(env, "ELEVENLABS_DAILY_CHARACTERS"),
+  },
+  deviceDailyLimit: {
+    jev: number(env, "DEVICE_DAILY_JEV_TOKENS"),
+    anthropic: number(env, "DEVICE_DAILY_ANTHROPIC_TOKENS"),
+    elevenlabs: number(env, "DEVICE_DAILY_ELEVENLABS_CHARACTERS"),
   },
   deviceMinuteRequests: number(env, "DEVICE_MINUTE_REQUESTS"),
   freeSessionsPerMonth: number(env, "FREE_SESSIONS_PER_MONTH"),

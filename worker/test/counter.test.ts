@@ -21,6 +21,17 @@ describe("DeviceCounter", () => {
     expect(await stub.current()).toBe(9);
   });
 
+  it("keeps a spend per provider and day, counts every add, and drops the days before", async () => {
+    const stub = env.DEVICE_COUNTER.getByName("spend");
+    await Promise.all(Array.from({ length: 20 }, () => stub.spend("jev", "2026-10-24", 3)));
+    expect(await stub.spent("jev", "2026-10-24")).toBe(60);
+    expect(await stub.spent("elevenlabs", "2026-10-24")).toBe(0);
+    await stub.spend("elevenlabs", "2026-10-24", 41);
+    expect(await stub.spend("jev", "2026-10-25", 7)).toBe(7);
+    expect(await stub.spent("jev", "2026-10-24")).toBe(0);
+    expect(await stub.spent("elevenlabs", "2026-10-24")).toBe(41);
+  });
+
   it("stamps the time of each accepted assertion and none for a key that passed none", async () => {
     const stub = env.DEVICE_COUNTER.getByName("seen");
     expect(await stub.lastSeen()).toBeUndefined();

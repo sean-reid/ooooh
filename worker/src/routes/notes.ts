@@ -125,7 +125,7 @@ const notesMaxTokens = 16_000;
 /** Opus thinks through the whole session before the JSON starts, and the notes screen waits for it. */
 const notesDeadlineMs = 180_000;
 
-export async function notesRoute(request: Request, env: Env): Promise<Response> {
+export async function notesRoute(request: Request, env: Env, device: string): Promise<Response> {
   const input = await readBody(request, body);
   const cred = credential(env);
   const client = anthropicClient(cred, { timeout: notesDeadlineMs });
@@ -150,8 +150,13 @@ export async function notesRoute(request: Request, env: Env): Promise<Response> 
       { signal },
     ),
   ).catch(upstreamError);
-  const { value, usage } = await structured(env, response, notesMaxTokens, "bad notes", (p) =>
-    checkNotes(notes(p, ""), input.transcript),
+  const { value, usage } = await structured(
+    env,
+    device,
+    response,
+    notesMaxTokens,
+    "bad notes",
+    (p) => checkNotes(notes(p, ""), input.transcript),
   );
   return json({ notes: value, usage });
 }

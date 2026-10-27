@@ -20,7 +20,7 @@ import {
   wordCount,
   wordLimit,
 } from "../phrasing";
-import { compactState, intervention, interventionKinds, segment } from "../schema";
+import { compactState, intervention, interventionKinds, segment, windows } from "../schema";
 import { array, obj, oneOf, optional, withDefault } from "../validate";
 
 export type Deadlines = { callMs: number; stallMs: number };
@@ -31,14 +31,19 @@ export const deadlines: Deadlines = { callMs: 5_000, stallMs: 3_000 };
 const body = obj({
   kind: oneOf(interventionKinds),
   state: compactState,
-  recent: array(segment),
+  recent: array(segment, windows.recent),
   lastIntervention: optional(intervention),
-  said: withDefault(array(intervention), []),
+  said: withDefault(array(intervention, windows.said), []),
 });
-type Input = ReturnType<typeof body> & { cred: Credential; env: Env; deadlines: Deadlines };
+type Input = ReturnType<typeof body> & {
+  cred: Credential;
+  env: Env;
+  device: string;
+  deadlines: Deadlines;
+};
 
 const spent = (input: Input, message: Anthropic.Beta.BetaMessage) =>
-  chargeModel(input.env, message.model, message.usage);
+  chargeModel(input.env, input.device, message.model, message.usage);
 
 const params = (
   input: Input,
@@ -142,9 +147,9 @@ function phraseStream(client: Anthropic, input: Input): Response {
 
 export const phraseWith =
   (deadlines: Deadlines) =>
-  async (request: Request, env: Env): Promise<Response> => {
+  async (request: Request, env: Env, device: string): Promise<Response> => {
     const cred = credential(env);
-    const input = { ...(await readBody(request, body)), cred, env, deadlines };
+    const input = { ...(await readBody(request, body)), cred, env, device, deadlines };
     const client = anthropicClient(cred);
     if (request.headers.get("accept")?.includes("text/event-stream")) {
       return phraseStream(client, input);

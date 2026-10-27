@@ -8,10 +8,10 @@ import {
 } from "../anthropic";
 import { json, readBody } from "../http";
 import { transcriptLines } from "../phrasing";
-import { compactState, existingIds, listNames, modes, segment } from "../schema";
+import { compactState, existingIds, listNames, modes, segment, windows } from "../schema";
 import { array, obj, oneOf, optional, str, ValidationError } from "../validate";
 
-const body = obj({ state: compactState, transcript: array(segment) });
+const body = obj({ state: compactState, transcript: array(segment, windows.compactBatch) });
 
 const patch = obj({
   currentThread: optional(str),
@@ -83,7 +83,7 @@ export const compactDeadlineMs = 30_000;
 
 export const compactWith =
   (deadlineMs: number) =>
-  async (request: Request, env: Env): Promise<Response> => {
+  async (request: Request, env: Env, device: string): Promise<Response> => {
     const input = await readBody(request, body);
     const client = anthropicClient(credential(env));
     const ids = existingIds(input.state);
@@ -106,11 +106,18 @@ export const compactWith =
         { signal },
       ),
     ).catch(upstreamError);
-    const { value, usage } = await structured(env, response, compactMaxTokens, "bad patch", (p) => {
-      const result = patch(p, "");
-      checkIds(result, ids);
-      return result;
-    });
+    const { value, usage } = await structured(
+      env,
+      device,
+      response,
+      compactMaxTokens,
+      "bad patch",
+      (p) => {
+        const result = patch(p, "");
+        checkIds(result, ids);
+        return result;
+      },
+    );
     return json({ patch: value, usage });
   };
 

@@ -106,12 +106,13 @@ type StructuredReply = {
  */
 export async function structured<T>(
   env: Env,
+  device: string,
   response: StructuredReply,
   maxTokens: number,
   error: string,
   read: (parsed: unknown) => T,
 ) {
-  await chargeModel(env, response.model, response.usage);
+  await chargeModel(env, device, response.model, response.usage);
   const text = textOf(response.content);
   // The answer itself stays out of the log; its shape and size are enough to see what went wrong.
   const rejected = (reason: string) =>

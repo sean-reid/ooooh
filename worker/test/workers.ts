@@ -49,6 +49,10 @@ export const sessionsOf = (device: string, month = thisMonth()) =>
 export const spent = (provider: Provider, day = today()) =>
   env.PROVIDER_BUDGET.getByName(provider).spent(day);
 
+/** What the device's object holds against the provider for the day. */
+export const spentBy = (device: string, provider: Provider, day = today()) =>
+  env.DEVICE_COUNTER.getByName(device).spent(provider, day);
+
 export const reason = async (res: Response) => {
   expect(res.status).toBe(401);
   return ((await res.json()) as { reason: string }).reason;
