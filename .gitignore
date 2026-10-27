@@ -20,3 +20,6 @@ worker-configuration.d.ts
 
 # Synthetic audio and say-timed fixtures are regenerated, not tracked
 fixtures/synthetic/audio/
+
+# Voice corpus audio is rendered and cached locally, not tracked
+fixtures/synthetic/voice/audio/
