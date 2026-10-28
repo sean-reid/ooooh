@@ -14,6 +14,33 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The release PR touches only the changelog, the manifest, and the version marker in
+  # project.yml, so the simulator jobs skip it; anything else runs everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: classify
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          code=false
+          for file in $(git diff --name-only "$BASE...HEAD"); do
+            case "$file" in
+              CHANGELOG.md|.release-please-manifest.json) ;;
+              project.yml)
+                lines=$(git diff "$BASE...HEAD" -- project.yml | grep -E '^[-+][^-+]' || true)
+                [ "$(printf '%s\n' "$lines" | grep -c 'x-release-please-version')" = "$(printf '%s\n' "$lines" | grep -c .)" ] || code=true
+                ;;
+              *) code=true ;;
+            esac
+          done
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "code=$code"
   packages:
     runs-on: macos-26
     steps:
@@ -71,7 +98,8 @@ jobs:
       - run: npm audit --audit-level=moderate
 
   app:
-    if: github.event_name != 'push'
+    needs: changes
+    if: github.event_name != 'push' && needs.changes.outputs.code == 'true'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -113,7 +141,8 @@ jobs:
           retention-days: 7
 
   snapshots:
-    if: github.event_name != 'push'
+    needs: changes
+    if: github.event_name != 'push' && needs.changes.outputs.code == 'true'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -160,7 +189,8 @@ jobs:
 
   # PromptSpeaker measures real playback latency; it runs alone so nothing else loads the simulator.
   audio:
-    if: github.event_name != 'push'
+    needs: changes
+    if: github.event_name != 'push' && needs.changes.outputs.code == 'true'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
