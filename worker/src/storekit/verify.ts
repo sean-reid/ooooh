@@ -19,9 +19,12 @@ export class TransactionError extends Error {
 
 export const productIds = ["com.seanreid.ooooh.monthly", "com.seanreid.ooooh.yearly"] as const;
 
+export type StoreEnvironment = "Sandbox" | "Production";
+
 export interface StoreKitSettings {
   bundleId: string;
-  environment: "Sandbox" | "Production";
+  /** The `environment` values a transaction may carry; TestFlight and sandbox testers buy in Sandbox. */
+  environments: readonly StoreEnvironment[];
   rootPem?: string;
 }
 
@@ -108,7 +111,9 @@ export async function verifyTransaction(
   const productId = productIds.find((id) => id === payload.productId);
   if (!productId) throw new TransactionError("bad-product");
   if (payload.type !== "Auto-Renewable Subscription") throw new TransactionError("bad-type");
-  if (payload.environment !== settings.environment) throw new TransactionError("bad-environment");
+  if (!settings.environments.some((e) => e === payload.environment)) {
+    throw new TransactionError("bad-environment");
+  }
   if (typeof payload.originalTransactionId !== "string") throw new TransactionError("bad-format");
   const appAccountToken = payload.appAccountToken;
   if (appAccountToken !== undefined && typeof appAccountToken !== "string") {

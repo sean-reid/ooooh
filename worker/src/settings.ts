@@ -16,7 +16,7 @@ export const defaults = {
   APP_ATTEST_APP_ID: "C6UWR42ZAP.com.seanreid.ooooh",
   APP_ATTEST_ENVIRONMENT: "production",
   APP_BUNDLE_ID: "com.seanreid.ooooh",
-  APP_STORE_ENVIRONMENT: "Production",
+  APP_STORE_ENVIRONMENTS: "Production,Sandbox",
   FREE_SESSIONS_PER_MONTH: 3,
   FREE_PROMPT_MINUTES: 20,
 } as const;
@@ -56,6 +56,13 @@ const oneOf = <const T extends readonly string[]>(env: Env, name: StringVar, opt
   ) as T[number];
 };
 
+/** A comma-separated subset of `options`, else the default; one unknown name voids the whole var. */
+const listOf = <const T extends readonly string[]>(env: Env, name: StringVar, options: T) => {
+  const names = (env[name] || defaults[name]).split(",").map((n) => n.trim());
+  const known = names.every((n) => (options as readonly string[]).includes(n));
+  return (known ? names : defaults[name].split(",")) as T[number][];
+};
+
 const read = (env: Env): Settings => ({
   dailyLimit: {
     jev: number(env, "JEV_DAILY_TOKENS"),
@@ -79,7 +86,7 @@ const read = (env: Env): Settings => ({
   },
   storeKit: {
     bundleId: text(env, "APP_BUNDLE_ID"),
-    environment: oneOf(env, "APP_STORE_ENVIRONMENT", ["Sandbox", "Production"]),
+    environments: listOf(env, "APP_STORE_ENVIRONMENTS", ["Sandbox", "Production"]),
     rootPem: env.APPLE_ROOT_PEM,
   },
 });
