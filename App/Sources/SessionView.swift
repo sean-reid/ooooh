@@ -78,6 +78,7 @@ struct SessionView: View {
         .font(Typography.caption)
         .foregroundStyle(Palette.inkDim)
         .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.top, 12)
         .padding(.horizontal, 32)
         .accessibilityIdentifier(status.id)

@@ -10,6 +10,7 @@ struct HistoryView: View {
   @State private var model: HistoryModel
   @State private var path: [UUID] = []
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.dynamicTypeSize) private var typeSize
 
   init(store: SessionStore) {
     self.store = store
@@ -72,16 +73,22 @@ struct HistoryView: View {
     .padding(.top, 20)
   }
 
+  /// The field wraps as the type grows; the placeholder shortens instead, since it cannot.
   private var searchField: some View {
     HStack(spacing: 8) {
       Image(systemName: "magnifyingglass")
         .foregroundStyle(Palette.inkDim)
-      TextField("Search your sessions", text: $model.query)
-        .font(Typography.body)
-        .foregroundStyle(Palette.ink)
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .accessibilityIdentifier("history.search")
+      TextField(
+        typeSize.isAccessibilitySize ? "Search" : "Search your sessions", text: $model.query,
+        axis: .vertical
+      )
+      .lineLimit(1...3)
+      .submitLabel(.search)
+      .font(Typography.body)
+      .foregroundStyle(Palette.ink)
+      .textInputAutocapitalization(.never)
+      .autocorrectionDisabled()
+      .accessibilityIdentifier("history.search")
       if !model.query.isEmpty {
         Button {
           model.query = ""
