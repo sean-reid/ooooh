@@ -60,3 +60,21 @@ export const MOTION = {
   resting: { glow: 0.45, drift: 0.5, speed: 0.6 },
   still: { glow: 0.7, drift: 0.4, speed: 0 },
 };
+
+// The pose beside each point on the landing page: attentive, then the amber swell of a question, then settled.
+export const PHASES = {
+  listening: { glow: 0.6, drift: 0.7, speed: 0.85, pulse: 0 },
+  asking: { glow: 0.95, drift: 0.4, speed: 1.0, pulse: 0.25 },
+  writing: { glow: 0.5, drift: 0.25, speed: 0.3, pulse: 0 },
+};
+
+// Where the orb travels on the landing page: the seat in the hero, a lane beside the points (or the top
+// edge of a narrow screen), then the screenshot's own orb. The copy fades for as long as it can stay stuck
+// inside the hero; the other scroll distances are fractions of the viewport height, and the landing starts
+// when the screenshot's orb rises within `reach` of the height it merges at.
+export const JOURNEY = {
+  drift: 0.35,
+  lane: { side: 200, at: 0.5, reach: 0.4 },
+  top: { side: 56, inset: 20, at: 0.35, reach: 0.15 },
+  phone: { x: 0.5, y: 0.435, radius: 0.22 },
+};

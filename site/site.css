@@ -72,21 +72,107 @@ main {
   overflow-x: clip;
 }
 
+/* The poster is centred in the first screen; the row below it is the room the copy has to hold still while it fades. */
 .hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-rows: 1fr auto auto 1fr 30svh;
+  justify-items: center;
   text-align: center;
-  padding: clamp(32px, 8vh, 96px) 24px 0;
+  box-sizing: border-box;
+  min-height: calc(min(100svh, 960px) + 30svh);
+  padding: 0 24px;
+}
+
+/* Holds the orb's place in the hero; once it travels, the carrier leaves the flow and the seat keeps the gap. */
+.seat {
+  --side: min(68vw, 360px);
+  grid-row: 2;
+  width: var(--side);
+  height: var(--side);
 }
 
 /* The canvas runs a quarter of the orb's side past its box on each edge so the blurred halo isn't cut there. */
 .orb {
-  --side: min(68vw, 360px);
   display: block;
   width: calc(var(--side) * 1.5);
   height: calc(var(--side) * 1.5);
   margin: calc(var(--side) * -0.25);
+}
+
+/* While the hero holds, the seat sticks and the orb rides in it, so a pull past the top bounces it with
+   the page. Once the drift begins the carrier comes loose and the route, a scroll-driven animation where
+   the browser has one, moves it on the compositor. */
+/* Sticky makes the seat a stacking context, so the orb's place above the strip is set here. */
+.travels .seat {
+  position: sticky;
+  z-index: 2;
+}
+
+.travels .carrier {
+  width: calc(var(--side) * 1.5);
+  height: calc(var(--side) * 1.5);
+  margin: calc(var(--side) * -0.25);
+  will-change: transform;
+}
+
+.travels .carrier.loose {
+  position: fixed;
+  margin: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.travels .carrier .orb {
+  margin: 0;
+}
+
+/* One nod downward after a quiet moment on the hero, to say there is more below. */
+@media (prefers-reduced-motion: no-preference) {
+  .travels .orb.cue {
+    animation: dip 1.4s cubic-bezier(0.45, 0, 0.55, 1) 3s 1;
+  }
+
+  @keyframes dip {
+    50% {
+      transform: translateY(14px);
+    }
+  }
+}
+
+.copy {
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Held by the compositor while it fades, so no script moves it under a scrolling finger. */
+.travels .copy {
+  position: sticky;
+}
+
+/* On a narrow screen the orb rides under the top edge and the page passes beneath this strip. */
+.strip {
+  display: none;
+}
+
+.travels .strip {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 96px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+  background: linear-gradient(var(--sky) 72px, transparent);
+}
+
+@media (min-width: 768px) {
+  .travels .strip {
+    display: none;
+  }
 }
 
 .wordmark {
@@ -127,15 +213,41 @@ a.store:focus-visible {
   text-decoration: none;
 }
 
+.points {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* On wide screens the orb keeps the right-hand lane while the points pass it on the left. */
+.lane {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .points {
+    display: grid;
+    grid-template-columns: minmax(0, 40ch) minmax(200px, 1fr);
+  }
+
+  .points .point {
+    grid-column: 1;
+  }
+
+  .lane {
+    display: block;
+    grid-column: 2;
+    grid-row: 1 / -1;
+  }
+}
+
 .point {
   padding-top: clamp(72px, 12vh, 128px);
-  max-width: 48ch;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: 40ch;
 }
 
 .point h2 {
-  font-size: clamp(30px, 6vw, 38px);
+  font-size: clamp(26px, 5vw, 32px);
   text-wrap: balance;
 }
 

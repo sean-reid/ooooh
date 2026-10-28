@@ -8,6 +8,7 @@ import {
   radiusAt,
   smoothClosed,
 } from "./orb-geometry.mjs";
+import { PHASES } from "./orb-tokens.mjs";
 
 const here = import.meta.dirname;
 const pages = ["index.html", "privacy.html", "terms.html", "support.html"];
@@ -77,6 +78,32 @@ test("the landing page links the documents from the footer and carries the store
   assert.match(read("landing.mjs"), /^const APP_STORE_URL = "[^"]*";$/m);
 });
 
+test("the orb has a seat in the hero, a lane beside the three points, and a strip for narrow screens", () => {
+  const html = read("index.html");
+  assert.match(html, /<div class="seat">\s*<div class="carrier">\s*<canvas\s+class="orb"/);
+  const points = html.slice(html.indexOf('<div class="points">'), html.indexOf('<section class="shot">'));
+  assert.equal(count(points, /<section class="point">/g), 3);
+  assert.match(points, /<div class="lane"><\/div>/);
+  assert.match(html, /<div class="strip"><\/div>/);
+  const css = read("site.css");
+  assert.match(css, /\.travels \.seat \{[^}]*position: sticky/);
+  assert.match(css, /\.travels \.carrier\.loose \{[^}]*position: fixed/);
+  assert.match(css, /\.travels \.copy \{[^}]*position: sticky/);
+  assert.match(css, /\.point h2 \{[^}]*text-wrap: balance/);
+  assert.match(css, /\.point p \{[^}]*text-wrap: pretty/);
+});
+
+test("the landing script names a phase for each point and swaps in the bare screenshot it lands on", () => {
+  const script = read("landing.mjs");
+  assert.match(script, /JOURNEY, LAYERS, MOTION, PHASES, TINTS/);
+  assert.equal(Object.keys(PHASES).length, 3);
+  assert.match(script, /replace\(\/\(session-\\w\+-\\d\+\)\\\.\/g, "\$1-bare\."\)/);
+  for (const scheme of ["dark", "light"])
+    for (const width of [280, 560])
+      for (const ext of ["webp", "png"])
+        assert.ok(existsSync(join(here, "images", `session-${scheme}-${width}-bare.${ext}`)), `${scheme} ${width} ${ext}`);
+});
+
 test("the session screenshot ships at display size in WebP with a PNG fallback", () => {
   const html = read("index.html");
   const picture = html.slice(html.indexOf("<picture>"), html.indexOf("</picture>"));
@@ -109,7 +136,10 @@ test("every link row reaches 44px", () => {
 
 test("the orb holds still under reduced motion", () => {
   const css = read("site.css");
-  assert.ok(!css.includes("@keyframes"));
+  const [outside, ...inside] = css.split("@media (prefers-reduced-motion: no-preference)");
+  assert.ok(!outside.includes("@keyframes"));
+  assert.ok(!outside.includes("animation:"));
+  assert.equal(inside.length, 1);
   assert.ok(!css.includes(".still"));
   assert.match(read("landing.mjs"), /prefers-reduced-motion: reduce/);
 });
