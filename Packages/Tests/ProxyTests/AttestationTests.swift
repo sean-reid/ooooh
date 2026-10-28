@@ -45,8 +45,9 @@ extension StubbedTransportTests {
     let phrased = StubProtocol.Reply(status: 200, chunks: [Data(#"{"text":"Which part?"}"#.utf8)])
 
     /// What a Worker whose clock runs `ahead` seconds of this machine's puts in its Date header.
-    func serverDate(ahead: TimeInterval) -> (header: String, seconds: Int) {
-      let seconds = Int(Date.now.timeIntervalSince1970.rounded(.down)) + Int(ahead)
+    func serverDate(ahead: TimeInterval, from device: Date = .now) -> (header: String, seconds: Int)
+    {
+      let seconds = Int(device.timeIntervalSince1970.rounded(.down)) + Int(ahead)
       let formatter = DateFormatter()
       formatter.locale = Locale(identifier: "en_US_POSIX")
       formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -61,8 +62,9 @@ extension StubbedTransportTests {
     }
 
     @Test func aStaleAnswerTeachesTheWorkersClockAndTheRetrySignsWithIt() async throws {
-      let clock = WorkerClock()
-      let server = serverDate(ahead: 1_000)
+      let device = Date(timeIntervalSince1970: 1_793_000_000)
+      let clock = WorkerClock(now: { device })
+      let server = serverDate(ahead: 1_000, from: device)
       var stale = stale
       stale.headers = ["Date": server.header]
       StubProtocol.queue.withLock { $0 = [stale, phrased] }
@@ -74,9 +76,9 @@ extension StubbedTransportTests {
 
       let times = try signedTimes()
       #expect(times.count == 2)
-      #expect(abs(times[0] - (server.seconds - 1_000)) <= 1)
-      #expect(abs(times[1] - server.seconds) <= 1)
-      #expect((999...1_001).contains(clock.offset))
+      #expect(times[0] == server.seconds - 1_000)
+      #expect(times[1] == server.seconds)
+      #expect(clock.offset == 1_000)
       #expect(!clock.isRefused)
       #expect(StubProtocol.queue.withLock { $0.isEmpty })
     }
