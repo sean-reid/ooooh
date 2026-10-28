@@ -74,6 +74,15 @@ targets:
         NSLocalNetworkUsageDescription: A development build can talk to a Worker running on a Mac on your own network.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+    postBuildScripts:
+      - name: Build number from git
+        shell: /bin/sh
+        basedOnDependencyAnalysis: false
+        # Naming the processed plist as input runs the script after Xcode writes it and before signing.
+        inputFiles: [$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)]
+        script: |
+          count=$(git -C "$SRCROOT" rev-list --count HEAD 2>/dev/null) || count=$CURRENT_PROJECT_VERSION
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $count" "$TARGET_BUILD_DIR/$INFOPLIST_PATH"
     entitlements:
       path: App/Resources/ooooh.entitlements
       properties:
