@@ -7,9 +7,19 @@
   import Transcription
 
   /// `-reset-store 1` empties the store at launch. `-seed-history 1` adds one finished session with
-  /// the notes in fixtures/demo/history.notes.json, two open threads among them, so the UI tests
-  /// see history and the carryover card without the Worker.
+  /// the notes in fixtures/demo/history.notes.json, two open threads among them, and two lines
+  /// the app asked, one marked bad, so the UI tests see history, the carryover card, and the
+  /// transcript without the Worker.
   enum DebugHistory {
+    static let seededLines = [
+      SpokenLine(
+        text: "What does the extra thousand a month buy you?", kind: .intervention(.clarify),
+        at: 62, spoken: true),
+      SpokenLine(
+        text: "Is this really about the money?", kind: .intervention(.challenge), at: 190,
+        spoken: false, bad: true),
+    ]
+
     private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "debug-history")
 
     static var notes: SessionNotes? { try? bundledNotes() }
@@ -52,7 +62,7 @@
             decisions: SilentDecisionProvider(), compactor: PassthroughCompactor(),
             phraser: TemplatePhraser()))
         try await store.save(
-          result: result, notes: notes, title: notes.title,
+          result: result, lines: seededLines, notes: notes, title: notes.title,
           startedAt: .now.addingTimeInterval(-86_400))
       } catch {
         log.error("Seeding history failed: \(String(describing: error), privacy: .public)")
