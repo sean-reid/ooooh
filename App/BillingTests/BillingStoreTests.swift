@@ -61,6 +61,19 @@
       XCTAssertEqual(store.latestTransactionJWS?.split(separator: ".").count, 3)
     }
 
+    func testAskToBuyReportsThePurchaseAsPending() async {
+      session.askToBuyEnabled = true
+      do {
+        try await store.purchase(.monthly)
+        XCTFail("expected the pending error")
+      } catch BillingError.purchasePending {
+        XCTAssertFalse(store.entitlement.isPaid)
+        XCTAssertFalse(store.isPurchasing)
+      } catch {
+        XCTFail("expected the pending error, got \(error)")
+      }
+    }
+
     func testRefundRevokes() async throws {
       try await store.purchase(.monthly)
       let transaction = try XCTUnwrap(session.allTransactions().first)

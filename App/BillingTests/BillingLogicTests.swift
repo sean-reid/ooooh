@@ -27,6 +27,17 @@ final class BillingLogicTests: XCTestCase {
     XCTAssertTrue(store.hasLoadedPlans)
   }
 
+  func testEachBillingErrorHasALineThePaywallCanShow() {
+    for error in [
+      BillingError.productUnavailable(.monthly), .appStoreUnresponsive, .purchasePending,
+    ] {
+      XCTAssertFalse(error.localizedDescription.isEmpty, "\(error)")
+      XCTAssertFalse(error.localizedDescription.hasPrefix("The operation couldn"), "\(error)")
+    }
+    XCTAssertTrue(BillingError.appStoreUnresponsive.localizedDescription.contains("didn't answer"))
+    XCTAssertTrue(BillingError.purchasePending.localizedDescription.contains("approval"))
+  }
+
   func testFixedPlansCountAsLoaded() {
     XCTAssertTrue(BillingStore(plans: []).hasLoadedPlans)
     XCTAssertFalse(BillingStore(plans: [], hasLoadedPlans: false).hasLoadedPlans)
