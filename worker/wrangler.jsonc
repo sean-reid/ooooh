@@ -25,10 +25,10 @@
     "APP_ATTEST_APP_ID": "C6UWR42ZAP.com.seanreid.ooooh",
     // "development" accepts keys from development-signed builds (aaguid appattestdevelop).
     "APP_ATTEST_ENVIRONMENT": "production",
-    // StoreKit: POST /v1/entitlement accepts a transaction only for this bundle id and environment.
+    // StoreKit: POST /v1/entitlement accepts a transaction only for this bundle id and these environments.
     "APP_BUNDLE_ID": "com.seanreid.ooooh",
-    // "Sandbox" for TestFlight and sandbox testers, "Production" for the store.
-    "APP_STORE_ENVIRONMENT": "Production",
+    // "Sandbox" is TestFlight and sandbox testers, "Production" is the store; list the ones to accept.
+    "APP_STORE_ENVIRONMENTS": "Production,Sandbox",
     "FREE_SESSIONS_PER_MONTH": "3",
     "FREE_PROMPT_MINUTES": "20",
   },
@@ -73,7 +73,7 @@
         "FREE_SESSIONS_PER_MONTH": "3",
         "FREE_PROMPT_MINUTES": "20",
         "APP_BUNDLE_ID": "com.seanreid.ooooh",
-        "APP_STORE_ENVIRONMENT": "Production",
+        "APP_STORE_ENVIRONMENTS": "Production,Sandbox",
         // bin/rotate-secret prints a KEY_ROTATED_AT_<NAME> line to add here after each rotation.
       },
       // `wrangler kv namespace create BUDGET --env production` prints the id to paste here.

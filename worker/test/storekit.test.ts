@@ -14,7 +14,7 @@ let chain: StoreChain;
 const now = Date.parse("2026-10-25T10:00:00Z");
 const settings = (overrides: Partial<StoreKitSettings> = {}): StoreKitSettings => ({
   bundleId: "com.seanreid.ooooh",
-  environment: "Production",
+  environments: ["Production"],
   rootPem: chain.rootPem,
   ...overrides,
 });
@@ -128,13 +128,24 @@ describe("verifyTransaction", () => {
       const jws = await signTransaction(chain, transactionPayload(now, overrides));
       expect(await reason(jws)).toBe(expected);
     }
+  });
+
+  it("accepts a Sandbox transaction only when Sandbox is listed", async () => {
+    const both = { environments: ["Production", "Sandbox"] as const };
     const sandbox = await signTransaction(
       chain,
       transactionPayload(now, { environment: "Sandbox" }),
     );
-    expect(await verifyTransaction(sandbox, settings({ environment: "Sandbox" }))).toMatchObject({
+    expect(await reason(sandbox)).toBe("bad-environment");
+    expect(await verifyTransaction(sandbox, settings(both))).toMatchObject({
       productId: "com.seanreid.ooooh.monthly",
     });
+    const production = await signTransaction(chain, transactionPayload(now));
+    expect(await verifyTransaction(production, settings(both))).toMatchObject({
+      productId: "com.seanreid.ooooh.monthly",
+    });
+    const xcode = await signTransaction(chain, transactionPayload(now, { environment: "Xcode" }));
+    expect(await reason(xcode, both)).toBe("bad-environment");
   });
 
   it("refuses anything that is not an ES256 JWS with a chain", async () => {

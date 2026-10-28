@@ -144,11 +144,13 @@ describe("POST /v1/entitlement", () => {
   it("refuses another bundle id, product, or environment", async () => {
     await unauthorized(await submitTransaction({ bundleId: "com.seanreid.other" }));
     await unauthorized(await submitTransaction({ productId: "com.seanreid.ooooh.weekly" }));
-    await unauthorized(await submitTransaction({ environment: "Sandbox" }));
-    const sandbox = await submitTransaction(
-      { environment: "Sandbox" },
-      { env: { APP_STORE_ENVIRONMENT: "Sandbox" } },
+    await unauthorized(
+      await submitTransaction(
+        { environment: "Sandbox" },
+        { env: { APP_STORE_ENVIRONMENTS: "Production" } },
+      ),
     );
+    const sandbox = await submitTransaction({ environment: "Sandbox" });
     expect(sandbox.status).toBe(200);
   });
 

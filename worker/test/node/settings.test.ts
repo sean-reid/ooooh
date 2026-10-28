@@ -42,7 +42,7 @@ describe("settings", () => {
     });
     expect(bare.storeKit).toEqual({
       bundleId: "com.seanreid.ooooh",
-      environment: "Production",
+      environments: ["Production", "Sandbox"],
       rootPem: undefined,
     });
 
@@ -54,7 +54,7 @@ describe("settings", () => {
         FREE_PROMPT_MINUTES: "",
         REQUIRE_ATTESTATION: "no",
         APP_ATTEST_ENVIRONMENT: "staging",
-        APP_STORE_ENVIRONMENT: "sandbox",
+        APP_STORE_ENVIRONMENTS: "sandbox",
       }),
     );
     expect(bad.dailyLimit.jev).toBe(20_000_000);
@@ -63,7 +63,17 @@ describe("settings", () => {
     expect(bad.freePromptMinutes).toBe(20);
     expect(bad.requireAttestation).toBe(true);
     expect(bad.attestation.environment).toBe("production");
-    expect(bad.storeKit.environment).toBe("Production");
+    expect(bad.storeKit.environments).toEqual(["Production", "Sandbox"]);
+  });
+
+  it("reads the store environments as a list and drops the whole var on an unknown name", () => {
+    const environments = (value: string) =>
+      settings(env({ APP_STORE_ENVIRONMENTS: value })).storeKit.environments;
+    expect(environments("Sandbox")).toEqual(["Sandbox"]);
+    expect(environments("Sandbox, Production")).toEqual(["Sandbox", "Production"]);
+    expect(environments("Production,Xcode")).toEqual(["Production", "Sandbox"]);
+    expect(environments("Production,")).toEqual(["Production", "Sandbox"]);
+    expect(environments("")).toEqual(["Production", "Sandbox"]);
   });
 
   it("takes a well-formed var over its default", () => {
@@ -74,7 +84,7 @@ describe("settings", () => {
         FREE_SESSIONS_PER_MONTH: "1",
         REQUIRE_ATTESTATION: "false",
         APP_ATTEST_ENVIRONMENT: "development",
-        APP_STORE_ENVIRONMENT: "Sandbox",
+        APP_STORE_ENVIRONMENTS: "Sandbox",
         APP_ATTEST_ROOT_PEM: "attest-root",
         APPLE_ROOT_PEM: "apple-root",
       }),
@@ -84,7 +94,7 @@ describe("settings", () => {
     expect(set.freeSessionsPerMonth).toBe(1);
     expect(set.requireAttestation).toBe(false);
     expect(set.attestation).toMatchObject({ environment: "development", rootPem: "attest-root" });
-    expect(set.storeKit).toMatchObject({ environment: "Sandbox", rootPem: "apple-root" });
+    expect(set.storeKit).toMatchObject({ environments: ["Sandbox"], rootPem: "apple-root" });
   });
 
   it("reads one Env object once", () => {
