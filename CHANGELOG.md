@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/sean-reid/ooooh/compare/v0.6.0...v0.6.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **app:** leave the download screen when the speech model install never returns ([#272](https://github.com/sean-reid/ooooh/issues/272)) ([6f01213](https://github.com/sean-reid/ooooh/commit/6f012137c3caf97ead44479be415d8017da377a4))
+* **billing:** release the paywall when the App Store does not answer ([#271](https://github.com/sean-reid/ooooh/issues/271)) ([b42efe5](https://github.com/sean-reid/ooooh/commit/b42efe50bb1113dcf73ec6284fb175928684ceb5)), closes [#257](https://github.com/sean-reid/ooooh/issues/257)
+
 ## [0.6.0](https://github.com/sean-reid/ooooh/compare/v0.5.0...v0.6.0) (2026-10-28)
 
 
