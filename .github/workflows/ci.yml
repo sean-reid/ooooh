@@ -113,9 +113,13 @@ jobs:
       - run: xcodegen generate
       - name: simulator
         # A freshly selected Xcode has no simulator service running yet; first launch starts it.
+        # The device boots ahead of both builds so its first-boot work is over before the first UI test launches the app.
         run: |
           sudo xcodebuild -runFirstLaunch
-          xcrun simctl list devices available | grep 'iPhone 17 Pro'
+          udid=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name == "iPhone 17 Pro")][0].udid')
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
       - name: release build
         # The archive Sean uploads is this configuration; the two values below shipped wrong once each.
         run: |
@@ -127,7 +131,7 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$plist" | tr -d '[:space:]')" = "Array{1}"
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
-          -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+          -destination "id=$SIMULATOR_UDID"
           -derivedDataPath DerivedData -resultBundlePath ui.xcresult
           -only-testing:oooohUITests -retry-tests-on-failure -test-iterations 2 test
       - name: retries
