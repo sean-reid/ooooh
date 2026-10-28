@@ -38,7 +38,8 @@
 
     public var currentRoute: AudioRoute {
       AudioRoute(
-        outputPortTypes: AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portType))
+        outputPortTypes: AVAudioSession.sharedInstance().currentRoute.outputs.map(\.portType),
+        inputPortTypes: AVAudioSession.sharedInstance().currentRoute.inputs.map(\.portType))
     }
 
     public func routeChanges() -> AsyncStream<AudioRoute> {
@@ -57,8 +58,16 @@
   }
 
   extension AudioRoute {
-    public init(outputPortTypes ports: [AVAudioSession.Port]) {
-      self = ports.lazy.compactMap(AudioRoute.init(port:)).first ?? .other
+    /// Headphones only when the microphone travels with the output: a Bluetooth speaker plays
+    /// over A2DP while the phone's own microphone keeps listening, so it counts as other.
+    public init(
+      outputPortTypes ports: [AVAudioSession.Port],
+      inputPortTypes inputs: [AVAudioSession.Port] = []
+    ) {
+      let route = ports.lazy.compactMap(AudioRoute.init(port:)).first ?? .other
+      let micOnThePhone = inputs.contains(.builtInMic)
+      let wirelessOutput = ports.contains { $0 == .bluetoothA2DP || $0 == .bluetoothLE }
+      self = route == .headphones && wirelessOutput && micOnThePhone ? .other : route
     }
 
     private init?(port: AVAudioSession.Port) {
