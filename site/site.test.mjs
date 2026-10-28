@@ -10,7 +10,7 @@ import {
 } from "./orb-geometry.mjs";
 
 const here = import.meta.dirname;
-const pages = ["index.html", "privacy.html", "terms.html"];
+const pages = ["index.html", "privacy.html", "terms.html", "support.html"];
 const read = (name) => readFileSync(join(here, name), "utf8");
 const count = (html, re) => (html.match(re) ?? []).length;
 const leftovers = ["lorem", "TODO", String.fromCodePoint(0x2014)];
@@ -25,7 +25,7 @@ for (const name of pages) {
   });
 }
 
-for (const name of ["privacy.html", "terms.html"]) {
+for (const name of ["privacy.html", "terms.html", "support.html"]) {
   test(`${name} carries a last-updated date and a way back`, () => {
     const html = read(name);
     assert.match(html, /Last updated <time datetime="\d{4}-\d{2}-\d{2}">/);
@@ -71,6 +71,7 @@ test("the landing page links the documents from the footer and carries the store
   const footer = html.slice(html.indexOf("<footer"), html.indexOf("</footer>"));
   assert.match(footer, /href="privacy.html"/);
   assert.match(footer, /href="terms.html"/);
+  assert.match(footer, /href="support.html"/);
   assert.match(html, /<canvas\s+class="orb"/);
   assert.match(html, /<span class="store">Coming to the App Store<\/span>/);
   assert.match(read("landing.mjs"), /^const APP_STORE_URL = "[^"]*";$/m);
@@ -171,7 +172,7 @@ test("the Catmull-Rom path is closed and passes through every point", () => {
 });
 
 test("every page declares the favicon, touch icon, and manifest, and the files exist", () => {
-  for (const page of ["index.html", "privacy.html", "terms.html"]) {
+  for (const page of pages) {
     const html = readFileSync(join(here, page), "utf8");
     assert.match(html, /rel="icon"[^>]*href="images\/icon-32.png"/);
     assert.match(
@@ -191,7 +192,7 @@ test("every page declares the favicon, touch icon, and manifest, and the files e
 });
 
 test("every page carries Open Graph and Twitter tags and the card is 1200 by 630", () => {
-  for (const page of ["index.html", "privacy.html", "terms.html"]) {
+  for (const page of pages) {
     const html = readFileSync(join(here, page), "utf8");
     assert.match(html, /property="og:title"/);
     assert.match(html, /property="og:image" content="https:\/\/ooooh.app\/images\/og.png"/);
