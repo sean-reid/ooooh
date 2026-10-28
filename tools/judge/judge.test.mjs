@@ -16,7 +16,13 @@ import {
   recentWindow,
   recordsFor,
 } from "./corpus.mjs";
-import { contentWords, frameOf, namedWords, tally } from "./frames.mjs";
+import {
+  contentWords,
+  frameOf,
+  namedWords,
+  stateWords,
+  tally,
+} from "./frames.mjs";
 import { fixturesDir, readJSON } from "./io.mjs";
 import {
   criterionNames,
@@ -189,10 +195,12 @@ test("variants keep the shipping request and change only model, prompt, and effo
   assert.equal(bare.system, phraseRules);
   assert.equal(bare.model, shipping.model);
   assert.deepEqual(bare.messages, shipping.messages);
-  for (const [kind, line] of Object.entries(exemplars)) {
-    assert.ok(shipping.system.includes(`- ${kind}: ${line}`));
-    assert.equal(bare.system.includes(line), false);
-    assert.equal(hardRules(line).pass, true, `${kind}: ${line}`);
+  for (const [kind, lines] of Object.entries(exemplars)) {
+    for (const line of lines) {
+      assert.ok(shipping.system.includes(`- ${kind}: ${line}`));
+      assert.equal(bare.system.includes(line), false);
+      assert.equal(hardRules(line).pass, true, `${kind}: ${line}`);
+    }
   }
   assert.deepEqual(Object.keys(exemplars), [
     "clarify",
@@ -261,7 +269,8 @@ test("hard rules pass a plain question and fail each broken rule", () => {
   assert.equal(hardRules("Isn't slow fine, then?").plain, true);
 });
 
-test("the frame rule fails the three forbidden frames in any wording and passes a named line", () => {
+test("the frame rule fails the five forbidden frames in any wording and passes a named line", () => {
+  assert.equal(forbiddenFrames.length, 5);
   for (const frame of forbiddenFrames) {
     assert.equal(hardRules(`${frame}?`).noStockFrame, false, frame);
   }
@@ -269,14 +278,19 @@ test("the frame rule fails the three forbidden frames in any wording and passes 
     "How does the Friday deadline sit with you?",
     "What makes the small team so important here?",
     "What sits beneath the worry about the cost?",
+    "Why does Friday count, and not the Monday after?",
+    "Why does it matter that the build is slow?",
+    "Why is the small team important here?",
+    "The build takes an hour, so what?",
   ]) {
     assert.equal(hardRules(line).noStockFrame, false, line);
     assert.equal(hardRules(line).pass, false, line);
   }
   for (const line of [
-    "Why does Friday count, and not the Monday after?",
+    "Why Friday, and not the Monday after?",
     "Where does the review queue sit in the slow build?",
     "Is the cost the money, or the time in review?",
+    "The last time the build took an hour, what happened?",
   ]) {
     assert.equal(hardRules(line).noStockFrame, true, line);
   }
@@ -307,20 +321,44 @@ test("the diagnosis counts stock frames and words named from the last two uttera
   assert.deepEqual(namedWords("How does that sit with you?", transcript), []);
   assert.equal(frameOf("How does that sit with you?"), "how does X sit");
   assert.equal(frameOf("What makes the hour matter?"), "what makes X");
+  assert.equal(frameOf("Why does the hour matter?"), "why does X matter");
+  assert.equal(
+    frameOf("Why is the review queue important?"),
+    "why does X matter",
+  );
+  assert.equal(
+    frameOf("Why Friday counts and not Monday?"),
+    "why does X matter",
+  );
+  assert.equal(frameOf("An hour on Fridays, so what?"), "why does X matter");
   assert.equal(frameOf("Which part of the build is slow?"), "which part of X");
   assert.equal(frameOf("Is it the build or the queue?"), "is it X or Y");
   assert.equal(frameOf("Why does the build take an hour on Fridays?"), null);
 
-  const corpus = new Map([["f:1", { id: "f:1", transcript }]]);
+  const state = {
+    ...emptyState(),
+    openQuestions: [{ text: "whether the budget covers a second reviewer" }],
+    mainIdeas: [{ text: "the handoff is the slow part" }],
+  };
+  assert.deepEqual(
+    stateWords("The budget was still open, does the build close it?", state),
+    ["budget"],
+  );
+  assert.deepEqual(stateWords("Is it the build or the queue?", state), []);
+  assert.deepEqual(stateWords("The budget again?", emptyState()), []);
+
+  const corpus = new Map([["f:1", { id: "f:1", transcript, state }]]);
   const lines = [
     { id: "f:1", text: "How does that sit with you?" },
     { id: "f:1", text: "Is it the build or the queue?" },
     { id: "f:1", text: "Why does the build take an hour on Fridays?" },
     { id: "f:1", text: "What makes this so hard?" },
+    { id: "f:1", text: "Why does the hour matter?" },
+    { id: "f:1", text: "The budget was still open, does the build close it?" },
   ];
   const counts = tally(lines, corpus);
-  assert.equal(counts.lines, 4);
-  assert.equal(counts.framed, 3);
+  assert.equal(counts.lines, 6);
+  assert.equal(counts.framed, 4);
   assert.deepEqual(
     Object.fromEntries(
       Object.entries(counts.byFrame).map(([name, hits]) => [name, hits.length]),
@@ -328,6 +366,7 @@ test("the diagnosis counts stock frames and words named from the last two uttera
     {
       "how does X sit": 1,
       "what makes X": 1,
+      "why does X matter": 1,
       "which part of X": 0,
       "is it X or Y": 1,
     },
@@ -337,9 +376,15 @@ test("the diagnosis counts stock frames and words named from the last two uttera
     [
       "Is it the build or the queue?",
       "Why does the build take an hour on Fridays?",
+      "Why does the hour matter?",
+      "The budget was still open, does the build close it?",
     ],
   );
   assert.equal(counts.unnamed.length, 2);
+  assert.deepEqual(
+    counts.reachedBack.map((l) => l.text),
+    ["The budget was still open, does the build close it?"],
+  );
   assert.throws(
     () => tally([{ id: "f:9", text: "x" }], corpus),
     /not in the corpus/,

@@ -1,4 +1,4 @@
-// Counts, per variant, the lines that share a stock frame and the lines that name a word from the last two utterances.
+// Counts, per variant, the lines in a stock frame, the lines that name a word from the last two utterances, and the lines that name a word from the state's open questions, main ideas, or uncertainties.
 //   node tools/judge/frames.mjs [--dir <dir>] [--corpus <file>] [--show] [name ...]
 // --show prints the lines under each count; leave it off over private recordings.
 import { join } from "node:path";
@@ -9,6 +9,8 @@ import { namesOnDisk } from "./report.mjs";
 export const frames = {
   "how does X sit": /\bhow does\b.{0,40}?\bsit\b/i,
   "what makes X": /\bwhat makes\b/i,
+  "why does X matter":
+    /\b(why|does|do|did|would|should)\b.{0,40}?\bmatters?\b|\bwhy (is|are|was|were)\b.{0,40}?\bimportant\b|\bwhy\b.{0,40}?\bcounts?\b|\bso what\b/i,
   "which part of X": /\bwhich (part|piece|bit) of\b/i,
   "is it X or Y": /\bis it\b.{1,40}?\bor\b/i,
 };
@@ -38,10 +40,23 @@ export const namedWords = (text, transcript) => {
   return contentWords(text).filter((word) => recent.has(word));
 };
 
+export const stateLists = ["openQuestions", "mainIdeas", "uncertainties"];
+
+/** The content words a line shares with the state's open questions, main ideas, and uncertainties. */
+export const stateWords = (text, state) => {
+  const listed = new Set(
+    stateLists.flatMap((list) =>
+      (state?.[list] ?? []).flatMap((item) => contentWords(item.text)),
+    ),
+  );
+  return contentWords(text).filter((word) => listed.has(word));
+};
+
 export const tally = (lines, corpus) => {
   const byFrame = Object.fromEntries(frameNames.map((name) => [name, []]));
   const named = [];
   const unnamed = [];
+  const reachedBack = [];
   for (const line of lines) {
     const frame = frameOf(line.text);
     if (frame) byFrame[frame].push(line);
@@ -50,6 +65,7 @@ export const tally = (lines, corpus) => {
     (namedWords(line.text, record.transcript).length ? named : unnamed).push(
       line,
     );
+    if (stateWords(line.text, record.state).length) reachedBack.push(line);
   }
   return {
     lines: lines.length,
@@ -57,6 +73,7 @@ export const tally = (lines, corpus) => {
     byFrame,
     named,
     unnamed,
+    reachedBack,
   };
 };
 
@@ -79,9 +96,10 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   for (const name of words.length ? words : namesOnDisk(dir)) {
     const counts = tally(readJsonl(join(dir, `lines.${name}.jsonl`)), corpus);
     console.log(
-      `${name}: ${counts.lines} lines, ${counts.framed} in a stock frame, ${counts.named.length} name a word from the last two utterances`,
+      `${name}: ${counts.lines} lines, ${counts.framed} in a stock frame, ${counts.named.length} name a word from the last two utterances, ${counts.reachedBack.length} name a word from the state`,
     );
     for (const frame of frameNames) show(frame, counts.byFrame[frame], verbose);
     show("names nothing recent", counts.unnamed, verbose);
+    show("names a word from the state", counts.reachedBack, verbose);
   }
 }
