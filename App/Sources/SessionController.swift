@@ -78,7 +78,6 @@ final class SessionController {
   private(set) var downloadProgress: Double = 0
   /// Start to End, less every pause; the time the user sees and is charged for.
   private(set) var timing = SessionTiming()
-  private(set) var isOffline = false
   private(set) var quietMode = true
   private var route: AudioRoute = .speaker
   private(set) var result: SessionResult?
@@ -109,7 +108,8 @@ final class SessionController {
   /// Says the lines, and keeps what it said.
   private let delivery: PromptDelivery
   private var writing: Task<Void, Never>?
-  private var offlineChange: Task<Void, Never>?
+  /// Holds an offline change for the environment's delay before the orb shows it.
+  private let offline: OfflineDebounce
   private var gate: SessionGate?
   private let environment: Environment
   private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "session")
@@ -117,6 +117,7 @@ final class SessionController {
 
   init(environment: Environment = Environment(workerURL: WorkerURL.fromBundle)) {
     self.environment = environment
+    offline = OfflineDebounce(delay: environment.offlineDelay)
     delivery = PromptDelivery(
       hold: environment.aboutToSpeakHold, haptic: environment.haptic,
       announce: environment.announce)
@@ -131,6 +132,7 @@ final class SessionController {
   /// Every line delivered so far, with how it went; saved with the session at the end.
   var lines: [SpokenLine] { delivery.lines }
   var isSpeaking: Bool { delivery.isSpeaking }
+  var isOffline: Bool { offline.isOffline }
   var startedAt: Date? { timing.startedAt }
   /// The moment End was tapped, or the loop ended on its own.
   var endedAt: Date? { timing.endedAt }
@@ -227,7 +229,7 @@ final class SessionController {
         Task { await self?.handle(command) }
       }
       environment.media?.setNowPlaying(title: Self.nowPlayingTitle, playing: true)
-      if guardian.isOffline { scheduleOffline(true) }
+      if guardian.isOffline { offline.schedule(true) }
       await live.start()
       observers = [
         Task { for await event in live.events() { await handle(event) } },
@@ -359,8 +361,8 @@ final class SessionController {
       delivery.deliver("Done for now?", kind: .finishedQuestion, at: at, quietly: true)
     case .compactionApplied:
       compactions += 1
-    case .offline(let offline):
-      scheduleOffline(offline)
+    case .offline(let isOffline):
+      offline.schedule(isOffline)
     case .ended(let result):
       await finish(with: result)
     }
@@ -380,19 +382,9 @@ final class SessionController {
     }
   }
 
-  private func scheduleOffline(_ offline: Bool) {
-    offlineChange?.cancel()
-    guard offline != isOffline else { return }
-    offlineChange = Task {
-      try? await Task.sleep(for: environment.offlineDelay)
-      guard !Task.isCancelled else { return }
-      isOffline = offline
-    }
-  }
-
   private func finish(with result: SessionResult) async {
     await delivery.cancel()
-    offlineChange?.cancel()
+    offline.cancel()
     for observer in observers { observer.cancel() }
     self.result = result
     timing.end(at: .now)
