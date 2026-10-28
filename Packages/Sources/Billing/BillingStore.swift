@@ -199,7 +199,10 @@ public final class BillingStore {
         else { continue }
         return .subscribed(expires: transaction.expirationDate, product: product)
       case .inGracePeriod:
-        found = .inGrace
+        guard case .verified(let transaction) = status.transaction,
+          let product = ProductID(rawValue: transaction.productID)
+        else { continue }
+        found = .inGrace(product: product)
       case .revoked:
         if found == nil { found = .revoked }
       default:
