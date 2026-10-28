@@ -1,6 +1,11 @@
+import Billing
 import Design
 import Persistence
 import SwiftUI
+
+#if os(iOS)
+  import StoreKit
+#endif
 
 /// The settings screen: listener switches, subscription, data controls, privacy, about.
 public struct SettingsView: View {
@@ -9,51 +14,64 @@ public struct SettingsView: View {
   var version: String
   var transcription: String?
   var cloudSync: CloudSyncState
+  var entitlement: Entitlement
   var subscribeAction: () -> Void
+  var restore: () async throws -> Entitlement
   var openHistory: () -> Void
   var onDone: (() -> Void)?
   /// ImageRenderer draws a NavigationStack and a ScrollView empty, so snapshots render the
   /// content flat.
   var scrolls = true
+  /// The day the renewal date is compared against, fixed in snapshots.
+  var now = Date.now
   @State private var sessionCount: Int?
   @State private var confirmingDelete = false
   @State private var deleteFailure: String?
   @State private var showsPrivacy = false
+  @State private var managesSubscription = false
+  @State private var isRestoring = false
+  @State private var restoreLine: String?
 
   static let deleteFailedLine = "Nothing was deleted. Your sessions are still on this phone."
+  static let nothingToRestoreLine = "No subscription found for this Apple Account."
 
   public static let siteURL = URL(string: "https://ooooh.app")!
   public static let termsURL = URL(string: "https://ooooh.app/terms.html")!
 
   /// `transcription` names the engine Start runs on this phone; `cloudSync` is what the iCloud row
-  /// says; `subscribeAction` opens the paywall; `openHistory` opens the list where one session can
-  /// be deleted; `onDone` adds a Done button when the screen is presented as a sheet.
+  /// says; `entitlement` is what the Subscription row says; `subscribeAction` opens the paywall;
+  /// `restore` asks the App Store for a past purchase; `openHistory` opens the list where one
+  /// session can be deleted; `onDone` adds a Done button when the screen is presented as a sheet.
   public init(
     settings: AppSettings, store: SessionStore, version: String = SettingsView.bundleVersion,
-    transcription: String? = nil, cloudSync: CloudSyncState,
-    subscribeAction: @escaping () -> Void, openHistory: @escaping () -> Void,
-    onDone: (() -> Void)? = nil
+    transcription: String? = nil, cloudSync: CloudSyncState, entitlement: Entitlement,
+    subscribeAction: @escaping () -> Void, restore: @escaping () async throws -> Entitlement,
+    openHistory: @escaping () -> Void, onDone: (() -> Void)? = nil
   ) {
     self.settings = settings
     self.store = store
     self.version = version
     self.transcription = transcription
     self.cloudSync = cloudSync
+    self.entitlement = entitlement
     self.subscribeAction = subscribeAction
+    self.restore = restore
     self.openHistory = openHistory
     self.onDone = onDone
   }
 
   init(
     settings: AppSettings, store: SessionStore, version: String, transcription: String?,
-    cloudSync: CloudSyncState, sessionCount: Int?, subscribeAction: @escaping () -> Void,
-    openHistory: @escaping () -> Void, onDone: (() -> Void)?
+    cloudSync: CloudSyncState, entitlement: Entitlement, now: Date, sessionCount: Int?,
+    subscribeAction: @escaping () -> Void, openHistory: @escaping () -> Void,
+    onDone: (() -> Void)?
   ) {
     self.init(
       settings: settings, store: store, version: version, transcription: transcription,
-      cloudSync: cloudSync, subscribeAction: subscribeAction, openHistory: openHistory,
-      onDone: onDone)
+      cloudSync: cloudSync, entitlement: entitlement, subscribeAction: subscribeAction,
+      restore: { entitlement }, openHistory: openHistory, onDone: onDone)
     _sessionCount = State(initialValue: sessionCount)
+    self.now = now
     scrolls = false
   }
 
@@ -96,6 +114,9 @@ public struct SettingsView: View {
     } message: {
       Text(deleteMessage)
     }
+    #if os(iOS)
+      .manageSubscriptionsSheet(isPresented: $managesSubscription)
+    #endif
   }
 
   private var header: some View {
@@ -119,10 +140,7 @@ public struct SettingsView: View {
   private var content: some View {
     VStack(alignment: .leading, spacing: 28) {
       listener
-      SettingsSection(title: "Subscription") {
-        ActionRow(title: "Subscribe", action: subscribeAction)
-          .accessibilityIdentifier("settings.subscribe")
-      }
+      subscription
       data
       SettingsSection(title: "Privacy") {
         ActionRow(title: "What leaves your phone, and what stays") { showsPrivacy = true }
@@ -154,6 +172,33 @@ public struct SettingsView: View {
       RowLabel(title: "Transcription", detail: transcription)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("settings.transcription")
+    }
+  }
+
+  private var subscription: some View {
+    SettingsSection(title: "Subscription", footer: entitlement.settingsFooter) {
+      if entitlement.isPaid {
+        ActionRow(title: entitlement.settingsLine(now: now)) { managesSubscription = true }
+          .accessibilityHint("Opens the App Store's subscription settings")
+          .accessibilityIdentifier("settings.subscription")
+      } else {
+        ActionRow(title: entitlement.settingsLine(now: now), action: subscribeAction)
+          .accessibilityIdentifier("settings.subscribe")
+      }
+      if case .free = entitlement {
+        RowDivider()
+        ActionRow(title: "Restore Purchases", symbol: "arrow.clockwise") { restorePurchases() }
+          .disabled(isRestoring)
+          .accessibilityIdentifier("settings.restore")
+        if let restoreLine {
+          Text(restoreLine)
+            .font(Typography.caption)
+            .foregroundStyle(Palette.accent)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 12)
+            .accessibilityIdentifier("settings.restoreLine")
+        }
+      }
     }
   }
 
@@ -257,6 +302,19 @@ public struct SettingsView: View {
 
   private func refreshCount() async {
     sessionCount = (try? await store.sessionCount()) ?? sessionCount
+  }
+
+  /// A paid answer changes `entitlement` through the caller, which replaces the free rows.
+  private func restorePurchases() {
+    Task {
+      isRestoring = true
+      defer { isRestoring = false }
+      do {
+        restoreLine = try await restore().isPaid ? nil : Self.nothingToRestoreLine
+      } catch {
+        restoreLine = error.localizedDescription
+      }
+    }
   }
 
   /// On a store error the count is read again, so the row shows what is still there.

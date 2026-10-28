@@ -1,4 +1,5 @@
 #if canImport(UIKit)
+  import Billing
   import Persistence
   import SnapshotTesting
   import SwiftUI
@@ -42,6 +43,29 @@
       assertSnapshot(of: image, as: .pixels, named: "402-sync-failed-\(scheme.name)")
     }
 
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsSubscribedMonthly(scheme: ColorScheme) throws {
+      let view = try settingsView(
+        entitlement: .subscribed(expires: Self.day(2026, 11, 27), product: .monthly))
+      let image = render(view, height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-monthly-\(scheme.name)")
+    }
+
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsSubscribedYearly(scheme: ColorScheme) throws {
+      let view = try settingsView(
+        entitlement: .subscribed(expires: Self.day(2027, 10, 27), product: .yearly))
+      let image = render(view, height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-yearly-\(scheme.name)")
+    }
+
+    @Test(arguments: [ColorScheme.dark, .light])
+    func settingsInGrace(scheme: ColorScheme) throws {
+      let view = try settingsView(entitlement: .inGrace(product: .monthly))
+      let image = render(view, height: nil, scheme: scheme)
+      assertSnapshot(of: image, as: .pixels, named: "402-grace-\(scheme.name)")
+    }
+
     @Test func settingsAccessibility3() throws {
       let image = render(try settingsView(), height: nil, scheme: .dark, type: .accessibility3)
       assertSnapshot(of: image, as: .pixels, named: "402-accessibility3-dark")
@@ -60,9 +84,18 @@
       assertSnapshot(of: image, as: .pixels, named: "402-accessibility3-dark")
     }
 
-    /// The switch draws the state's own setting: off for `.off`, on for the rest.
+    /// Noon UTC, so the day is the same in every zone the suite runs in.
+    private static func day(_ year: Int, _ month: Int, _ day: Int) -> Date {
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = TimeZone(identifier: "UTC")!
+      return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    }
+
+    /// The switch draws the state's own setting: off for `.off`, on for the rest. Renewal dates
+    /// are read against October 27, 2026.
     private func settingsView(
-      challengeEnabled: Bool = true, cloudSync: CloudSyncState = .syncing
+      challengeEnabled: Bool = true, cloudSync: CloudSyncState = .syncing,
+      entitlement: Entitlement = .free(remainingSessions: 3)
     ) throws -> SettingsView {
       let suite = "settings-snapshots"
       let defaults = try #require(UserDefaults(suiteName: suite))
@@ -73,8 +106,9 @@
       return SettingsView(
         settings: settings,
         store: try SessionStore(configuration: .inMemory), version: "0.1.0 (1)",
-        transcription: "On-device transcription", cloudSync: cloudSync, sessionCount: 12,
-        subscribeAction: {}, openHistory: {}, onDone: {})
+        transcription: "On-device transcription", cloudSync: cloudSync, entitlement: entitlement,
+        now: Self.day(2026, 10, 27), sessionCount: 12, subscribeAction: {}, openHistory: {},
+        onDone: {})
     }
 
     private func privacyView() -> PrivacyView {
