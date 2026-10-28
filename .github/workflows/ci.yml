@@ -31,7 +31,7 @@ jobs:
           code=false
           for file in $(git diff --name-only "$BASE...HEAD"); do
             case "$file" in
-              CHANGELOG.md|.release-please-manifest.json) ;;
+              CHANGELOG.md|.release-please-manifest.json|site/*) ;;
               project.yml)
                 lines=$(git diff "$BASE...HEAD" -- project.yml | grep -E '^[-+][^-+]' || true)
                 [ "$(printf '%s\n' "$lines" | grep -c 'x-release-please-version')" = "$(printf '%s\n' "$lines" | grep -c .)" ] || code=true
