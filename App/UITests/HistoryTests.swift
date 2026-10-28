@@ -3,18 +3,18 @@ import XCTest
 /// History and the carryover card over a seeded store, so they run without the Worker.
 final class HistoryTests: UITestCase {
   @MainActor
-  func testHistoryDark() {
-    runHistory(named: "history-dark", arguments: ["-ui-color-scheme", "dark"])
+  func testHistoryDark() throws {
+    try runHistory(named: "history-dark", arguments: ["-ui-color-scheme", "dark"])
   }
 
   @MainActor
-  func testHistoryLight() {
-    runHistory(named: "history-light", arguments: ["-ui-color-scheme", "light"])
+  func testHistoryLight() throws {
+    try runHistory(named: "history-light", arguments: ["-ui-color-scheme", "light"])
   }
 
   @MainActor
-  func testHistoryAccessibilityExtraLarge() {
-    runHistory(
+  func testHistoryAccessibilityExtraLarge() throws {
+    try runHistory(
       named: "history-ax-xl",
       arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL"],
       searchesAndDeletes: false)
@@ -24,6 +24,7 @@ final class HistoryTests: UITestCase {
   /// screens, since the tall rows make the keyboard and the swipe unreliable on the CI simulator.
   @MainActor
   private func runHistory(named name: String, arguments: [String], searchesAndDeletes: Bool = true)
+    throws
   {
     let app = XCUIApplication()
     app.launchArguments +=
@@ -36,6 +37,7 @@ final class HistoryTests: UITestCase {
     XCTAssertTrue(card.buttons["Pick up How Sam and I weight time against money"].exists)
     XCTAssertTrue(lease.exists)
     attach(app, named: "\(name)-carryover")
+    try auditAccessibility(app, named: "\(name)-carryover")
     app.swipeUp()
     attach(app, named: "\(name)-carryover-scrolled")
     waitUntilHittable(lease)
@@ -52,6 +54,7 @@ final class HistoryTests: UITestCase {
     XCTAssertTrue(row.appears())
     XCTAssertTrue(row.label.contains("2 open threads"))
     attach(app, named: "\(name)-history")
+    try auditAccessibility(app, named: "\(name)-history")
 
     row.tap()
     let notes = app.otherElements["notes.view"]
@@ -59,8 +62,10 @@ final class HistoryTests: UITestCase {
     XCTAssertTrue(notes.staticTexts["Carver Street or the park"].exists)
     XCTAssertTrue(notes.staticTexts["Open threads"].exists)
     attach(app, named: "\(name)-stored-notes")
+    try auditAccessibility(app, named: "\(name)-stored-notes")
+    try expandTranscript(notes, in: app, named: name)
     if searchesAndDeletes {
-      editNotes(notes, in: app, named: name)
+      try editNotes(notes, in: app, named: name)
     }
     app.buttons["notes.done"].tap()
     waitUntilHittable(list)
@@ -70,7 +75,7 @@ final class HistoryTests: UITestCase {
     }
 
     if searchesAndDeletes {
-      let search = app.textFields["history.search"]
+      let search = app.descendants(matching: .any)["history.search"]
       waitUntilHittable(search)
       search.tap()
       wait(
@@ -80,6 +85,8 @@ final class HistoryTests: UITestCase {
       XCTAssertTrue(row.appears())
       search.typeText(" zebra")
       XCTAssertTrue(app.staticTexts["history.empty"].appears())
+      attach(app, named: "\(name)-history-empty")
+      try auditAccessibility(app, named: "\(name)-history-empty")
       app.buttons["Clear the search"].tap()
       XCTAssertTrue(row.appears())
 
@@ -94,12 +101,35 @@ final class HistoryTests: UITestCase {
     XCTAssertTrue(searchesAndDeletes ? card.disappears() : card.appears())
   }
 
+  /// Opens the transcript and reads the two lines the seed says the app asked, one of them
+  /// marked bad, then folds it again.
+  @MainActor
+  private func expandTranscript(_ notes: XCUIElement, in app: XCUIApplication, named name: String)
+    throws
+  {
+    let toggle = notes.buttons["transcript.toggle"]
+    XCTAssertTrue(toggle.appears())
+    toggle.tap()
+    let lines = notes.descendants(matching: .any).matching(
+      NSPredicate(format: "identifier BEGINSWITH 'transcript.line.'"))
+    XCTAssertTrue(lines.firstMatch.appears())
+    XCTAssertEqual(lines.count, 2)
+    XCTAssertEqual(
+      lines.matching(NSPredicate(format: "label ENDSWITH ', marked bad'")).count, 1)
+    attach(app, named: "\(name)-transcript")
+    try auditAccessibility(app, named: "\(name)-transcript")
+    toggle.tap()
+    XCTAssertTrue(lines.firstMatch.disappears())
+  }
+
   /// Edit, resolve the first thread, tap the decision, type onto its end, Done: the thread
   /// reads as resolved and the new text shows. The resolve comes first, before the keyboard
   /// covers the thread rows. Both taps scroll their row into view on their own, so they wait
   /// for existence, not hittability.
   @MainActor
-  private func editNotes(_ notes: XCUIElement, in app: XCUIApplication, named name: String) {
+  private func editNotes(_ notes: XCUIElement, in app: XCUIApplication, named name: String)
+    throws
+  {
     let decision = "Make the case for the park place tonight with the numbers"
     app.buttons["notes.edit"].tap()
     let resolved = notes.descendants(matching: .any).matching(
@@ -117,6 +147,7 @@ final class HistoryTests: UITestCase {
       "the note field never took keyboard focus")
     field.typeText(", with the commute times")
     attach(app, named: "\(name)-editing-notes")
+    try auditAccessibility(app, named: "\(name)-editing-notes")
     app.buttons["notes.editing.done"].tap()
 
     let edited = notes.descendants(matching: .any).matching(
@@ -128,5 +159,6 @@ final class HistoryTests: UITestCase {
     ).firstMatch
     XCTAssertTrue(thread.exists)
     attach(app, named: "\(name)-edited-notes")
+    try auditAccessibility(app, named: "\(name)-edited-notes")
   }
 }

@@ -52,6 +52,7 @@
         Text(model.volatileText.isEmpty ? placeholder : model.volatileText)
           .font(.body)
           .foregroundStyle(model.volatileText.isEmpty ? Palette.inkDim : Palette.ink)
+          .fixedSize(horizontal: false, vertical: true)
           .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
           .padding(16)
           .background(Palette.skyRaised, in: RoundedRectangle(cornerRadius: 16))

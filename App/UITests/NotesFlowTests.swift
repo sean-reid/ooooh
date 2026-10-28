@@ -36,6 +36,7 @@ final class NotesFlowTests: UITestCase {
     XCTAssertTrue(writing.appears())
     XCTAssertEqual(writing.label, "writing your notes")
     attach(app, named: "\(name)-writing")
+    try auditAccessibility(app, named: "\(name)-writing")
 
     let notes = app.otherElements["notes.view"]
     XCTAssertTrue(notes.appears())
@@ -44,6 +45,7 @@ final class NotesFlowTests: UITestCase {
     let done = app.buttons["Done"].firstMatch
     waitUntilHittable(done)
     attach(app, named: "\(name)-notes")
+    try auditAccessibility(app, named: "\(name)-notes")
     done.tap()
 
     let history = app.buttons["home.history"]
@@ -56,6 +58,7 @@ final class NotesFlowTests: UITestCase {
     ).firstMatch
     XCTAssertTrue(row.appears())
     attach(app, named: "\(name)-history")
+    try auditAccessibility(app, named: "\(name)-history")
     app.buttons["history.done"].tap()
 
     app.terminate()
@@ -65,5 +68,6 @@ final class NotesFlowTests: UITestCase {
     XCTAssertTrue(card.appears())
     XCTAssertGreaterThan(card.buttons.count, 0)
     attach(app, named: "\(name)-carryover")
+    try auditAccessibility(app, named: "\(name)-carryover")
   }
 }

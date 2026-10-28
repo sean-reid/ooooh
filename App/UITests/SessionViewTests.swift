@@ -2,24 +2,79 @@ import XCTest
 
 final class SessionViewTests: UITestCase {
   @MainActor
-  func testDemoSessionDark() {
-    runDemo(named: "session-dark", arguments: ["-ui-color-scheme", "dark"])
+  func testDemoSessionDark() throws {
+    try runDemo(named: "session-dark", arguments: ["-ui-color-scheme", "dark"])
   }
 
   @MainActor
-  func testDemoSessionLight() {
-    runDemo(named: "session-light", arguments: ["-ui-color-scheme", "light"])
+  func testDemoSessionLight() throws {
+    try runDemo(named: "session-light", arguments: ["-ui-color-scheme", "light"])
   }
 
   @MainActor
-  func testDemoSessionAccessibilityExtraLarge() {
-    runDemo(
+  func testDemoSessionAccessibilityExtraLarge() throws {
+    try runDemo(
       named: "session-ax-xl",
       arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL"])
   }
 
+  /// A Worker at a closed port fails every request at once, so the session goes offline within
+  /// seconds, and End lands on the notes screen that says so.
   @MainActor
-  private func runDemo(named name: String, arguments: [String]) {
+  func testOfflineSession() throws {
+    let app = XCUIApplication()
+    app.launchArguments +=
+      ["-onboardingComplete", "1", "-reset-store", "1", "-demo-speed", "16"]
+      + ["-worker-url", "http://127.0.0.1:1"]
+    app.launch()
+
+    let demo = app.buttons["home.demo"]
+    waitUntilHittable(demo)
+    demo.tap()
+
+    let offline = app.staticTexts["session.offline"]
+    XCTAssertTrue(offline.appears())
+    XCTAssertEqual(offline.label, "listening only, your listener is offline")
+    XCTAssertTrue(app.descendants(matching: .any)["Your listener is offline"].firstMatch.exists)
+    attach(app, named: "session-offline")
+    try auditAccessibility(app, named: "session-offline")
+
+    app.buttons["session.end"].tap()
+    XCTAssertTrue(app.otherElements["notes.pending"].appears())
+    XCTAssertTrue(
+      app.staticTexts["notes.pending.line"].label.hasPrefix("Your listener is offline."))
+    attach(app, named: "notes-offline")
+    try auditAccessibility(app, named: "notes-offline")
+  }
+
+  /// At a hundredth of the recorded pace nothing is final before End, so End lands on the
+  /// screen for a session with nothing said.
+  @MainActor
+  func testEndBeforeAnythingIsSaid() throws {
+    let app = XCUIApplication()
+    app.launchArguments +=
+      ["-onboardingComplete", "1", "-reset-store", "1", "-demo-speed", "0.01"]
+      + Worker.launchArguments
+    app.launch()
+
+    let demo = app.buttons["home.demo"]
+    waitUntilHittable(demo)
+    demo.tap()
+
+    let end = app.buttons["session.end"]
+    waitUntilHittable(end)
+    end.tap()
+    let empty = app.staticTexts["notes.empty"]
+    XCTAssertTrue(empty.appears())
+    XCTAssertEqual(empty.label, "Nothing was said this time.")
+    attach(app, named: "notes-empty")
+    try auditAccessibility(app, named: "notes-empty")
+    app.buttons["notes.done"].tap()
+    waitUntilHittable(app.buttons["home.start"])
+  }
+
+  @MainActor
+  private func runDemo(named name: String, arguments: [String]) throws {
     let app = XCUIApplication()
     app.launchArguments +=
       ["-onboardingComplete", "1", "-reset-store", "1"] + Worker.launchArguments + arguments
@@ -40,6 +95,7 @@ final class SessionViewTests: UITestCase {
     if let image = attach(app, named: name) {
       assertHaloFadesPastTheFrame(of: orb, in: image, screen: app.frame)
     }
+    try auditAccessibility(app, named: name)
 
     app.buttons["session.end"].tap()
     // How much the demo said before End depends on the runner, and whether a Worker answers on
@@ -60,6 +116,7 @@ final class SessionViewTests: UITestCase {
       XCTAssertTrue(app.buttons["notes.done"].exists)
     }
     attach(app, named: "\(name)-notes")
+    try auditAccessibility(app, named: "\(name)-notes")
   }
 
   /// Walks the row through the orb's center from 24 pt outside its frame to 24 pt inside. A halo

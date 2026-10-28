@@ -148,9 +148,10 @@ import Testing
     #expect(path.contains(.init(x: 100, y: 100)))
   }
 
+  /// inkDim carries captions and the dimmed body lines, so it is held to the text minimum too.
   @Test(arguments: [ColorScheme.light, .dark])
   func textClearsTheSkyInBothSchemes(scheme: ColorScheme) {
-    let text = [("ink", Palette.ink), ("accent", Palette.accent)]
+    let text = [("ink", Palette.ink), ("inkDim", Palette.inkDim), ("accent", Palette.accent)]
     let skies = [("sky", Palette.sky), ("skyRaised", Palette.skyRaised)]
     for (textName, textColor) in text {
       for (skyName, skyColor) in skies {

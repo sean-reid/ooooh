@@ -35,6 +35,16 @@ import Transcription
     #expect(controller.result?.transcript.count == 35)
   }
 
+  /// HistoryTests opens the seeded transcript and reads two lines the app asked, one marked bad,
+  /// so both sit inside the fixture's run.
+  @Test func seededLinesFallInsideTheDemoFixture() throws {
+    let end = try #require(DebugHistory.demoFixture().segments.map(\.end).max())
+    let lines = DebugHistory.seededLines
+    #expect(lines.count == 2)
+    #expect(lines.allSatisfy { $0.at > 0 && $0.at < end })
+    #expect(lines.filter(\.bad).count == 1)
+  }
+
   @Test func bundledNotesAreTheCarverStreetSession() throws {
     let notes = try DebugHistory.bundledNotes()
     #expect(DebugHistory.notes == notes)

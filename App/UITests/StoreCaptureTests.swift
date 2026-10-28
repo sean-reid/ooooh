@@ -65,17 +65,20 @@ final class StoreCaptureTests: UITestCase {
       "the session never settled into listening")
     try? await Task.sleep(for: hold)
     attach(app, named: "store-listening")
+    try auditAccessibility(app, named: "store-listening")
 
     let speaking = orb["Your listener is speaking"]
     // A real Jev may ask anywhere in the 410 s fixture.
     XCTAssertTrue(speaking.waitForExistence(timeout: 420))
     attach(app, named: "store-speaking")
+    try auditAccessibility(app, named: "store-speaking")
 
     wait(
       until: { listening.exists && prompt.exists && !prompt.label.isEmpty },
       "the question never stayed beside the listening orb")
     try? await Task.sleep(for: hold)
     attach(app, named: "store-prompt")
+    try auditAccessibility(app, named: "store-prompt")
 
     // The seeded notes quote utterance 9, which ends at 2:16, so End waits for 2:20.
     let elapsed = app.staticTexts["session.elapsed"]
