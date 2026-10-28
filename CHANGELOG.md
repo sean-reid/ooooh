@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0](https://github.com/sean-reid/ooooh/compare/v0.5.0...v0.6.0) (2026-10-28)
+
+
+### Features
+
+* **app:** take the demo fixture path from -demo-fixture ([#248](https://github.com/sean-reid/ooooh/issues/248)) ([567209a](https://github.com/sean-reid/ooooh/commit/567209a953d4d910e1d661b6807819c56cb7dfca))
+* show the subscription state in Settings and confirm a purchase on the paywall ([#261](https://github.com/sean-reid/ooooh/issues/261)) ([8e9b4af](https://github.com/sean-reid/ooooh/commit/8e9b4af06f5c11f714671d3a8136adf689456d52))
+* **site:** add a support page and link it from every footer ([#253](https://github.com/sean-reid/ooooh/issues/253)) ([687d6a0](https://github.com/sean-reid/ooooh/commit/687d6a0bf5f8abb4a52e71c194ddb308b3c5be8e))
+* **site:** the orb travels from the hero to the phone ([#266](https://github.com/sean-reid/ooooh/issues/266)) ([572a1bb](https://github.com/sean-reid/ooooh/commit/572a1bbadde8ecb539ac786ab4090c514cf2bb45))
+
+
+### Bug Fixes
+
+* **app:** let speech cut a playing line only through headphones ([#263](https://github.com/sean-reid/ooooh/issues/263)) ([0841831](https://github.com/sean-reid/ooooh/commit/0841831e2bb8d7533555bef36f41aa3acc6770e2))
+* **app:** point Release builds at the production Worker ([#252](https://github.com/sean-reid/ooooh/issues/252)) ([a3f37df](https://github.com/sean-reid/ooooh/commit/a3f37df2eaa52067246449253880bf6bd8d88f79))
+* **audio:** count a Bluetooth speaker as a speaker, not headphones ([#265](https://github.com/sean-reid/ooooh/issues/265)) ([c5c6f54](https://github.com/sean-reid/ooooh/commit/c5c6f54dd7bbed92563f0a1324365dd214cf44a7))
+* **persistence:** sort open threads by a date column on the thread ([#259](https://github.com/sean-reid/ooooh/issues/259)) ([c886758](https://github.com/sean-reid/ooooh/commit/c8867588dd99681158b11452cd2f913ce0484e5c))
+* **persistence:** sort open threads in memory ([#249](https://github.com/sean-reid/ooooh/issues/249)) ([8d18277](https://github.com/sean-reid/ooooh/commit/8d18277323610548f0427f8730a546d1c09fd3e0))
+* **transcription:** seal a line's echo window on every route but headphones ([#258](https://github.com/sean-reid/ooooh/issues/258)) ([2e53a82](https://github.com/sean-reid/ooooh/commit/2e53a82a34a44ef3923f659f66fecb3344b3af46))
+
 ## [0.5.0](https://github.com/sean-reid/ooooh/compare/v0.4.0...v0.5.0) (2026-10-28)
 
 
