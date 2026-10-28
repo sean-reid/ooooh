@@ -26,6 +26,8 @@ jobs:
       - run: swift format lint --strict --recursive Packages App
       - run: swift build --package-path Packages
       - run: swift test --package-path Packages
+      # SwiftData resolves key paths differently under the Release optimiser; the store's queries run there too.
+      - run: swift test --package-path Packages -c release --filter PersistenceTests
       - run: swift run --package-path Packages eval --corpus fixtures/synthetic/estimate --require-perfect
       - run: >
           swift run --package-path Packages eval --corpus fixtures/synthetic/estimate
@@ -85,6 +87,15 @@ jobs:
         run: |
           sudo xcodebuild -runFirstLaunch
           xcrun simctl list devices available | grep 'iPhone 17 Pro'
+      - name: release build
+        # The archive Sean uploads is this configuration; the two values below shipped wrong once each.
+        run: |
+          xcodebuild -project ooooh.xcodeproj -scheme ooooh -configuration Release \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO build
+          plist=DerivedData/Build/Products/Release-iphonesimulator/ooooh.app/Info.plist
+          test "$(/usr/libexec/PlistBuddy -c 'Print :OoooohWorkerURL' "$plist")" = "https://api.ooooh.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily' "$plist" | tr -d '[:space:]')" = "Array{1}"
       - run: >
           xcodebuild -project ooooh.xcodeproj -scheme ooooh
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
