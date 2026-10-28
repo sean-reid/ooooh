@@ -124,6 +124,34 @@ import Transcription
     #expect(result.cancelledArms == [1.3])
   }
 
+  /// The arm at 0.5 is due at 3.0. A pause at 1.3 cancels it, the clock runs two minutes with
+  /// nothing spoken, and the moment after resume arms and speaks on its own delay.
+  @Test func aPauseCancelsTheArmAndHoldsTheClock() async throws {
+    var h = await Harness(firing(.deepen, at: [0.5, 3.0]))
+    _ = await h.say("one", from: 0, to: 0.5)
+    await wait { h.clock.sleeping > 0 }
+    h.advance(to: 1.3)
+    await h.live.pause(audioTime: 1.3)
+    let cut = await h.events.next(until: \.isPromptCancelled)
+    #expect(cancelled(cut) == [1.3])
+    #expect(h.clock.sleeping == 0)
+
+    h.advance(to: 120)
+    await h.live.resume()
+    await wait { h.clock.sleeping > 0 }
+    let next = await h.say("two", from: 1.3, to: 3.0)
+    #expect(armed(next).map(\.at) == [3.0])
+    h.advance(to: 124.1)
+    #expect(h.clock.sleeping == 1)
+    h.advance(to: 124.2)
+    let fired = await h.events.next(until: \.isPromptRequested)
+    #expect(spoken(fired).map(\.at) == [5.5])
+
+    let (_, result) = try await h.finish()
+    #expect(result.prompts.map(\.at) == [5.5])
+    #expect(result.cancelledArms == [1.3])
+  }
+
   @Test func aCancelledArmDoesNotSuppressTheNextDecision() async throws {
     var h = await Harness(firing(.deepen, at: [0.5, 3.0]))
     _ = await h.say("one", from: 0, to: 0.5)
@@ -228,6 +256,7 @@ import Transcription
 
 extension SessionEvent {
   var isSpeechEnded: Bool { if case .speechEnded = self { true } else { false } }
+  var isUtterance: Bool { if case .utterance = self { true } else { false } }
   var isPromptRequested: Bool { if case .promptRequested = self { true } else { false } }
   var isPromptCancelled: Bool { if case .promptCancelled = self { true } else { false } }
   var isAskedIfFinished: Bool { if case .askedIfFinished = self { true } else { false } }

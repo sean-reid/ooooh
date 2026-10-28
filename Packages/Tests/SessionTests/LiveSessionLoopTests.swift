@@ -25,6 +25,14 @@ import Transcription
 
   enum TestError: Error { case noEnd }
 
+  /// The parked timer deadlines in seconds, to the millisecond.
+  func deadlines(_ clock: TestClock) -> [TimeInterval] {
+    clock.deadlines.map { duration in
+      let (seconds, attoseconds) = duration.components
+      return ((Double(seconds) + Double(attoseconds) / 1e18) * 1000).rounded() / 1000
+    }
+  }
+
   @Test func matchesTheFixtureDriverAtInfiniteSpeed() async throws {
     let fixture = try base.fixture()
     let deps = base.deps(base.firing(.deepen, afterUtterancesEnding: [80.6]))
@@ -168,6 +176,53 @@ import Transcription
 
     #expect(result.transcript.map(\.text) == ["one"])
     #expect(result.records.last == .ended(at: 0.5, byUser: true))
+  }
+
+  /// Speech ends at 0.5 and the checks fall at 1.0, 1.25, and 1.5. A pause at 1.1 holds the
+  /// schedule through a minute on the clock and drops what the microphone reports past 1.1. A
+  /// final it was still finishing lands, and the checks after resume follow that one's end.
+  @Test func aPauseHoldsTheChecksAndDropsWhatIsHeardInIt() async throws {
+    var config = GovernorConfig.initial
+    config.silenceChecks = [0.5, 0.75, 1.0]
+    let clock = TestClock()
+    let (events, continuation) = AsyncStream.makeStream(of: TranscriptEvent.self)
+    let open = OpenTranscriber(stream: events, input: continuation)
+    let live = LiveSessionLoop(
+      config: config, dependencies: base.deps(SilentDecisionProvider()), transcriber: open,
+      clock: clock)
+    await live.start()
+    var iterator = live.events().makeAsyncIterator()
+    continuation.yield(.speechStarted(at: 0))
+    continuation.yield(.segment(Segment(text: "one", start: 0, end: 0.5, isFinal: true)))
+    continuation.yield(.speechEnded(at: 0.5))
+    _ = await iterator.next(until: \.isSpeechEnded)
+    await wait { clock.sleeping > 0 }
+    clock.advance(to: .init(offset: .seconds(1.1)))
+    await wait { deadlines(clock) == [1.25] }
+
+    await live.pause(audioTime: 1.1)
+    #expect(clock.sleeping == 0)
+    clock.advance(by: .seconds(60))
+    continuation.yield(.speechStarted(at: 2))
+    continuation.yield(.segment(Segment(text: "unheard", start: 2, end: 2.4, isFinal: true)))
+    continuation.yield(.speechEnded(at: 2.4))
+    continuation.yield(.segment(Segment(text: "one more", start: 0.6, end: 1.05, isFinal: true)))
+    _ = await iterator.next(until: \.isUtterance)
+    #expect(clock.sleeping == 0)
+
+    await live.resume()
+    await wait { deadlines(clock) == [61.55] }
+    clock.advance(by: .seconds(1))
+    await wait { deadlines(clock) == [61.05 + config.longSilence] }
+    await live.end()
+    let result = try result(of: await iterator.rest())
+
+    let checks = result.records.compactMap { record -> TimeInterval? in
+      if case .check(let at, _, _, _) = record, at > 0.5 { at } else { nil }
+    }
+    #expect(checks == [1.0, 1.05, 1.55, 1.8, 2.05])
+    #expect(result.transcript.map(\.text) == ["one", "one more"])
+    #expect(result.records.last == .ended(at: 1.05, byUser: true))
   }
 
   @Test func forwardsLevelsAndOfflineChanges() async throws {

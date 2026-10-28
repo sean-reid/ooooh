@@ -31,6 +31,10 @@ public actor LiveSessionLoop {
   private var stopped = false
   private var completed = false
   private var startedAt: Duration?
+  private var pausedAt: Duration?
+  /// The transcriber's clock at the pause while one holds; speech timed after it was heard paused.
+  private var pauseCutoff: TimeInterval?
+  private var paused = false
 
   /// How long End waits for the transcriber to finalise and end its stream before the loop stops reading.
   static let stopGrace: Duration = .seconds(5)
@@ -100,9 +104,54 @@ public actor LiveSessionLoop {
     await complete()
   }
 
+  /// Holds the timer, cancels the armed decision, and drops speech until `resume()`. `audioTime`
+  /// is the transcriber's clock now; what it finalises from before the pause still lands, and
+  /// without one everything heard while paused is dropped.
+  public func pause(audioTime: TimeInterval? = nil) async {
+    guard !completed, !ending, !paused, let startedAt else { return }
+    paused = true
+    let now = clock.now()
+    pausedAt = now
+    pauseCutoff = audioTime
+    cancelTimer()
+    await loop.cancelArm(at: audioTime ?? Self.seconds(now - startedAt))
+    await drain()
+  }
+
+  /// Moves the session's start forward by the pause, so the timer picks the schedule up where
+  /// it stopped.
+  public func resume() async {
+    guard paused, let pausedAt, let startedAt else { return }
+    paused = false
+    self.startedAt = startedAt + (clock.now() - pausedAt)
+    self.pausedAt = nil
+    pauseCutoff = nil
+    guard !completed, !ending else { return }
+    await drain()
+    if inPause { scheduleTimer() }
+  }
+
+  /// True for speech the paused transcriber reports past the cutoff, or any speech without one.
+  static func heardWhilePaused(_ event: TranscriptEvent, after cutoff: TimeInterval?) -> Bool {
+    let at: TimeInterval
+    switch event {
+    case .speechStarted(let time), .speechEnded(let time): at = time
+    case .segment(let segment): at = segment.start
+    case .ended: return false
+    }
+    guard let cutoff else { return true }
+    return at > cutoff
+  }
+
+  static func seconds(_ duration: Duration) -> TimeInterval {
+    let (seconds, attoseconds) = duration.components
+    return Double(seconds) + Double(attoseconds) / 1e18
+  }
+
   private func consume() async {
     events: for await event in transcriber.events() {
       if Task.isCancelled || completed { break }
+      if paused, Self.heardWhilePaused(event, after: pauseCutoff) { continue }
       switch event {
       case .speechStarted(let at):
         await catchUp(before: at)
@@ -121,7 +170,7 @@ public actor LiveSessionLoop {
         await drain()
         if segment.isFinal, !loopEnded {
           continuation.yield(.utterance(segment))
-          if !ending { scheduleTimer() }
+          if !ending, !paused { scheduleTimer() }
         }
       case .speechEnded(let at):
         await loop.handle(event)
