@@ -22,6 +22,7 @@ struct OrbPose: Equatable {
     case .aboutToSpeak: OrbPose(stretch: 1.18, glow: 1, drift: 0.55, dim: 0, speed: 0.8)
     case .speaking: OrbPose(stretch: 1.05, glow: 0.9, drift: 0.9, dim: 0, speed: 1.4)
     case .offline: OrbPose(stretch: 1, glow: 0, drift: 0, dim: 1, speed: 0)
+    case .paused: OrbPose(stretch: 1, glow: 0.15, drift: 0, dim: 0.6, speed: 0)
     }
   }
 

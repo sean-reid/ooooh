@@ -53,7 +53,7 @@ public struct Orb: View {
   /// A paused timeline stops evaluating its content, so the inputs that would wake the orb are
   /// read here: the pause holds only while the frame rests and nothing has changed.
   static func pauses(_ rests: Bool, _ level: Double, _ phase: OrbPhase) -> Bool {
-    rests && phase == .resting && level <= 0
+    rests && (phase == .resting || phase == .paused) && level <= 0
   }
 
   /// Listening to a flat room moves only the drift, which reads as continuous at 15 fps; a rising
@@ -65,6 +65,7 @@ public struct Orb: View {
   private var stillOpacity: Double {
     switch phase {
     case .offline: 0.35
+    case .paused: 0.45
     case .aboutToSpeak: 1
     default: 0.6 + 0.35 * min(max(level, 0), 1)
     }
