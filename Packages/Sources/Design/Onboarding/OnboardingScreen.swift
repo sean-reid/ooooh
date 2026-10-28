@@ -100,7 +100,8 @@ struct OnboardingDots: View {
           .frame(width: current ? 20 : 8, height: 8)
       }
     }
-    .frame(minHeight: 44)
+    .frame(minWidth: 44, minHeight: 44)
+    .contentShape(Rectangle())
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Page")
     .accessibilityValue("\(page.number) of \(OnboardingPage.allCases.count)")
