@@ -54,6 +54,8 @@ final class SessionController {
     var offlineDelay: Duration = .seconds(3)
     var aboutToSpeakHold: Duration = .seconds(1)
     var configTimeout: Duration = .seconds(1)
+    /// How long a start may take, download included, before it fails with `timedOut`.
+    var startWait: Duration = .seconds(90)
     /// Set to skip the Worker, as the tests do.
     var dependencies: SessionLoop.Dependencies?
     var config: GovernorConfig?
@@ -164,7 +166,9 @@ final class SessionController {
 
   func elapsed(at now: Date) -> TimeInterval { timing.elapsed(at: now) }
 
-  /// `carrying` seeds the state with an open thread from a past session.
+  /// `carrying` seeds the state with an open thread from a past session. A start that outlasts
+  /// `startWait` is cancelled and fails as `timedOut`, so a hung model install or handshake
+  /// leaves the user a retry rather than a screen that never moves.
   func start(_ source: Source, carrying thread: OpenThread? = nil) async {
     switch stage {
     case .idle, .failed: break
@@ -172,6 +176,27 @@ final class SessionController {
     }
     stage = .starting
     downloadProgress = 0
+    let attempt = Task { try await self.attempt(source, carrying: thread) }
+    let wait = environment.startWait
+    let watchdog = Task {
+      try await Task.sleep(for: wait)
+      attempt.cancel()
+    }
+    defer { watchdog.cancel() }
+    do {
+      try await attempt.value
+    } catch is CancellationError {
+      Self.log.error("Start timed out after \(wait, privacy: .public)")
+      stage = .failed(.timedOut)
+      try? environment.audio.deactivate()
+    } catch {
+      Self.log.error("Start failed: \(String(describing: error), privacy: .public)")
+      stage = .failed(StartFailure(error))
+      try? environment.audio.deactivate()
+    }
+  }
+
+  private func attempt(_ source: Source, carrying thread: OpenThread?) async throws {
     do {
       var levels: AsyncStream<Double>?
       let transcriber: any Transcriber
@@ -222,6 +247,7 @@ final class SessionController {
         config: config, dependencies: dependencies, transcriber: transcriber, levels: levels,
         offline: guardian.changes())
       self.live = live
+      try Task.checkCancellation()
       if levels != nil { measuredLevel = 0 }
       timing.start(at: .now)
       stage = .running
@@ -241,10 +267,6 @@ final class SessionController {
         },
         Task { for await refused in clockChanges { clockRefused = refused } },
       ]
-    } catch {
-      Self.log.error("Start failed: \(String(describing: error), privacy: .public)")
-      stage = .failed(StartFailure(error))
-      try? environment.audio.deactivate()
     }
   }
 
