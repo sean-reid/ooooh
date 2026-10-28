@@ -30,6 +30,28 @@ public enum PersistenceContainer {
         ModelConfiguration(
           schema: schema, cloudKitDatabase: .private(cloudContainerIdentifier))
       }
-    return try ModelContainer(for: schema, configurations: [modelConfiguration])
+    return try make(modelConfiguration)
+  }
+
+  static func make(_ configuration: ModelConfiguration) throws -> ModelContainer {
+    let container = try ModelContainer(for: schema, configurations: [configuration])
+    try backfillThreadDates(in: container)
+    return container
+  }
+
+  /// A thread still at the column default takes its session's start, so the sort key holds for every row.
+  static func backfillThreadDates(in container: ModelContainer) throws {
+    let context = ModelContext(container)
+    let unset = Date.distantPast
+    let descriptor = FetchDescriptor<StoredThread>(
+      predicate: #Predicate { $0.sessionStartedAt == unset && $0.sourceSession != nil })
+    let threads = try context.fetch(descriptor)
+    guard !threads.isEmpty else { return }
+    for thread in threads {
+      if let session = thread.sourceSession {
+        thread.sessionStartedAt = session.startedAt
+      }
+    }
+    try context.save()
   }
 }

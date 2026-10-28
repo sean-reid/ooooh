@@ -129,6 +129,7 @@ public final class StoredThread {
   public var order: Int = 0
   public var resolved: Bool = false
   public var resolvedAt: Date? = nil
+  public var sessionStartedAt: Date = Date.distantPast
   public var sourceSession: StoredSession? = nil
   public var resolvedIn: StoredSession? = nil
 
