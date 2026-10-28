@@ -26,6 +26,8 @@ jobs:
       - run: swift format lint --strict --recursive Packages App
       - run: swift build --package-path Packages
       - run: swift test --package-path Packages
+      # SwiftData resolves key paths differently under the Release optimiser; the store's queries run there too.
+      - run: swift test --package-path Packages -c release --filter PersistenceTests
       - run: swift run --package-path Packages eval --corpus fixtures/synthetic/estimate --require-perfect
       - run: >
           swift run --package-path Packages eval --corpus fixtures/synthetic/estimate
