@@ -76,6 +76,13 @@ import UIKit
       of: render(store: store, scheme: scheme), as: .pixels, named: "402-\(scheme.name)")
   }
 
+  @Test(arguments: [ColorScheme.dark, .light])
+  func paywallConfirmed(scheme: ColorScheme) {
+    let view = PaywallView(store: BillingStore(plans: Self.plans), confirmed: true) {}
+    assertSnapshot(
+      of: TestSupport.render(view, scheme: scheme), as: .pixels, named: "402-\(scheme.name)")
+  }
+
   private func render(
     store: BillingStore? = nil, scheme: ColorScheme, type: DynamicTypeSize = .large
   ) -> UIImage {
