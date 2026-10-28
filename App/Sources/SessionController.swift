@@ -337,7 +337,8 @@ final class SessionController {
       measuredLevel = level
     case .speechStarted:
       isHearingSpeech = true
-      if !quietMode, delivery != nil { await cancelDelivery() }
+      // Only headphones keep the microphone from hearing the line, so only they may cut it.
+      if !quietMode, delivery != nil, route == .headphones { await cancelDelivery() }
     case .speechEnded:
       isHearingSpeech = false
     case .utterance:

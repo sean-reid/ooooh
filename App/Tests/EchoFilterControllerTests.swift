@@ -171,6 +171,7 @@ import Transcription
 
     let misheardAt = microphone.audioTime + 0.2
     microphone.hear("once it's under the table we go back", from: misheardAt, to: misheardAt + 1.5)
+    microphone.hear("so the thing I keep", from: 0.1, to: 0.4)
     try await Task.sleep(for: .milliseconds(300))
     #expect(controller.isSpeaking)
     #expect(speaker.stops == 0)
