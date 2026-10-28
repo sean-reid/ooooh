@@ -83,6 +83,7 @@ final class SessionController {
   private(set) var lines: [SpokenLine] = []
   private(set) var isOffline = false
   private(set) var quietMode = true
+  private var route: AudioRoute = .speaker
   private(set) var result: SessionResult?
   /// Nil until the session ends.
   private(set) var notes: NotesState?
@@ -193,7 +194,8 @@ final class SessionController {
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
       }
       quietOverride = environment.settings?.quietModeOverride ?? .auto
-      quietMode = isQuiet(environment.audio.route())
+      route = environment.audio.route()
+      quietMode = isQuiet(route)
 
       let clockChanges = environment.clock.changes()
       clockRefused = environment.clock.isRefused
@@ -225,6 +227,7 @@ final class SessionController {
         Task { for await event in live.events() { await handle(event) } },
         Task {
           for await route in environment.audio.routeChanges() {
+            self.route = route
             quietMode = isQuiet(route)
           }
         },
@@ -393,7 +396,7 @@ final class SessionController {
             environment.haptic()
             environment.announce(text)
           } else if let echo {
-            echo.spoke(text)
+            echo.spoke(text, sealed: route != .headphones)
             Self.log.info(
               """
               line started audioTime=\(echo.audioTime, format: .fixed(precision: 2), privacy: .public) \
