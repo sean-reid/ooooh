@@ -42,17 +42,21 @@ test("the privacy page names each provider", () => {
 test("the privacy page lists each server record with its lifetime", () => {
   const html = read("privacy.html");
   const records = html.slice(html.indexOf("The records are:"), html.indexOf("None of this holds"));
-  assert.equal(count(records, /<li>/g), 6);
+  assert.equal(count(records, /<li>/g), 7);
   for (const life of [
     "no expiry",
     "62 days",
     "four hours",
+    "notes replace it",
+    "spends on a new day",
     "30 days",
+    "next minute's",
     "two minutes",
     "five minutes",
   ])
     assert.ok(records.includes(life), life);
   assert.match(html, /export\s+your notes as Markdown/);
+  assert.match(html, /the\s+lines the app said/);
   assert.ok(html.includes("screen locked"));
 });
 

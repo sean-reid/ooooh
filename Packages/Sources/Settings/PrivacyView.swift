@@ -26,9 +26,10 @@ public struct PrivacyView: View {
           + "phrases each question, and writes the notes at the end. ElevenLabs turns each "
           + "question into speech.",
         "My server stores none of it. It passes the request through and forgets it. The one "
-          + "thing it writes is what the call cost, added to a counter per provider per day that "
-          + "names no device and is gone after three days. Each provider handles the text under "
-          + "its own terms.",
+          + "thing it writes is what the call cost, added to a counter per provider per UTC day "
+          + "that names no device, and to the device's own ledger in the list below. The counter "
+          + "drops the day before when the new day's first charge lands. Each provider handles "
+          + "the text under its own terms.",
       ]
     ),
     (
@@ -42,12 +43,17 @@ public struct PrivacyView: View {
         "The public key your phone attested, with a counter that moves forward on every signed "
           + "request. No expiry.",
         "The month's count of free sessions and the minutes they ran. 62 days.",
-        "The open session, so a second start while one is running counts nothing. Four hours.",
+        "The open session, so a second start while one is running counts nothing. Four hours. "
+          + "Beside it, the start time of the last session whose notes were written, so a second "
+          + "notes request for the same session is refused. The next session's notes replace it.",
+        "What the device spent on each provider today: Jev tokens, Claude tokens, and ElevenLabs "
+          + "characters, by UTC day. My server refuses a device past its daily cap until midnight "
+          + "UTC. Earlier days are dropped as the device spends on a new day.",
         "The subscription record, with an account token derived from the key id, so it names an "
           + "install and not a person. 30 days past the subscription's expiry.",
-        "A count of signed requests in the current minute. Two minutes. The two calls that enrol "
-          + "a key happen before there is a key id, so those are counted per IP address instead, "
-          + "for the same two minutes.",
+        "A count of signed requests in the current minute, replaced by the next minute's. The two "
+          + "calls that enrol a key happen before there is a key id, so those are counted per IP "
+          + "address instead, gone after two minutes.",
         "A one-time challenge for enrolling a key. Five minutes, or until it's used.",
         "None of it holds a name, an email address, an Apple ID, audio, or a transcript. Every "
           + "signed request carries the time it was signed; my server checks that against its "
@@ -57,8 +63,10 @@ public struct PrivacyView: View {
     (
       "What stays on your phone",
       [
-        "Audio is discarded when a session ends. Notes, transcripts, and settings are stored on "
-          + "the phone.",
+        "Audio is discarded when a session ends. Notes, transcripts, the lines the app said, and "
+          + "settings are stored on the phone. Each line keeps its text, its kind, when in the "
+          + "session it came, whether it was spoken or shown, whether it was cut short, and the "
+          + "mark you can set on it. The lines go into the Markdown export with the transcript.",
         "While the phone is signed in to iCloud, your sessions also live in your private iCloud "
           + "database, so a new phone gets them back. Apple holds that copy under your Apple "
           + "Account; I can't read it, and my server never sees it. While sync is on, signing out "

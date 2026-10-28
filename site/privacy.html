@@ -29,7 +29,7 @@
         <a class="back" href="./">ooooh</a>
         <h1>Privacy policy</h1>
         <p class="updated">
-          Last updated <time datetime="2026-10-26">October 26, 2026</time>
+          Last updated <time datetime="2026-10-27">October 27, 2026</time>
         </p>
       </header>
 
@@ -67,7 +67,16 @@
           </li>
           <li>
             The open session, so a second start while one is running counts
-            nothing. It expires four hours after the start.
+            nothing. It expires four hours after the start. Beside it, the
+            start time of the last session whose notes were written, so a
+            second notes request for the same session is refused. The next
+            session's notes replace it.
+          </li>
+          <li>
+            What the device spent on each provider today: Jev tokens, Claude
+            tokens, and ElevenLabs characters, by UTC day. My server refuses a
+            device past its daily cap until midnight UTC. Earlier days are
+            dropped as the device spends on a new day.
           </li>
           <li>
             The subscription record, if the device has one: the product id,
@@ -81,10 +90,10 @@
             it, kept for the same time.
           </li>
           <li>
-            A count of signed requests in the current minute, gone after two
-            minutes. The two calls that enrol a key happen before there is a
-            key identifier, so those are counted per IP address instead, for
-            the same two minutes.
+            A count of signed requests in the current minute, replaced by the
+            next minute's. The two calls that enrol a key happen before there
+            is a key identifier, so those are counted per IP address instead,
+            gone after two minutes.
           </li>
           <li>
             A one-time challenge for enrolling a key: 32 random bytes tied to
@@ -124,16 +133,21 @@
         <p>
           My server stores none of this. It passes the request through and
           forgets it. The one thing it writes is what the call cost, added to a
-          counter per provider per day that carries no device and is kept for
-          three days. Each provider handles the text under its own terms. I
+          counter per provider per UTC day that carries no device, and to the
+          device's own ledger in the list above. The counter drops the day
+          before when the new day's first charge lands. Each provider handles
+          the text under its own terms. I
           don't know how long each one keeps it, and I'd rather tell you that
           than guess.
         </p>
 
         <h2>What stays on your phone</h2>
         <p>
-          Raw audio is discarded when a session ends. Notes, transcripts, and
-          settings are stored on the phone.
+          Raw audio is discarded when a session ends. Notes, transcripts, the
+          lines the app said, and settings are stored on the phone. Each line
+          keeps its text, its kind, when in the session it came, whether it was
+          spoken or shown, whether it was cut short, and the mark you can set
+          on it. The lines go into the Markdown export with the transcript.
         </p>
         <p>
           While the phone is signed in to iCloud, your sessions also live in
