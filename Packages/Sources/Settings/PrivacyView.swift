@@ -51,9 +51,9 @@ public struct PrivacyView: View {
           + "UTC. Earlier days are dropped as the device spends on a new day.",
         "The subscription record, with an account token derived from the key id, so it names an "
           + "install and not a person. 30 days past the subscription's expiry.",
-        "A count of signed requests in the current minute. Two minutes. The two calls that enrol "
-          + "a key happen before there is a key id, so those are counted per IP address instead, "
-          + "for the same two minutes.",
+        "A count of signed requests in the current minute, replaced by the next minute's. The two "
+          + "calls that enrol a key happen before there is a key id, so those are counted per IP "
+          + "address instead, gone after two minutes.",
         "A one-time challenge for enrolling a key. Five minutes, or until it's used.",
         "None of it holds a name, an email address, an Apple ID, audio, or a transcript. Every "
           + "signed request carries the time it was signed; my server checks that against its "

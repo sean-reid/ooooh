@@ -90,10 +90,10 @@
             it, kept for the same time.
           </li>
           <li>
-            A count of signed requests in the current minute, gone after two
-            minutes. The two calls that enrol a key happen before there is a
-            key identifier, so those are counted per IP address instead, for
-            the same two minutes.
+            A count of signed requests in the current minute, replaced by the
+            next minute's. The two calls that enrol a key happen before there
+            is a key identifier, so those are counted per IP address instead,
+            gone after two minutes.
           </li>
           <li>
             A one-time challenge for enrolling a key: 32 random bytes tied to

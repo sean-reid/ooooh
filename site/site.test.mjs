@@ -50,6 +50,7 @@ test("the privacy page lists each server record with its lifetime", () => {
     "notes replace it",
     "spends on a new day",
     "30 days",
+    "next minute's",
     "two minutes",
     "five minutes",
   ])
