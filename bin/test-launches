@@ -1,0 +1,13 @@
+#!/bin/sh
+# Prints, for each app launch in an xcodebuild UI test log, the seconds until the automation
+# session was up, with the test that launched it. Usage: bin/test-launches <xcodebuild log>
+set -eu
+awk '
+  /Test Case .* started/ { test = $0; sub(/.*\[oooohUITests\./, "", test); sub(/\].*/, "", test) }
+  /Launch com\.seanreid\.ooooh/ { for (i = 1; i <= NF; i++) if ($i == "=") { launch = $(i + 1) + 0; break } }
+  /Setting up automation session/ {
+    for (i = 1; i <= NF; i++) if ($i == "=") { up = $(i + 1) + 0; break }
+    printf "launch %d: %5.1f s to automation session  (%s)\n", ++n, up - launch, test
+  }
+  END { if (n == 0) print "no app launches found" }
+' "$1"
