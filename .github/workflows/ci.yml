@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
 
 permissions:
   contents: read
@@ -68,7 +69,7 @@ jobs:
       - run: npm audit --audit-level=moderate
 
   app:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -101,7 +102,7 @@ jobs:
           retention-days: 7
 
   snapshots:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -148,7 +149,7 @@ jobs:
 
   # PromptSpeaker measures real playback latency; it runs alone so nothing else loads the simulator.
   audio:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
