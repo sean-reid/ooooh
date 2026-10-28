@@ -312,7 +312,12 @@
         }
         defer { observation.invalidate() }
         do {
-          try await request.downloadAndInstall()
+          let outcome = try await InstallWait.run(
+            install: { try await request.downloadAndInstall() },
+            installed: { await AssetInventory.status(forModules: [module]) == .installed })
+          if outcome == .observedInstalled {
+            log("assets installed before the request returned", engine: engine)
+          }
         } catch {
           log("download failed error=\(String(describing: error))", engine: engine, error: true)
           throw SpeechAnalyzerError.downloadFailed(locale)

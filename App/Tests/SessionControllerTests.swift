@@ -82,6 +82,21 @@ import Transcription
     return environment
   }
 
+  /// A microphone whose start never returns stands in for a model install or a handshake that
+  /// hangs; the watchdog has to fail the start on its own.
+  @Test func aStartThatOutlastsItsWaitFailsAsTimedOut() async throws {
+    let haptics = Counter()
+    var environment = environment(
+      deps(firing: .deepen, at: 1), speaker: Recorder(), haptics: haptics)
+    environment.transcriber = StalledMicrophone()
+    environment.startWait = .milliseconds(100)
+    let controller = SessionController(environment: environment)
+    let started = ContinuousClock.now
+    await controller.start(.microphone)
+    #expect(controller.stage == .failed(.timedOut))
+    #expect(ContinuousClock.now - started < .seconds(5))
+  }
+
   /// The shipped numbers past the warm-up, so a scripted moment at 14.0 arms.
   var warmedUp: GovernorConfig {
     var config = GovernorConfig.initial
@@ -771,8 +786,10 @@ import Transcription
 
     await wait { controller.savedSessionID != nil }
     let duration = try #require(try await store.sessions().first?.duration)
-    #expect(duration >= seconds(afterStart.duration(to: beforeEnd)))
-    #expect(duration <= seconds(beforeStart.duration(to: afterEnd)))
+    // The row is timed with Date and the bracket with ContinuousClock; the two disagree by under a millisecond.
+    let slack: TimeInterval = 0.005
+    #expect(duration >= seconds(afterStart.duration(to: beforeEnd)) - slack)
+    #expect(duration <= seconds(beforeStart.duration(to: afterEnd)) + slack)
     #expect(duration == controller.elapsed(at: .now))
 
     await wait { GateProtocol.requests(to: host).contains { $0.path == "/v1/session/end" } }
@@ -994,4 +1011,16 @@ import Transcription
     var states: [CompactState] = []
     var nows: [TimeInterval] = []
   }
+}
+
+/// Reports every hook but never finishes starting.
+final class StalledMicrophone: LiveTranscriber, @unchecked Sendable {
+  let engine = TranscriptionEngine.speechTranscriber
+  let audioTime: TimeInterval = 0
+  func downloadProgress() -> AsyncStream<Double> { AsyncStream { $0.finish() } }
+  func start() async throws { try await Task.sleep(for: .seconds(3600)) }
+  func pause() async {}
+  func resume() async throws {}
+  func events() -> AsyncStream<TranscriptEvent> { AsyncStream { $0.finish() } }
+  func stop() async {}
 }

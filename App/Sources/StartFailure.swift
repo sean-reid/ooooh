@@ -9,6 +9,8 @@ enum StartFailure: Equatable {
   case noMicrophone
   case modelNeedsConnection
   case unavailable
+  /// The start ran past its wait: a model install, the analyzer, or the Worker never answered.
+  case timedOut
 
   /// On a simulator no engine takes any language, so the language is not the reason.
   init(_ error: any Error, simulator: Bool = isSimulator) {
@@ -41,6 +43,8 @@ enum StartFailure: Equatable {
       "Connect to the internet to download the speech model once."
     case .unavailable:
       "Listening isn't available on this device yet."
+    case .timedOut:
+      "Starting took too long. Try again."
     }
   }
 
