@@ -101,6 +101,7 @@ targets:
         Debug:
           OOOOH_WORKER_URL: http://localhost:8787
         Release:
+          OOOOH_WORKER_URL: https://api.ooooh.app
           EXCLUDED_SOURCE_FILE_NAMES: decision.fixture.json history.notes.json
   oooohTests:
     type: bundle.unit-test
