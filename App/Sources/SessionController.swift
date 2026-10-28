@@ -78,10 +78,6 @@ final class SessionController {
   private(set) var downloadProgress: Double = 0
   /// Start to End, less every pause; the time the user sees and is charged for.
   private(set) var timing = SessionTiming()
-  private(set) var lastPrompt: String?
-  /// Every line delivered so far, with how it went; saved with the session at the end.
-  private(set) var lines: [SpokenLine] = []
-  private(set) var isOffline = false
   private(set) var quietMode = true
   private var route: AudioRoute = .speaker
   private(set) var result: SessionResult?
@@ -102,10 +98,6 @@ final class SessionController {
 
   private var measuredLevel: Double?
   private var isHearingSpeech = false
-  private var promptPending = false
-  private var promptPendingSince: Date?
-  private(set) var isSpeaking = false
-  private var voice: any PromptSpeaking = SilentSpeaker()
   private var quietOverride: AppSettings.QuietModeOverride = .auto
   private var generator: (any NotesGenerator)?
   private var live: LiveSessionLoop?
@@ -113,10 +105,11 @@ final class SessionController {
   /// Hears every spoken line, so the microphone's take on it never reaches the loop.
   private var echo: EchoFilter?
   private var observers: [Task<Void, Never>] = []
-  private var delivery: Task<Void, Never>?
-  private var deliveringLine: UUID?
+  /// Says the lines, and keeps what it said.
+  private let delivery: PromptDelivery
   private var writing: Task<Void, Never>?
-  private var offlineChange: Task<Void, Never>?
+  /// Holds an offline change for the environment's delay before the orb shows it.
+  private let offline: OfflineDebounce
   private var gate: SessionGate?
   private let environment: Environment
   private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "session")
@@ -124,8 +117,22 @@ final class SessionController {
 
   init(environment: Environment = Environment(workerURL: WorkerURL.fromBundle)) {
     self.environment = environment
+    offline = OfflineDebounce(delay: environment.offlineDelay)
+    delivery = PromptDelivery(
+      hold: environment.aboutToSpeakHold, haptic: environment.haptic,
+      announce: environment.announce)
+    delivery.session = PromptDelivery.Session(
+      quiet: { [weak self] in self?.quietMode ?? true },
+      running: { [weak self] in self?.stage == .running },
+      elapsed: { [weak self] in self?.elapsed(at: .now) ?? 0 },
+      sealed: { [weak self] in self?.route != .headphones })
   }
 
+  var lastPrompt: String? { delivery.lastPrompt }
+  /// Every line delivered so far, with how it went; saved with the session at the end.
+  var lines: [SpokenLine] { delivery.lines }
+  var isSpeaking: Bool { delivery.isSpeaking }
+  var isOffline: Bool { offline.isOffline }
   var startedAt: Date? { timing.startedAt }
   /// The moment End was tapped, or the loop ended on its own.
   var endedAt: Date? { timing.endedAt }
@@ -134,8 +141,8 @@ final class SessionController {
   var phase: OrbPhase {
     guard stage == .running else { return .resting }
     if isPaused { return .paused }
-    if isSpeaking { return .speaking }
-    if promptPending { return .aboutToSpeak }
+    if delivery.isSpeaking { return .speaking }
+    if delivery.isPending { return .aboutToSpeak }
     if isOffline { return .offline }
     return .listening
   }
@@ -189,6 +196,7 @@ final class SessionController {
         Self.log.info("Transcribing with \(microphone.engine.title, privacy: .public)")
         let filter = EchoFilter(microphone)
         echo = filter
+        delivery.echo = filter
         transcriber = filter
       case .fixture(let url, let speed):
         transcriber = PacedTranscriber(try FixtureTranscriber(contentsOf: url), speed: speed)
@@ -204,7 +212,7 @@ final class SessionController {
         admitted: { [weak self] start in self?.admitted(start) },
         cutOff: { [weak self] reason in Task { @MainActor in self?.cutoff = reason } })
       gate = assembly.gate
-      voice = assembly.voice
+      delivery.voice = assembly.voice
       generator = assembly.generator
       let guardian = assembly.guardian
       let config = assembly.config
@@ -221,7 +229,7 @@ final class SessionController {
         Task { await self?.handle(command) }
       }
       environment.media?.setNowPlaying(title: Self.nowPlayingTitle, playing: true)
-      if guardian.isOffline { scheduleOffline(true) }
+      if guardian.isOffline { offline.schedule(true) }
       await live.start()
       observers = [
         Task { for await event in live.events() { await handle(event) } },
@@ -270,7 +278,7 @@ final class SessionController {
   func pause() async {
     guard stage == .running, !isPaused, let live else { return }
     timing.pause(at: .now)
-    await cancelDelivery()
+    await delivery.cancel()
     isHearingSpeech = false
     await live.pause(audioTime: echo?.audioTime)
     await microphone?.pause()
@@ -338,97 +346,31 @@ final class SessionController {
     case .speechStarted:
       isHearingSpeech = true
       // Only headphones keep the microphone from hearing the line, so only they may cut it.
-      if !quietMode, delivery != nil, route == .headphones { await cancelDelivery() }
+      if !quietMode, delivery.isDelivering, route == .headphones { await delivery.cancel() }
     case .speechEnded:
       isHearingSpeech = false
     case .utterance:
       break
     case .promptArmed:
-      promptPending = true
-      promptPendingSince = .now
+      delivery.arm()
     case .promptCancelled:
-      await cancelDelivery()
+      await delivery.cancel()
     case .promptRequested(let kind, let text, let at):
-      deliver(text, kind: .intervention(kind), at: at)
+      delivery.deliver(text, kind: .intervention(kind), at: at)
     case .askedIfFinished(let at):
-      deliver("Done for now?", kind: .finishedQuestion, at: at, quietly: true)
+      delivery.deliver("Done for now?", kind: .finishedQuestion, at: at, quietly: true)
     case .compactionApplied:
       compactions += 1
-    case .offline(let offline):
-      scheduleOffline(offline)
+    case .offline(let isOffline):
+      offline.schedule(isOffline)
     case .ended(let result):
       await finish(with: result)
     }
   }
 
-  /// Keeps the orb in aboutToSpeak for at least the configured hold since it armed, then speaks.
-  /// The orb turns to speaking when sound starts, not when the request goes out.
-  private func deliver(
-    _ text: String, kind: SpokenLine.Kind, at: TimeInterval, quietly: Bool = false
-  ) {
-    if delivery != nil { cutDeliveringLine() }
-    delivery?.cancel()
-    delivery = nil
-    guard !text.isEmpty else {
-      promptPending = false
-      return
-    }
-    lastPrompt = text
-    let line = SpokenLine(text: text, kind: kind, at: at, spoken: !(quietMode || quietly))
-    lines.append(line)
-    deliveringLine = line.id
-    let since = promptPendingSince.map { Date.now.timeIntervalSince($0) } ?? 0
-    let hold = environment.aboutToSpeakHold - .seconds(since)
-    delivery = Task {
-      if hold > .zero { try? await Task.sleep(for: hold) }
-      guard !Task.isCancelled, stage == .running else { return }
-      let quiet = quietMode || quietly
-      if let index = lines.firstIndex(where: { $0.id == line.id }) {
-        lines[index].spoken = !quiet
-      }
-      let speaker: any PromptSpeaking = quiet ? SilentSpeaker() : voice
-      for await event in speaker.speak(text: text) {
-        guard !Task.isCancelled else { return }
-        switch event {
-        case .started:
-          promptPending = false
-          isSpeaking = true
-          if quiet {
-            environment.haptic()
-            environment.announce(text)
-          } else if let echo {
-            echo.spoke(text, sealed: route != .headphones)
-            Self.log.info(
-              """
-              line started audioTime=\(echo.audioTime, format: .fixed(precision: 2), privacy: .public) \
-              sessionTime=\(self.elapsed(at: .now), format: .fixed(precision: 2), privacy: .public)
-              """)
-          }
-        case .finished:
-          isSpeaking = false
-          if !quiet { echo?.finishedSpeaking() }
-        }
-      }
-      guard !Task.isCancelled else { return }
-      promptPending = false
-      isSpeaking = false
-      delivery = nil
-      deliveringLine = nil
-    }
-  }
-
-  private func cutDeliveringLine() {
-    guard let id = deliveringLine, let index = lines.firstIndex(where: { $0.id == id }) else {
-      return
-    }
-    lines[index].cut = true
-    deliveringLine = nil
-  }
-
   /// Sets or clears the bad mark on a line, here and in the store once the session is saved.
   func markLine(_ lineID: UUID, bad: Bool) {
-    guard let index = lines.firstIndex(where: { $0.id == lineID }) else { return }
-    lines[index].bad = bad
+    guard delivery.mark(lineID, bad: bad) else { return }
     Task {
       await writing?.value
       guard savedSessionID != nil, let store = environment.store else { return }
@@ -440,35 +382,9 @@ final class SessionController {
     }
   }
 
-  /// The one path a line stops by, for End, speech in voice mode, and a cancelled arm. The orb
-  /// leaves speaking at once, whether the request is still waiting on bytes or the line is playing.
-  private func cancelDelivery() async {
-    promptPending = false
-    promptPendingSince = nil
-    let wasSpeaking = isSpeaking
-    isSpeaking = false
-    guard let delivery else { return }
-    cutDeliveringLine()
-    self.delivery = nil
-    delivery.cancel()
-    Self.log.info("prompt cancelled speaking=\(wasSpeaking, privacy: .public)")
-    await voice.stop()
-    if wasSpeaking { echo?.finishedSpeaking() }
-  }
-
-  private func scheduleOffline(_ offline: Bool) {
-    offlineChange?.cancel()
-    guard offline != isOffline else { return }
-    offlineChange = Task {
-      try? await Task.sleep(for: environment.offlineDelay)
-      guard !Task.isCancelled else { return }
-      isOffline = offline
-    }
-  }
-
   private func finish(with result: SessionResult) async {
-    await cancelDelivery()
-    offlineChange?.cancel()
+    await delivery.cancel()
+    offline.cancel()
     for observer in observers { observer.cancel() }
     self.result = result
     timing.end(at: .now)
