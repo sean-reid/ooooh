@@ -61,6 +61,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
   private var currentEnded = false
   private var activity = VoiceActivity()
   private var isRunning = false
+  private var isPaused = false
   private var startedAt: ContinuousClock.Instant?
   private var heardResult = false
 
@@ -130,9 +131,28 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     rotate()
   }
 
+  /// Ends the live request so it reports its final result; the next one starts on `resume()`.
+  public func pause() async {
+    guard isRunning, !isPaused else { return }
+    isPaused = true
+    silence?.cancel()
+    audioEngine.pause()
+    feed.swap(in: nil).previous?.endAudio()
+    log("paused audioTime=\(Int(feed.audioTime))")
+  }
+
+  public func resume() async throws {
+    guard isRunning, isPaused else { return }
+    try audioEngine.start()
+    isPaused = false
+    rotate()
+    log("resumed audioTime=\(Int(feed.audioTime))")
+  }
+
   public func stop() async {
     guard isRunning else { return }
     isRunning = false
+    isPaused = false
     silence?.cancel()
     configurationWatch?.cancel()
     audioEngine.inputNode.removeTap(onBus: 0)
@@ -224,7 +244,7 @@ public actor SpeechRecognizerTranscriber: LiveTranscriber {
     guard ended == generation else { return }
     silence?.cancel()
     currentEnded = true
-    guard isRunning else { return }
+    guard isRunning, !isPaused else { return }
     emptyFailures = failed && !heard ? emptyFailures + 1 : 0
     if emptyFailures >= 3 {
       fail(SpeechRecognizerError.stopped)

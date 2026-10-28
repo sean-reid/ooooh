@@ -20,6 +20,8 @@ import Testing
 
     func downloadProgress() -> AsyncStream<Double> { AsyncStream { $0.finish() } }
     func start() async throws {}
+    func pause() async {}
+    func resume() async throws {}
 
     func events() -> AsyncStream<TranscriptEvent> {
       AsyncStream { continuation in

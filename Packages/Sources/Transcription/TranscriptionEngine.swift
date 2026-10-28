@@ -74,6 +74,11 @@ public protocol LiveTranscriber: Transcriber {
   /// `start()`, and yields nothing when the model is on the phone.
   func downloadProgress() -> AsyncStream<Double>
   func start() async throws
+  /// Finalises what was heard and stops reading the microphone. `audioTime` holds until
+  /// `resume()`, so the gap never reaches the segment times.
+  func pause() async
+  /// Reads the microphone again after `pause()`.
+  func resume() async throws
 }
 
 #if os(iOS)

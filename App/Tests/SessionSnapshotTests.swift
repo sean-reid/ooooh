@@ -146,6 +146,8 @@ final class HandFedMicrophone: LiveTranscriber, @unchecked Sendable {
 
   func downloadProgress() -> AsyncStream<Double> { AsyncStream { $0.finish() } }
   func start() async throws {}
+  func pause() async {}
+  func resume() async throws {}
   func events() -> AsyncStream<TranscriptEvent> { stream }
 
   func stop() async {
