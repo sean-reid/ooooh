@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.0](https://github.com/sean-reid/ooooh/compare/v0.4.0...v0.5.0) (2026-10-28)
+
+
+### Features
+
+* accept Sandbox purchases, add the privacy manifest, number builds from git ([#244](https://github.com/sean-reid/ooooh/issues/244)) ([3fa5630](https://github.com/sean-reid/ooooh/commit/3fa5630b6e88bb7d2c0404ff96b2766bf6f517dc))
+* **governor:** warm-up floor and a longer arming delay ([#226](https://github.com/sean-reid/ooooh/issues/226)) ([f620ff6](https://github.com/sean-reid/ooooh/commit/f620ff654730bfe9af632617d9d5914d44d2a1f4))
+* keep the lines the app said in the transcript with a bad mark ([#239](https://github.com/sean-reid/ooooh/issues/239)) ([deae4ef](https://github.com/sean-reid/ooooh/commit/deae4ef0d693a9948c6d33680fdf4a192626675c))
+* **notes:** edit mode for session notes ([#238](https://github.com/sean-reid/ooooh/issues/238)) ([f4e9d46](https://github.com/sean-reid/ooooh/commit/f4e9d46feeaacf369daf3b88387ad57d16da483f))
+* pause and resume a session from the media buttons ([#246](https://github.com/sean-reid/ooooh/issues/246)) ([e6f6bb9](https://github.com/sean-reid/ooooh/commit/e6f6bb95127baed76e2956484fc1abf509902cd8))
+* start and end a session by Siri, the Action button, and media buttons ([#232](https://github.com/sean-reid/ooooh/issues/232)) ([1064fde](https://github.com/sean-reid/ooooh/commit/1064fdefbb9ee244e04c5e41d84ff2621737034d))
+* sync the store to iCloud through CloudKit ([#234](https://github.com/sean-reid/ooooh/issues/234)) ([9d0f1bd](https://github.com/sean-reid/ooooh/commit/9d0f1bd2eb5fef0be33991b51c9984e337b2beda))
+* **worker:** cap each device's daily spend per provider ([#236](https://github.com/sean-reid/ooooh/issues/236)) ([f6e4a60](https://github.com/sean-reid/ooooh/commit/f6e4a601c8a9aeb9126ff23c61d3c94f4aec2696))
+* **worker:** forbid the why-does-it-matter frame and give deepen five moves ([#242](https://github.com/sean-reid/ooooh/issues/242)) ([33a092a](https://github.com/sean-reid/ooooh/commit/33a092a72ad3e97c094c1165eb8986bb424965a4))
+
+
+### Bug Fixes
+
+* **app:** build for iPhone only ([#247](https://github.com/sean-reid/ooooh/issues/247)) ([65bc281](https://github.com/sean-reid/ooooh/commit/65bc281eb3c54713617e8d3fbdad10e172cf9932))
+* **transcription:** hold a short volatile inside a line until its final ([#241](https://github.com/sean-reid/ooooh/issues/241)) ([6e5c10a](https://github.com/sean-reid/ooooh/commit/6e5c10a09501f54223102f16ae8e496d693ef9bf))
+* **worker:** answer 409 on a second notes call for a session ([#233](https://github.com/sean-reid/ooooh/issues/233)) ([21649c5](https://github.com/sean-reid/ooooh/commit/21649c54541591970c1216cec0acd9e0a7d2e09a))
+
 ## [0.4.0](https://github.com/sean-reid/ooooh/compare/v0.3.0...v0.4.0) (2026-10-27)
 
 
