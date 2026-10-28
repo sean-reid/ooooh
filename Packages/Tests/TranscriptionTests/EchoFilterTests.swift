@@ -80,7 +80,9 @@ import Testing
     #expect(await collect(filter) == later + [.ended])
   }
 
-  @Test func aRealUtteranceDuringTheLinePassesOnceItHasThreeWords() async {
+  /// A misheard echo can reach three words with little overlap, so a short volatile waits for
+  /// its final; the final with the person's words passes with its start.
+  @Test func aRealUtteranceDuringTheLinePassesAtItsFinal() async {
     let real = utterance(
       ["I think", "I think the price is wrong"], from: 10.5, to: 12.0)
     let filter = EchoFilter(ScriptedTranscriber(real + [.ended]))
@@ -95,6 +97,27 @@ import Testing
     #expect(
       !passed.contains(.segment(Segment(text: "I think", start: 10.5, end: 12.0, isFinal: false))))
     #expect(passed.last == .ended)
+  }
+
+  @Test func sixWordsOfRealSpeechDuringTheLinePassBeforeTheFinal() async {
+    let interruption = Segment(
+      text: "no wait I want to go back", start: 10.5, end: 11.4, isFinal: false)
+    let script: [TranscriptEvent] = [.speechStarted(at: 10.5), .segment(interruption), .ended]
+    let filter = EchoFilter(ScriptedTranscriber(script))
+    filter.spoke(line, from: 10.0)
+
+    #expect(await collect(filter) == [.speechStarted(at: 10.5), .segment(interruption), .ended])
+  }
+
+  @Test func aMisheardVolatileDuringTheLineIsHeldAndItsEchoFinalDropsIt() async {
+    let misheard = Segment(text: "once it's under", start: 10.4, end: 11.0, isFinal: false)
+    let script =
+      [.speechStarted(at: 10.4), .segment(misheard)]
+      + utterance([line], from: 10.4, to: 11.9).dropFirst() + [.ended]
+    let filter = EchoFilter(ScriptedTranscriber(Array(script)))
+    filter.spoke(line, from: 10.0)
+
+    #expect(await collect(filter) == [.ended])
   }
 
   @Test func aShortFragmentDuringTheLineIsDroppedWhateverItSays() async {
@@ -112,7 +135,7 @@ import Testing
     let filter = EchoFilter(ScriptedTranscriber([]))
     filter.spoke(line, from: 10.0)
     let heard = Segment(text: "whats sits under the", start: 10.5, end: 11, isFinal: false)
-    let other = Segment(text: "I think the price", start: 10.5, end: 11, isFinal: false)
+    let other = Segment(text: "I think the price", start: 10.5, end: 11, isFinal: true)
 
     #expect(filter.filter(.segment(heard)).isEmpty)
     #expect(filter.filter(.segment(other)) == [.segment(other)])
@@ -169,7 +192,7 @@ import Testing
     let filter = EchoFilter(ScriptedTranscriber([]))
     filter.spoke(line, from: 10.0)
     let three = Segment(text: "what sits underneath my desk", start: 10.5, end: 11, isFinal: false)
-    let two = Segment(text: "what sits on my desk", start: 10.5, end: 11, isFinal: false)
+    let two = Segment(text: "what sits on my desk", start: 10.5, end: 11, isFinal: true)
 
     #expect(filter.filter(.segment(three)).isEmpty)
     #expect(filter.filter(.segment(two)) == [.segment(two)])
