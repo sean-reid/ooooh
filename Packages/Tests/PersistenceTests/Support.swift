@@ -56,8 +56,6 @@ enum Support {
   static func store(at url: URL) throws -> SessionStore {
     let configuration = ModelConfiguration(
       schema: PersistenceContainer.schema, url: url, cloudKitDatabase: .none)
-    return SessionStore(
-      modelContainer: try ModelContainer(
-        for: PersistenceContainer.schema, configurations: [configuration]))
+    return SessionStore(modelContainer: try PersistenceContainer.make(configuration))
   }
 }
