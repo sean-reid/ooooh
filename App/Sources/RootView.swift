@@ -1,7 +1,6 @@
 import Billing
 import Design
 import Notes
-import NotesUI
 import Persistence
 import Settings
 import SwiftUI
@@ -18,7 +17,6 @@ struct RootView: View {
   @State private var showsHistory = false
   @State private var showsSettings = false
   @State private var showsPaywall = false
-  @Environment(\.dynamicTypeSize) private var typeSize
   #if DEBUG
     @State private var isRecordingFixture = false
   #endif
@@ -42,17 +40,11 @@ struct RootView: View {
       } else {
         switch controller.stage {
         case .idle, .failed:
-          if typeSize.isAccessibilitySize {
-            GeometryReader { proxy in
-              ScrollView { home.frame(minHeight: proxy.size.height) }
-            }
-          } else {
-            home
-          }
+          home
         case .starting, .downloading, .running:
           SessionView(controller: controller)
         case .ended:
-          ended
+          EndedView(controller: controller, onMarkBad: markLine, onDone: reset)
         }
       }
     }
@@ -62,17 +54,10 @@ struct RootView: View {
     .task {
       launch.run()
       ExportFile.removeExports()
-      #if DEBUG
-        if let store { await DebugHistory.apply(to: store) }
-      #endif
+      await applyDebugHistory()
       await loadThreads()
       try? await billing.load()
-      #if DEBUG
-        if UserDefaults.standard.bool(forKey: "demo") {
-          showsOnboarding = false
-          startDemo()
-        }
-      #endif
+      startDemoIfAsked()
     }
     .sheet(isPresented: $showsHistory) {
       if let store { HistoryView(store: store).skySheet() }
@@ -97,138 +82,32 @@ struct RootView: View {
     #endif
   }
 
-  @ViewBuilder private var ended: some View {
-    let transcript = controller.result?.transcript ?? []
-    switch controller.notes {
-    case .written(let notes):
-      if let editor = controller.editor {
-        EditableNotesView(
-          editor: editor, lines: controller.lines, onMarkBad: markLine, onDone: reset)
-      } else {
-        NotesView(
-          notes: notes, transcript: transcript, lines: controller.lines,
-          date: controller.startedAt ?? .now, onMarkBad: markLine, onDone: reset
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("notes.view")
-      }
-    case .unavailable:
-      PendingNotesView(
-        state: controller.result?.state ?? .empty, transcript: transcript,
-        line: PendingNotesView.line(for: controller), lines: controller.lines,
-        onMarkBad: markLine, done: reset)
-    case .empty:
-      EmptySessionView { reset() }
-    case .writing, nil:
-      NotesWritingView()
-    }
-  }
-
-  /// The orb gives way to the controls as type grows, instead of sitting under them.
   private var home: some View {
-    VStack(spacing: 16) {
-      HStack(spacing: 0) {
-        Spacer()
-        if store != nil {
-          settingsButton
-          historyButton
-        }
-      }
-      .padding(.trailing, 20)
-      .padding(.top, 8)
-      Spacer(minLength: 0)
-      VStack(spacing: 8) {
-        Orb(level: 0, phase: .resting)
-          .aspectRatio(1, contentMode: .fit)
-          .frame(maxWidth: 240)
-        Text("ooooh")
-          .font(Typography.display)
-          .foregroundStyle(Palette.ink)
-      }
-      Spacer(minLength: 0)
-      if case .failed(let failure) = controller.stage {
-        Text(failure.message)
-          .font(Typography.caption)
-          .foregroundStyle(Palette.accent)
-          .multilineTextAlignment(.center)
-          .padding(.horizontal, 32)
-      }
-      startButton
-      if !threads.isEmpty, !hidesThreads {
-        CarryoverCard(threads: threads) { thread in
-          Task { await controller.start(.microphone, carrying: thread) }
-        } dismiss: {
-          hidesThreads = true
-        }
-      }
-      #if DEBUG
-        if UserDefaults.standard.bool(forKey: "hide-debug") {
+    HomeView(
+      threads: hidesThreads ? [] : threads, failure: startFailure, hasStore: store != nil,
+      start: { Task { await controller.start(.microphone) } },
+      carry: { thread in Task { await controller.start(.microphone, carrying: thread) } },
+      dismissThreads: { hidesThreads = true },
+      showHistory: { showsHistory = true },
+      showSettings: { showsSettings = true },
+      footer: {
+        #if DEBUG
+          DebugHomeRow(demo: startDemo, isRecordingFixture: $isRecordingFixture)
+        #else
           Spacer().frame(height: 24)
-        } else {
-          HStack(spacing: 24) {
-            Button {
-              startDemo()
-            } label: {
-              Text("Demo").tapTarget()
-            }
-            .font(.footnote)
-            .foregroundStyle(Palette.inkDim)
-            .accessibilityIdentifier("home.demo")
-            Button {
-              isRecordingFixture = true
-            } label: {
-              Text("Record a fixture").tapTarget()
-            }
-            .font(.footnote)
-            .foregroundStyle(Palette.inkDim)
-            OrbGalleryButton()
-          }
-          .padding(.bottom, 8)
-        }
-      #else
-        Spacer().frame(height: 24)
-      #endif
-    }
+        #endif
+      })
   }
 
-  private var startButton: some View {
-    Button("Start") {
-      Task { await controller.start(.microphone) }
-    }
-    .buttonStyle(.amber)
-    .padding(.horizontal, 32)
-    .accessibilityLabel("Start a session")
-    .accessibilityIdentifier("home.start")
+  private var startFailure: StartFailure? {
+    if case .failed(let failure) = controller.stage { failure } else { nil }
   }
 
-  private var historyButton: some View {
-    iconButton("clock.arrow.circlepath", label: "History", id: "home.history") {
-      showsHistory = true
-    }
-  }
-
-  private var settingsButton: some View {
-    iconButton("gearshape", label: "Settings", id: "home.settings") { showsSettings = true }
-  }
-
-  private func iconButton(
-    _ symbol: String, label: String, id: String, action: @escaping () -> Void
-  ) -> some View {
-    Button(action: action) {
-      Image(systemName: symbol)
-        .font(.body.weight(.medium))
-        .foregroundStyle(Palette.inkDim)
-        .tapTarget()
-    }
-    .accessibilityLabel(label)
-    .accessibilityIdentifier(id)
-  }
-
-  /// A new controller for the next session, and the threads the one that just ended left open.
   private func markLine(_ line: SpokenLine, bad: Bool) {
     controller.markLine(line.id, bad: bad)
   }
 
+  /// A new controller for the next session, and the threads the one that just ended left open.
   private func reset() {
     host.reset()
     Task { await loadThreads() }
@@ -267,12 +146,27 @@ struct RootView: View {
   }
 
   #if DEBUG
+    /// `-reset-store 1` and `-seed-history 1`, applied before the threads load.
+    private func applyDebugHistory() async {
+      if let store { await DebugHistory.apply(to: store) }
+    }
+
+    /// `-demo 1` runs the demo on launch, past onboarding.
+    private func startDemoIfAsked() {
+      guard UserDefaults.standard.bool(forKey: "demo") else { return }
+      showsOnboarding = false
+      startDemo()
+    }
+
     /// Replays the demo fixture through the whole pipeline at the `-demo-speed` pace.
     /// Also runs on launch with `-demo 1`.
     private func startDemo() {
       guard let url = DemoFixture.url() else { return }
       Task { await controller.start(.fixture(url, speed: DemoSpeed.read())) }
     }
+  #else
+    private func applyDebugHistory() async {}
+    private func startDemoIfAsked() {}
   #endif
 }
 
