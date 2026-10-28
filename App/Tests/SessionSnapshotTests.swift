@@ -2,6 +2,7 @@ import Foundation
 import Governor
 import Session
 import SnapshotTesting
+import State
 import SwiftUI
 import TestSupport
 import Testing
@@ -112,7 +113,7 @@ import Transcription
   }
 
   /// A microphone session with no Worker, no audio session, and a good moment on the one
-  /// utterance, which the template phraser turns into one deepen line. The pauses are short,
+  /// utterance, which the fixed phraser turns into one line. The pauses are short,
   /// so each state arrives within a second of the utterance.
   private func environment(_ microphone: HandFedMicrophone) -> Environment {
     var config = GovernorConfig.initial
@@ -133,7 +134,7 @@ import Transcription
           answers.intervention = .init(.deepen, confidence: 0.9)
         }
         return answers
-      }, compactor: PassthroughCompactor(), phraser: TemplatePhraser())
+      }, compactor: PassthroughCompactor(), phraser: FixedPhraser())
     return environment
   }
 
@@ -148,6 +149,16 @@ import Transcription
   }
 
   private typealias Environment = SessionController.Environment
+}
+
+/// The one line the pictures show, whatever the moment; the site's screenshot carries it too.
+struct FixedPhraser: Phraser {
+  func phrase(
+    _ kind: InterventionKind, state: CompactState, recent: [Segment],
+    said: [CompactState.Intervention]
+  ) async throws -> String {
+    "What are you waiting for? Download me."
+  }
 }
 
 /// A live transcriber the test speaks into, so nothing moves between the wait and the picture.
