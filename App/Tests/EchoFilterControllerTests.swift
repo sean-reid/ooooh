@@ -1,3 +1,4 @@
+import Audio
 import Foundation
 import Governor
 import Session
@@ -77,17 +78,18 @@ import Transcription
   nonisolated static let utteranceEnd: TimeInterval = 0.5
 
   /// Headphones, so the line is spoken. A good moment on the first utterance, short pauses, no hold.
-  func environment(_ microphone: EchoMicrophone, _ speaker: PlayingLine)
-    -> SessionController.Environment
-  {
+  func environment(
+    _ microphone: EchoMicrophone, _ speaker: PlayingLine, route: AudioRoute = .headphones
+  ) -> SessionController.Environment {
     var config = GovernorConfig.initial
     config.warmUp = 0
     config.armingDelay = 0.2
     config.silenceChecks = [0.3, 0.6, 0.9]
     var environment = SessionController.Environment(workerURL: nil)
     environment.audio = AudioAccess(
-      activate: {}, deactivate: {}, route: { .headphones },
+      activate: {}, deactivate: {}, route: { route },
       routeChanges: { AsyncStream { $0.finish() } })
+    environment.forceVoice = route != .headphones
     environment.speaker = speaker
     environment.offlineDelay = .zero
     environment.aboutToSpeakHold = .zero
@@ -150,5 +152,36 @@ import Transcription
     let result = try #require(controller.result)
     #expect(result.transcript.map(\.text) == [opening, reply])
     #expect(result.prompts.map(\.kind) == [.deepen])
+  }
+
+  /// On the speaker the microphone hears the line, misheard, so nothing inside its window cuts
+  /// it, not even six unrelated words; the person's words after the line still land.
+  @Test func onTheSpeakerNothingHeardDuringTheLineCutsIt() async throws {
+    let microphone = EchoMicrophone()
+    let speaker = PlayingLine()
+    let controller = SessionController(
+      environment: environment(microphone, speaker, route: .speaker))
+    let opening = "so the thing I keep coming back to is pricing"
+    let reply = "actually I want to go back to the backend costs"
+
+    await controller.start(.microphone)
+    #expect(!controller.quietMode)
+    microphone.hear(opening, from: 0, to: Self.utteranceEnd)
+    await eventually { controller.phase == .speaking }
+
+    let misheardAt = microphone.audioTime + 0.2
+    microphone.hear("once it's under the table we go back", from: misheardAt, to: misheardAt + 1.5)
+    try await Task.sleep(for: .milliseconds(300))
+    #expect(controller.isSpeaking)
+    #expect(speaker.stops == 0)
+
+    await speaker.stop()
+    await eventually { controller.phase == .listening }
+    let repliedAt = microphone.audioTime + 1.5
+    microphone.hear(reply, from: repliedAt, to: repliedAt + 1.5)
+    await controller.end()
+    await eventually { controller.stage == .ended }
+    let result = try #require(controller.result)
+    #expect(result.transcript.map(\.text) == [opening, reply])
   }
 }

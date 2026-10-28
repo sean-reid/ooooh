@@ -73,6 +73,19 @@ import Testing
     #expect(await collect(filter) == [.ended])
   }
 
+  /// On a speaker the recognizer mishears the line as unrelated words; a sealed line drops
+  /// everything inside its window, however many words, and lets speech after it through.
+  @Test func aSealedLineDropsWhateverIsHeardInsideItsWindow() async {
+    let misheard = utterance(
+      ["once it's under", "once it's under the table we go back"], from: 10.4, to: 12.5)
+    let after = utterance(["and the price is still wrong"], from: 14.2, to: 15.0)
+    let filter = EchoFilter(ScriptedTranscriber(misheard + after + [.ended]))
+    filter.spoke(line, from: 10.0, sealed: true)
+    filter.finishedSpeaking(at: 13.0)
+
+    #expect(await collect(filter) == after + [.ended])
+  }
+
   @Test func theSameWordsOutsideTheWindowPass() async {
     let later = utterance(["What", line], from: 13.1, to: 14.0)
     let filter = EchoFilter(ScriptedTranscriber(later + [.ended]))

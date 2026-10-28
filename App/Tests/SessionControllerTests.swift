@@ -454,6 +454,7 @@ import Transcription
       .init(decisions: decisions, compactor: PassthroughCompactor(), phraser: TemplatePhraser()),
       speaker: HeldLine(), haptics: Counter())
     environment.forceVoice = true
+    environment.audio = headphones
     environment.aboutToSpeakHold = .zero
     environment.config = config
     environment.transcriber = microphone

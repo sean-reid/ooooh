@@ -32,12 +32,17 @@ public final class EchoFilter: Transcriber, Sendable {
   /// The microphone's audio time now.
   public var audioTime: TimeInterval { clock() }
 
-  /// A line began playing now.
-  public func spoke(_ text: String) { spoke(text, from: clock()) }
+  /// A line began playing now. A sealed line is one the microphone can hear, on a speaker or
+  /// through a car, so nothing heard inside its window counts as the person.
+  public func spoke(_ text: String, sealed: Bool = false) {
+    spoke(text, from: clock(), sealed: sealed)
+  }
 
   /// A line began playing at `start` on the microphone's clock.
-  public func spoke(_ text: String, from start: TimeInterval) {
-    state.withLock { $0.lines.append(Line(words: Set(Self.words(in: text)), start: start)) }
+  public func spoke(_ text: String, from start: TimeInterval, sealed: Bool = false) {
+    state.withLock {
+      $0.lines.append(Line(words: Set(Self.words(in: text)), start: start, sealed: sealed))
+    }
   }
 
   /// The line playing stopped now, finished or cut.
@@ -136,6 +141,7 @@ public final class EchoFilter: Transcriber, Sendable {
   private struct Line {
     var words: Set<String>
     var start: TimeInterval
+    var sealed = false
     var end: TimeInterval?
 
     /// Equal, or one word a prefix of the other from three letters on, so "whats" meets "what".
@@ -198,7 +204,9 @@ public final class EchoFilter: Transcriber, Sendable {
       }
       let echo = Echo(
         overlap: score(best, words), words: words.count, sinceLine: segment.start - best.start)
-      if echo.overlap >= threshold || words.count < minimumWords { return .echo(echo) }
+      if best.sealed || echo.overlap >= threshold || words.count < minimumWords {
+        return .echo(echo)
+      }
       if segment.isFinal || words.count >= interruptWords { return .passed(echo) }
       return .held(echo)
     }
