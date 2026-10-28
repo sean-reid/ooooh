@@ -144,6 +144,7 @@ public actor SessionStore {
         thread.order = order
         thread.resolved = item.resolved
         thread.sourceSession = session
+        thread.sessionStartedAt = session.startedAt
         modelContext.insert(thread)
       }
     }
