@@ -6,6 +6,8 @@ import XCTest
 final class DemoRecordingTests: UITestCase {
   /// The first line can land anywhere in a fixture, so this wait spans one at recorded pace.
   let fixtureBudget: TimeInterval = 300
+  /// The reel taps End once the clock reaches this: a pause late in the fixture, before it runs out.
+  let endSeconds: TimeInterval = 228
 
   @MainActor
   func testRecordsTheDemo() async throws {
@@ -24,21 +26,19 @@ final class DemoRecordingTests: UITestCase {
     try await Task.sleep(for: .seconds(8))
   }
 
-  /// The reel: the session until two lines have landed or the fixture is nearly out, End, the
-  /// notes read and edited, history, and the carryover card back on the home screen.
+  /// The reel: the session until `endSeconds`, End, the notes read and edited, history, and the
+  /// carryover card back on the home screen.
   /// Every step logs a `reel` marker with the wall clock, so the recording can be cut against them.
   @MainActor
   func testRecordsTheReel() async throws {
     let app = try await launchDemo(arguments: ["-hide-debug", "1"])
 
-    XCTAssertTrue(app.staticTexts["session.elapsed"].appears())
+    let elapsed = app.staticTexts["session.elapsed"]
+    XCTAssertTrue(elapsed.appears())
     mark("session started")
     let prompt = app.staticTexts["session.prompt"]
     var lines: [String] = []
-    let started = Date.now
-    while Date.now.timeIntervalSince(started) < 238, lines.count < 2,
-      app.buttons["session.end"].exists
-    {
+    while app.buttons["session.end"].exists, Self.seconds(in: elapsed.label) < endSeconds {
       let label = prompt.label
       if !label.isEmpty, label != lines.last {
         lines.append(label)
@@ -47,7 +47,6 @@ final class DemoRecordingTests: UITestCase {
       try await Task.sleep(for: .milliseconds(250))
     }
     XCTAssertFalse(lines.isEmpty)
-    try await Task.sleep(for: .seconds(5))
     if app.buttons["session.end"].exists {
       app.buttons["session.end"].tap()
       mark("end tapped")
@@ -56,23 +55,28 @@ final class DemoRecordingTests: UITestCase {
     let notes = app.otherElements["notes.view"]
     XCTAssertTrue(notes.appears())
     mark("notes shown")
-    try await Task.sleep(for: .seconds(5))
+    try await Task.sleep(for: .seconds(4))
 
+    try await scroll(app, until: notes.staticTexts["Open threads"])
+    try await Task.sleep(for: .seconds(2))
     let toggle = app.buttons["transcript.toggle"]
-    swipeUp(app, until: toggle)
+    try await scroll(app, until: toggle)
+    try await Task.sleep(for: .seconds(1))
     toggle.tap()
     mark("transcript expanded")
     try await Task.sleep(for: .seconds(2))
     let line = notes.descendants(matching: .any).matching(
       NSPredicate(format: "identifier BEGINSWITH 'transcript.line.'")
     ).firstMatch
-    swipeUp(app, until: line)
+    try await scroll(app, until: line)
+    try await Task.sleep(for: .seconds(1))
     line.press(forDuration: 1)
     mark("line marked bad")
     XCTAssertTrue(notes.staticTexts["Marked bad"].appears())
-    try await Task.sleep(for: .seconds(2.5))
+    try await Task.sleep(for: .seconds(2))
 
-    for _ in 0..<6 { app.swipeDown() }
+    for _ in 0..<8 { app.swipeDown() }
+    try await Task.sleep(for: .seconds(1))
     app.buttons["notes.edit"].tap()
     mark("editing")
     try await Task.sleep(for: .seconds(2))
@@ -85,7 +89,8 @@ final class DemoRecordingTests: UITestCase {
     let resolves = notes.descendants(matching: .any).matching(
       NSPredicate(format: "label == 'Resolved'"))
     if resolves.count > 1 {
-      swipeUp(app, until: resolves.firstMatch)
+      try await scroll(app, until: resolves.firstMatch)
+      try await Task.sleep(for: .seconds(1))
       resolves.firstMatch.tap()
       mark("thread resolved")
       try await Task.sleep(for: .seconds(2))
@@ -130,11 +135,21 @@ final class DemoRecordingTests: UITestCase {
     NSLog("reel \(event)")
   }
 
-  /// The notes scroll a long way at recorded pace, so this swipes further than the shared helper.
+  /// Seconds in the clock's label, "Elapsed 3:48".
+  static func seconds(in label: String) -> TimeInterval {
+    let parts = (label.split(separator: " ").last ?? "").split(separator: ":").compactMap { Double($0) }
+    return parts.count == 2 ? parts[0] * 60 + parts[1] : 0
+  }
+
+  /// Scrolls the notes a screen at a time, two seconds a screen, holding at each stop until the
+  /// element can be tapped.
   @MainActor
-  private func swipeUp(_ app: XCUIApplication, until element: XCUIElement) {
+  private func scroll(_ app: XCUIApplication, until element: XCUIElement) async throws {
     for _ in 0..<10 where !element.isHittable {
-      app.swipeUp()
+      let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.88))
+      let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12))
+      from.press(forDuration: 0.1, thenDragTo: to, withVelocity: 330, thenHoldForDuration: 0.3)
+      try await Task.sleep(for: .seconds(1.5))
     }
     waitUntilHittable(element)
   }
