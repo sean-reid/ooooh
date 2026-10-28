@@ -4,24 +4,24 @@ import XCTest
 /// from the delete row, so they run without the Worker.
 final class SettingsTests: UITestCase {
   @MainActor
-  func testSettingsDark() {
-    runSettings(named: "settings-dark", arguments: ["-ui-color-scheme", "dark"])
+  func testSettingsDark() throws {
+    try runSettings(named: "settings-dark", arguments: ["-ui-color-scheme", "dark"])
   }
 
   @MainActor
-  func testSettingsLight() {
-    runSettings(named: "settings-light", arguments: ["-ui-color-scheme", "light"])
+  func testSettingsLight() throws {
+    try runSettings(named: "settings-light", arguments: ["-ui-color-scheme", "light"])
   }
 
   @MainActor
-  func testSettingsAccessibilityExtraLarge() {
-    runSettings(
+  func testSettingsAccessibilityExtraLarge() throws {
+    try runSettings(
       named: "settings-ax-xl",
       arguments: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL"])
   }
 
   @MainActor
-  private func runSettings(named name: String, arguments: [String]) {
+  private func runSettings(named name: String, arguments: [String]) throws {
     let app = XCUIApplication()
     app.launchArguments +=
       ["-onboardingComplete", "1", "-reset-store", "1", "-seed-history", "1"] + arguments
@@ -33,6 +33,7 @@ final class SettingsTests: UITestCase {
     XCTAssertGreaterThanOrEqual(settings.frame.width, 44)
     XCTAssertGreaterThanOrEqual(settings.frame.height, 44)
     attach(app, named: "\(name)-home")
+    try auditAccessibility(app, named: "\(name)-home")
     settings.tap()
 
     let done = app.buttons["settings.done"]
@@ -45,6 +46,7 @@ final class SettingsTests: UITestCase {
       version.firstMatch.label.wholeMatch(of: /Version, \d+\.\d+\.\d+ \(\d+\)/),
       version.firstMatch.label)
     attach(app, named: "\(name)-settings")
+    try auditAccessibility(app, named: "\(name)-settings")
 
     let subscribe = app.buttons["settings.subscribe"]
     scrollUntilHittable(subscribe, in: app)
@@ -52,10 +54,10 @@ final class SettingsTests: UITestCase {
     let paywall = app.staticTexts["Keep talking."]
     XCTAssertTrue(paywall.appears())
     XCTAssertTrue(app.buttons["Restore purchases"].exists)
-    let plans = app.buttons.matching(
-      NSPredicate(format: "label BEGINSWITH 'Monthly,' OR label BEGINSWITH 'Yearly,'"))
+    let plans = waitForPlans(in: app)
     if plans.count > 0 { XCTAssertEqual(plans.count, 2) }
     attach(app, named: "\(name)-paywall")
+    try auditAccessibility(app, named: "\(name)-paywall")
     app.buttons["Close"].tap()
     XCTAssertTrue(paywall.disappears())
 
@@ -71,6 +73,18 @@ final class SettingsTests: UITestCase {
     attach(app, named: "\(name)-history")
     app.buttons["history.done"].tap()
     XCTAssertTrue(list.disappears())
+
+    let privacy = app.buttons["What leaves your phone, and what stays"]
+    scrollUntilHittable(privacy, in: app)
+    privacy.tap()
+    let policy = app.staticTexts["What my server keeps"]
+    XCTAssertTrue(policy.appears())
+    attach(app, named: "\(name)-privacy")
+    try auditAccessibility(app, named: "\(name)-privacy")
+    let back = app.navigationBars.buttons["Back"]
+    waitUntilHittable(back)
+    back.tap()
+    XCTAssertTrue(policy.disappears())
 
     waitUntilHittable(done)
     done.tap()
