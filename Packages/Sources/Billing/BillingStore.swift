@@ -4,8 +4,22 @@ import Observation
 import Proxy
 import StoreKit
 
-public enum BillingError: Error, Equatable {
+public enum BillingError: Error, Equatable, LocalizedError {
   case productUnavailable(ProductID)
+  /// The App Store took the purchase but has not answered within the wait.
+  case appStoreUnresponsive
+  /// The purchase waits on someone else, as with Ask to Buy.
+  case purchasePending
+
+  public var errorDescription: String? {
+    switch self {
+    case .productUnavailable: "That plan isn't available right now."
+    case .appStoreUnresponsive:
+      "The App Store didn't answer. Try again in a moment; a purchase that goes through later still counts."
+    case .purchasePending:
+      "The purchase is waiting for approval. It counts as soon as it's approved."
+    }
+  }
 }
 
 /// Loads the products, buys and restores, follows the transactions and posts each one to the
@@ -37,6 +51,10 @@ public final class BillingStore {
   private let freeSessions: (any FreeSessionCount)?
   private let poster: EntitlementPoster?
   private let transactions: TransactionSource
+  /// How long a purchase may hold the paywall before it is told the App Store did not answer.
+  private let purchaseWait: Duration
+  /// A purchase the paywall stopped waiting for, kept so its answer is still settled.
+  private var latePurchase: Task<Void, Never>?
   private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "billing")
 
   public init(
@@ -44,13 +62,15 @@ public final class BillingStore {
     freeSessionsRemaining: Int = FreeTier.sessionsPerMonth,
     attestor: (any Attestor)? = nil,
     poster: EntitlementPoster? = nil,
-    transactions: TransactionSource = .storeKit
+    transactions: TransactionSource = .storeKit,
+    purchaseWait: Duration = .seconds(30)
   ) {
     self.freeSessions = freeSessions
     self.freeSessionsRemaining = freeSessionsRemaining
     self.attestor = attestor
     self.poster = poster
     self.transactions = transactions
+    self.purchaseWait = purchaseWait
     self.hasLoadedPlans = false
     self.entitlement = .free(remainingSessions: freeSessionsRemaining)
     updates = Task { [weak self] in
@@ -70,6 +90,7 @@ public final class BillingStore {
     freeSessions = nil
     poster = nil
     transactions = .none
+    purchaseWait = .seconds(30)
     freeSessionsRemaining = FreeTier.sessionsPerMonth
     entitlement = .free(remainingSessions: FreeTier.sessionsPerMonth)
   }
@@ -96,24 +117,55 @@ public final class BillingStore {
     if let failure { throw failure }
   }
 
+  /// Buys `id`. The StoreKit call cannot be cancelled, so after `purchaseWait` the paywall is
+  /// released with `appStoreUnresponsive` and the call's eventual answer is settled in the
+  /// background; `Transaction.updates` covers it as well.
   @discardableResult
   public func purchase(_ id: ProductID) async throws -> Entitlement {
     let token = AppAccountToken.forInstall(keyId: try await attestor?.keyId())
     guard let product = products[id] else { throw BillingError.productUnavailable(id) }
     isPurchasing = true
     defer { isPurchasing = false }
-    switch try await product.purchase(options: [.appAccountToken(token)]) {
+    Self.log.info("Purchasing \(id.rawValue, privacy: .public)")
+    let call = Task { try await product.purchase(options: [.appAccountToken(token)]) }
+    let wait = purchaseWait
+    let answer = try await withThrowingTaskGroup(of: Product.PurchaseResult?.self) { group in
+      group.addTask { try await call.value }
+      group.addTask {
+        try await Task.sleep(for: wait)
+        return nil
+      }
+      defer { group.cancelAll() }
+      return try await group.next() ?? nil
+    }
+    guard let answer else {
+      Self.log.error("Purchase of \(id.rawValue, privacy: .public) has no answer after \(wait)")
+      latePurchase = Task { [weak self] in
+        guard let result = try? await call.value else { return }
+        try? await self?.settle(result, of: id)
+      }
+      throw BillingError.appStoreUnresponsive
+    }
+    try await settle(answer, of: id)
+    return entitlement
+  }
+
+  private func settle(_ result: Product.PurchaseResult, of id: ProductID) async throws {
+    switch result {
     case .success(let verification):
       let transaction = try verification.payloadValue
+      Self.log.info("Purchase of \(id.rawValue, privacy: .public) succeeded")
       await transaction.finish()
       await refresh()
       await confirm(verification.jwsRepresentation)
-    case .pending, .userCancelled:
-      break
+    case .pending:
+      Self.log.info("Purchase of \(id.rawValue, privacy: .public) is pending")
+      throw BillingError.purchasePending
+    case .userCancelled:
+      Self.log.info("Purchase of \(id.rawValue, privacy: .public) cancelled")
     @unknown default:
-      break
+      Self.log.error("Purchase of \(id.rawValue, privacy: .public) returned an unknown result")
     }
-    return entitlement
   }
 
   @discardableResult
