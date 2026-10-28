@@ -786,8 +786,10 @@ import Transcription
 
     await wait { controller.savedSessionID != nil }
     let duration = try #require(try await store.sessions().first?.duration)
-    #expect(duration >= seconds(afterStart.duration(to: beforeEnd)))
-    #expect(duration <= seconds(beforeStart.duration(to: afterEnd)))
+    // The row is timed with Date and the bracket with ContinuousClock; the two disagree by under a millisecond.
+    let slack: TimeInterval = 0.005
+    #expect(duration >= seconds(afterStart.duration(to: beforeEnd)) - slack)
+    #expect(duration <= seconds(beforeStart.duration(to: afterEnd)) + slack)
     #expect(duration == controller.elapsed(at: .now))
 
     await wait { GateProtocol.requests(to: host).contains { $0.path == "/v1/session/end" } }
