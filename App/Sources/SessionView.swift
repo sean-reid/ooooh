@@ -1,7 +1,8 @@
 import Design
 import SwiftUI
 
-/// The screen during a session: elapsed time, the orb, the last prompt, End.
+/// The screen during a session: elapsed time, the orb, the last prompt, End. Paused, the line
+/// under the prompt says so and offers Resume.
 struct SessionView: View {
   let controller: SessionController
   /// A fixed time renders one still orb, as the snapshots do.
@@ -24,7 +25,7 @@ struct SessionView: View {
           download
         } else {
           prompt
-          statusLine
+          if controller.isPaused { pausedLine } else { statusLine }
         }
         endButton
       }
@@ -81,6 +82,29 @@ struct SessionView: View {
         .padding(.horizontal, 32)
         .accessibilityIdentifier(status.id)
     }
+  }
+
+  private var pausedLine: some View {
+    VStack(spacing: 8) {
+      Text("paused")
+        .font(Typography.caption)
+        .foregroundStyle(Palette.inkDim)
+        .accessibilityIdentifier("session.paused")
+      Button {
+        Task { await controller.resume() }
+      } label: {
+        Text("Resume")
+          .font(Typography.body)
+          .frame(minWidth: 120, minHeight: 44)
+      }
+      .buttonStyle(.plain)
+      .foregroundStyle(Palette.inkOnAmber)
+      .background(Palette.amber, in: Capsule())
+      .accessibilityLabel("Resume the session")
+      .accessibilityIdentifier("session.resume")
+    }
+    .padding(.top, 12)
+    .padding(.horizontal, 32)
   }
 
   /// One line under the prompt saying why nothing is asked. A refusal explains the silence on

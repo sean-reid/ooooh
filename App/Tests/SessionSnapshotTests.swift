@@ -96,6 +96,21 @@ import Transcription
     await controller.end()
   }
 
+  /// Paused after the line: the orb dims and stills, the line stays, and Resume sits above End.
+  @Test(arguments: [ColorScheme.dark, .light])
+  func paused(scheme: ColorScheme) async {
+    let microphone = HandFedMicrophone()
+    let controller = SessionController(environment: environment(microphone))
+    await controller.start(.microphone)
+    microphone.say()
+    await wait { controller.lastPrompt != nil && controller.phase == .listening }
+    await controller.pause()
+    #expect(controller.phase == .paused)
+
+    snapshot(controller, scheme: scheme)
+    await controller.end()
+  }
+
   /// A microphone session with no Worker, no audio session, and a good moment on the one
   /// utterance, which the template phraser turns into one deepen line. The pauses are short,
   /// so each state arrives within a second of the utterance.
