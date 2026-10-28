@@ -93,6 +93,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.seanreid.ooooh
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
         MARKETING_VERSION: "0.4.0" # x-release-please-version
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: false
