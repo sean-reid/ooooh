@@ -15,8 +15,12 @@ public final class WorkerClock: Sendable {
 
   private let storage = Mutex(Storage())
   private let broadcast = Broadcast<Bool>()
+  private let deviceNow: @Sendable () -> Date
 
-  public init() {}
+  /// `now` is the device clock; tests pass a fixed one so the learned offset is exact.
+  public init(now: @escaping @Sendable () -> Date = { .now }) {
+    deviceNow = now
+  }
 
   /// Server time minus device time in whole seconds. Zero until a stale 401 carries a Date.
   public var offset: Int { storage.withLock { $0.offset } }
@@ -28,11 +32,12 @@ public final class WorkerClock: Sendable {
   public func changes() -> AsyncStream<Bool> { broadcast.changes() }
 
   /// The unix seconds to sign a request with: the device's now, by the Worker's clock.
-  public func now(_ device: Date = .now) -> Int {
-    Int(device.timeIntervalSince1970) + offset
+  public func now(_ device: Date? = nil) -> Int {
+    Int((device ?? deviceNow()).timeIntervalSince1970) + offset
   }
 
-  func learn(serverTime: Date, at device: Date = .now) {
+  func learn(serverTime: Date, at device: Date? = nil) {
+    let device = device ?? deviceNow()
     storage.withLock { $0.offset = Int(serverTime.timeIntervalSince(device).rounded()) }
   }
 
