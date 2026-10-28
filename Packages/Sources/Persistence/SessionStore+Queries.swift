@@ -39,18 +39,20 @@ extension SessionStore {
   /// Unresolved threads, most recent session first, in note order within a session.
   public func openThreads(limit: Int = 3) throws -> [OpenThread] {
     guard limit > 0 else { return [] }
-    var descriptor = FetchDescriptor<StoredThread>(
-      predicate: #Predicate { !$0.resolved && $0.sourceSession != nil },
-      sortBy: [
-        SortDescriptor(\.sourceSession?.startedAt, order: .reverse), SortDescriptor(\.order),
-      ])
-    descriptor.fetchLimit = limit
-    return try modelContext.fetch(descriptor).compactMap { thread in
+    // A sort key through the optional relationship crashes a Release build, so the order is applied here.
+    let descriptor = FetchDescriptor<StoredThread>(
+      predicate: #Predicate { !$0.resolved && $0.sourceSession != nil })
+    let open = try modelContext.fetch(descriptor).compactMap { thread -> (Int, OpenThread)? in
       guard let session = thread.sourceSession else { return nil }
-      return OpenThread(
+      let open = OpenThread(
         id: thread.id, text: thread.text, sessionID: session.id, sessionTitle: session.title,
         sessionStartedAt: session.startedAt, noteItemID: thread.sourceNoteItemSlug)
+      return (thread.order, open)
     }
+    return open.sorted {
+      $0.1.sessionStartedAt != $1.1.sessionStartedAt
+        ? $0.1.sessionStartedAt > $1.1.sessionStartedAt : $0.0 < $1.0
+    }.prefix(limit).map(\.1)
   }
 
   public func detail(_ sessionID: UUID) throws -> SessionDetail? {
