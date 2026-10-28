@@ -19,7 +19,9 @@ struct SettingsSheet: View {
   var body: some View {
     SettingsView(
       settings: settings, store: store, transcription: transcription, cloudSync: cloudSync,
+      entitlement: billing.entitlement,
       subscribeAction: { showsPaywall = true },
+      restore: { try await billing.restore() },
       openHistory: { showsHistory = true },
       onDone: { dismiss() }
     )

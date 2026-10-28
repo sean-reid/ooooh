@@ -38,7 +38,7 @@ let package = Package(
     .target(name: "Session", dependencies: ["State", "Governor", "Transcription"]),
     .target(name: "Persistence", dependencies: ["State", "Notes", "Session", "Transcription"]),
     .target(name: "Billing", dependencies: ["Design", "Proxy"]),
-    .target(name: "Settings", dependencies: ["Persistence", "Design", "Notes"]),
+    .target(name: "Settings", dependencies: ["Persistence", "Design", "Notes", "Billing"]),
     .executableTarget(name: "eval", dependencies: ["Session", "Proxy"]),
     // The speech recognizer needs a usage description, which a command-line tool carries in an embedded Info.plist.
     .executableTarget(
@@ -80,11 +80,11 @@ let package = Package(
     .testTarget(
       name: "PersistenceTests", dependencies: ["Persistence", "TestSupport"],
       resources: [.copy("Fixtures")]),
-    .testTarget(name: "SettingsTests", dependencies: ["Settings", "Session"]),
+    .testTarget(name: "SettingsTests", dependencies: ["Settings", "Session", "Billing"]),
     .testTarget(
       name: "SettingsSnapshotTests",
       dependencies: [
-        "Settings", "Persistence", "TestSupport",
+        "Settings", "Persistence", "Billing", "TestSupport",
         .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
       ], exclude: ["__Snapshots__"]),
   ]

@@ -5,7 +5,7 @@ import Proxy
 public enum Entitlement: Equatable, Sendable {
   case free(remainingSessions: Int)
   case subscribed(expires: Date?, product: ProductID)
-  case inGrace
+  case inGrace(product: ProductID)
   case revoked
 
   /// Grace counts as paid: Apple keeps access on while the card is retried.

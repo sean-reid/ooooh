@@ -62,7 +62,7 @@ final class BillingLogicTests: XCTestCase {
 
   func testOnlySubscribedAndGraceArePaid() {
     XCTAssertTrue(Entitlement.subscribed(expires: .distantFuture, product: .monthly).isPaid)
-    XCTAssertTrue(Entitlement.inGrace.isPaid)
+    XCTAssertTrue(Entitlement.inGrace(product: .yearly).isPaid)
     XCTAssertFalse(Entitlement.revoked.isPaid)
     XCTAssertFalse(Entitlement.free(remainingSessions: 3).isPaid)
   }

@@ -9,6 +9,11 @@ public struct PaywallView<Header: View>: View {
   /// ImageRenderer draws a ScrollView empty, so snapshots render the content unscrolled.
   var scrolls = true
   @State private var failure: String?
+  @State private var confirmed = false
+
+  /// How long "You're subscribed." stays up before the sheet closes itself.
+  static var confirmationDuration: Duration { .seconds(1.2) }
+  static var confirmedLine: String { "You're subscribed." }
 
   /// Shown while the Worker refuses the transaction StoreKit holds; Restore posts it again.
   public static var unconfirmedLine: String {
@@ -26,18 +31,43 @@ public struct PaywallView<Header: View>: View {
     self.header = header()
   }
 
+  /// The sheet as it looks the moment after a purchase, for snapshots.
+  init(store: BillingStore, confirmed: Bool, onClose: @escaping () -> Void)
+  where Header == EmptyView {
+    self.init(store: store, onClose: onClose)
+    _confirmed = State(initialValue: confirmed)
+    scrolls = false
+  }
+
   public var body: some View {
     ZStack {
       Palette.sky.ignoresSafeArea()
       VStack(spacing: 0) {
         bar
-        if scrolls {
+        if confirmed {
+          confirmation
+        } else if scrolls {
           ScrollView { content }
         } else {
           GeometryReader { _ in content.fixedSize(horizontal: false, vertical: true) }.clipped()
         }
       }
     }
+  }
+
+  private var confirmation: some View {
+    VStack(alignment: .leading, spacing: 24) {
+      header
+      Text(Self.confirmedLine)
+        .font(Typography.display)
+        .foregroundStyle(Palette.ink)
+        .accessibilityAddTraits(.isHeader)
+      Spacer()
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.horizontal, 24)
+    .padding(.bottom, 48)
+    .transition(.opacity)
   }
 
   private var content: some View {
@@ -142,11 +172,16 @@ public struct PaywallView<Header: View>: View {
     Task { try? await store.load() }
   }
 
+  /// A paid answer shows the confirmation, then closes the sheet on its own.
   private func finish(_ action: () async throws -> Entitlement) async {
     do {
       failure = nil
       let entitlement = try await action()
-      if entitlement.isPaid, !store.isUnconfirmed { onClose() }
+      guard entitlement.isPaid, !store.isUnconfirmed else { return }
+      withAnimation { confirmed = true }
+      AccessibilityNotification.Announcement(Self.confirmedLine).post()
+      try? await Task.sleep(for: Self.confirmationDuration)
+      onClose()
     } catch {
       failure = error.localizedDescription
     }

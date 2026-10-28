@@ -95,7 +95,7 @@
       try await store.purchase(.monthly)
       try session.forceRenewalOfSubscription(productIdentifier: ProductID.monthly.rawValue)
       await store.refresh()
-      XCTAssertEqual(store.entitlement, .inGrace)
+      XCTAssertEqual(store.entitlement, .inGrace(product: .monthly))
       XCTAssertTrue(store.entitlement.isPaid)
     }
   }
