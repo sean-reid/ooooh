@@ -137,7 +137,9 @@ final class DemoRecordingTests: UITestCase {
 
   /// Seconds in the clock's label, "Elapsed 3:48".
   static func seconds(in label: String) -> TimeInterval {
-    let parts = (label.split(separator: " ").last ?? "").split(separator: ":").compactMap { Double($0) }
+    let parts = (label.split(separator: " ").last ?? "").split(separator: ":").compactMap {
+      Double($0)
+    }
     return parts.count == 2 ? parts[0] * 60 + parts[1] : 0
   }
 
