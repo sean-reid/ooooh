@@ -16,14 +16,15 @@ extension SpeechRecognizerTranscriber {
   ) async throws -> [Segment] {
     try await transcribe(
       file: file, recognizer: LiveRecognizer(locale: locale), locale: locale, onDevice: onDevice,
-      speed: speed)
+      speed: speed, clock: OffsetClock(ContinuousClock()))
   }
 
   static func transcribe(
-    file: URL, recognizer: any SpeechRecognizing, locale: Locale, onDevice: Bool, speed: Double
+    file: URL, recognizer: any SpeechRecognizing, locale: Locale, onDevice: Bool, speed: Double,
+    clock: OffsetClock
   ) async throws -> [Segment] {
     let transcriber = SpeechRecognizerTranscriber(
-      recognizer: recognizer, locale: locale, onDevice: onDevice)
+      recognizer: recognizer, locale: locale, onDevice: onDevice, clock: clock)
     let audio = try AVAudioFile(forReading: file)
     let format = audio.processingFormat
     let collector = Task { () -> [Segment] in
@@ -34,8 +35,7 @@ extension SpeechRecognizerTranscriber {
       return finals
     }
     try await transcriber.beginRecognition()
-    let clock = ContinuousClock()
-    let started = clock.now
+    let started = clock.now()
     var fed: TimeInterval = 0
     while audio.framePosition < audio.length {
       guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 4096) else { break }
@@ -45,7 +45,7 @@ extension SpeechRecognizerTranscriber {
       fed += Double(buffer.frameLength) / format.sampleRate
       if speed.isFinite, speed > 0 {
         let due = started + .seconds(fed / speed)
-        if due > clock.now { try await Task.sleep(until: due, clock: clock) }
+        if due > clock.now() { try await clock.sleep(due) }
       }
     }
     await transcriber.stop()

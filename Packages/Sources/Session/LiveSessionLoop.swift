@@ -12,7 +12,7 @@ import Transcription
 public actor LiveSessionLoop {
   let loop: SessionLoop
   let transcriber: any Transcriber
-  let clock: LoopClock
+  let clock: OffsetClock
   let levels: AsyncStream<Double>?
   let offline: AsyncStream<Bool>?
   let stream: AsyncStream<SessionEvent>
@@ -43,7 +43,7 @@ public actor LiveSessionLoop {
     let (stream, continuation) = AsyncStream.makeStream(of: SessionEvent.self)
     self.loop = SessionLoop(config: config, policy: policy, dependencies: dependencies)
     self.transcriber = transcriber
-    self.clock = LoopClock(clock)
+    self.clock = OffsetClock(clock)
     self.levels = levels
     self.offline = offline
     self.stream = stream
@@ -225,17 +225,5 @@ extension SessionLoop {
     nextCheckAt: TimeInterval?
   ) {
     (records, state, armDue, nextCheckAt)
-  }
-}
-
-/// Any clock, read as the offset since it was wrapped, so tests drive the loop with a clock they advance by hand.
-struct LoopClock: Sendable {
-  let now: @Sendable () -> Duration
-  let sleep: @Sendable (Duration) async throws -> Void
-
-  init<C: Clock>(_ clock: C) where C.Duration == Duration {
-    let origin = clock.now
-    now = { origin.duration(to: clock.now) }
-    sleep = { try await clock.sleep(until: origin.advanced(by: $0), tolerance: nil) }
   }
 }

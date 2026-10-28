@@ -1,5 +1,6 @@
 import AVFAudio
 import Foundation
+import TestSupport
 import Testing
 
 @testable import Transcription
@@ -28,28 +29,40 @@ import Testing
     return url
   }
 
+  /// At speed 1 the feed parks on the clock after every 4096-frame buffer, so one advance feeds
+  /// that much audio and parks on the first buffer past it.
   @Test func feedsTheFileThroughRotatingRequestsAndKeepsTheClock() async throws {
     let url = try silentWAV(seconds: 60)
     defer { try? FileManager.default.removeItem(at: url) }
     let recognizer = FakeRecognizer()
+    let clock = TestClock()
     let run = Task {
       try await SpeechRecognizerTranscriber.transcribe(
         file: url, recognizer: recognizer, locale: Locale(identifier: "en_US"), onDevice: true,
-        speed: 30)
+        speed: 1, clock: OffsetClock(clock))
     }
+    await wait(for: "the feed to park on the clock") { clock.sleeping == 1 }
+    #expect(recognizer.requests == 1)
+
+    // The feed rotates at the first buffer boundary past 50 s, 196 buffers in.
+    clock.advance(by: .seconds(55))
+    await recognizer.waitForRequests(2)
+    // Results for an ended request schedule no pause timer.
     await recognizer.report(
       RecognitionResult(words: [word("hello", 1.0)], isFinal: false), request: 0)
-    // The feed rotates at 50 s of audio, so a second request appears before the file ends.
-    await recognizer.waitForRequests(2)
     await recognizer.report(
       RecognitionResult(words: [word("hello", 1.0), word("there", 3.0)], isFinal: true),
       request: 0)
     await recognizer.report(
       RecognitionResult(words: [word("next", 1.0)], isFinal: true), request: 1)
+    await recognizer.waitForRequests(3)
+
+    // Stop waits on the clock for the third request's final, which never comes, up to 1.5 s.
+    clock.advance(by: .seconds(10))
+    await wait(for: "stop to park on the clock") { clock.sleeping == 1 }
+    clock.advance(by: .seconds(1.5))
     let segments = try await run.value
-    // "there" sits a full pause after "hello", so the word times split them whether or not the
-    // pause timer fires first; the second request starts at the first buffer boundary past 50 s,
-    // 196 buffers of 4096 frames.
+
     try #require(segments.count == 3)
     #expect(segments.map(\.text) == ["hello", "there", "next"])
     #expect(segments.map(\.isFinal) == [true, true, true])
@@ -57,9 +70,8 @@ import Testing
     #expect(segments[1].start == 3.0 && segments[1].end == 3.5)
     #expect(abs(segments[2].start - 51.176) < 1e-6)
     #expect(abs(segments[2].end - 51.676) < 1e-6)
-    // The final on the second request starts a third, the way a live final does.
     #expect(recognizer.requests == 3)
-    #expect(recognizer.cancelled >= 1)
+    #expect(recognizer.cancelled == 1)
   }
 
   @Test func refusesWhenTheRecognizerIsUnavailable() async throws {
@@ -68,7 +80,8 @@ import Testing
     await #expect(throws: SpeechRecognizerError.unavailable) {
       try await SpeechRecognizerTranscriber.transcribe(
         file: url, recognizer: FakeRecognizer(isAvailable: false),
-        locale: Locale(identifier: "en_US"), onDevice: true, speed: .infinity)
+        locale: Locale(identifier: "en_US"), onDevice: true, speed: .infinity,
+        clock: OffsetClock(TestClock()))
     }
   }
 }
