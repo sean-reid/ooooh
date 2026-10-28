@@ -43,6 +43,9 @@ final class DownloadingTranscriber: LiveTranscriber, @unchecked Sendable {
     if let failure { throw failure }
   }
 
+  func pause() async {}
+  func resume() async throws {}
+
   func release() { step.yield(()) }
 
   func finishDownload() { step.finish() }

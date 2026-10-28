@@ -10,8 +10,9 @@ enum MediaCommand: CaseIterable, Sendable {
   /// Routes each of `commands` to `handler` until `unregister()`.
   func register(_ commands: [MediaCommand], handler: @escaping @MainActor (MediaCommand) -> Void)
   func unregister()
-  /// Commands only arrive while something is published as now playing.
-  func setNowPlaying(title: String)
+  /// Commands only arrive while something is published as now playing. `playing` is the rate
+  /// the lock screen and a car's display show, 1 while listening and 0 while paused.
+  func setNowPlaying(title: String, playing: Bool)
   func clearNowPlaying()
 }
 
@@ -40,11 +41,11 @@ enum MediaCommand: CaseIterable, Sendable {
     targets = []
   }
 
-  func setNowPlaying(title: String) {
+  func setNowPlaying(title: String, playing: Bool) {
     MPNowPlayingInfoCenter.default().nowPlayingInfo = [
       MPMediaItemPropertyTitle: title,
       MPNowPlayingInfoPropertyIsLiveStream: true,
-      MPNowPlayingInfoPropertyPlaybackRate: 1.0,
+      MPNowPlayingInfoPropertyPlaybackRate: playing ? 1.0 : 0.0,
     ]
   }
 

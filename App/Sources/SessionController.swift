@@ -68,16 +68,16 @@ final class SessionController {
     var transcriber: (any LiveTranscriber)?
     /// Hears the Worker's start answer for each session, so the billing store reads the free count.
     var freeSessions: FreeSessions?
-    /// The headphone and car buttons, which end the session while it is the now-playing app.
+    /// The headphone and car buttons, which pause, resume, and end the session while it is the
+    /// now-playing app.
     var media: (any MediaControls)?
   }
 
   private(set) var stage: Stage = .idle
   /// The fraction of the speech model downloaded while the stage is `.downloading`.
   private(set) var downloadProgress: Double = 0
-  private(set) var startedAt: Date?
-  /// The moment End was tapped, or the loop ended on its own; the session the user is charged for.
-  private(set) var endedAt: Date?
+  /// Start to End, less every pause; the time the user sees and is charged for.
+  private(set) var timing = SessionTiming()
   private(set) var lastPrompt: String?
   /// Every line delivered so far, with how it went; saved with the session at the end.
   private(set) var lines: [SpokenLine] = []
@@ -108,6 +108,7 @@ final class SessionController {
   private var quietOverride: AppSettings.QuietModeOverride = .auto
   private var generator: (any NotesGenerator)?
   private var live: LiveSessionLoop?
+  private var microphone: (any LiveTranscriber)?
   /// Hears every spoken line, so the microphone's take on it never reaches the loop.
   private var echo: EchoFilter?
   private var observers: [Task<Void, Never>] = []
@@ -118,13 +119,20 @@ final class SessionController {
   private var gate: SessionGate?
   private let environment: Environment
   private static let log = Logger(subsystem: "com.seanreid.ooooh", category: "session")
+  private static let nowPlayingTitle = "ooooh"
 
   init(environment: Environment = Environment(workerURL: WorkerURL.fromBundle)) {
     self.environment = environment
   }
 
+  var startedAt: Date? { timing.startedAt }
+  /// The moment End was tapped, or the loop ended on its own.
+  var endedAt: Date? { timing.endedAt }
+  var isPaused: Bool { timing.isPaused }
+
   var phase: OrbPhase {
     guard stage == .running else { return .resting }
+    if isPaused { return .paused }
     if isSpeaking { return .speaking }
     if promptPending { return .aboutToSpeak }
     if isOffline { return .offline }
@@ -142,14 +150,11 @@ final class SessionController {
 
   /// Measured from the microphone when there is one, else high while an utterance is heard.
   var level: Double {
-    guard stage == .running else { return 0 }
+    guard stage == .running, !isPaused else { return 0 }
     return measuredLevel ?? (isHearingSpeech ? 0.65 : 0)
   }
 
-  func elapsed(at now: Date) -> TimeInterval {
-    guard let startedAt else { return 0 }
-    return (endedAt ?? now).timeIntervalSince(startedAt)
-  }
+  func elapsed(at now: Date) -> TimeInterval { timing.elapsed(at: now) }
 
   /// `carrying` seeds the state with an open thread from a past session.
   func start(_ source: Source, carrying thread: OpenThread? = nil) async {
@@ -179,6 +184,7 @@ final class SessionController {
           microphone = engine.makeTranscriber(locale: locale, audioSink: meter)
         }
         try await start(microphone)
+        self.microphone = microphone
         Self.log.info("Transcribing with \(microphone.engine.title, privacy: .public)")
         let filter = EchoFilter(microphone)
         echo = filter
@@ -207,12 +213,12 @@ final class SessionController {
         offline: guardian.changes())
       self.live = live
       if levels != nil { measuredLevel = 0 }
-      startedAt = .now
+      timing.start(at: .now)
       stage = .running
-      environment.media?.register(MediaCommand.allCases) { [weak self] _ in
-        Task { await self?.end() }
+      environment.media?.register(MediaCommand.allCases) { [weak self] command in
+        Task { await self?.handle(command) }
       }
-      environment.media?.setNowPlaying(title: "ooooh")
+      environment.media?.setNowPlaying(title: Self.nowPlayingTitle, playing: true)
       if guardian.isOffline { scheduleOffline(true) }
       await live.start()
       observers = [
@@ -251,9 +257,48 @@ final class SessionController {
 
   func end() async {
     guard stage == .running, let live else { return }
-    if endedAt == nil { endedAt = .now }
+    timing.end(at: .now)
     await live.end()
     await observers.first?.value
+  }
+
+  /// Stops listening without ending: the line in flight is cut, the governor's clock holds, and
+  /// the microphone's clock holds with it, so the pause reads as no time at all to the loop.
+  func pause() async {
+    guard stage == .running, !isPaused, let live else { return }
+    timing.pause(at: .now)
+    await cancelDelivery()
+    isHearingSpeech = false
+    await live.pause(audioTime: echo?.audioTime)
+    await microphone?.pause()
+    environment.media?.setNowPlaying(title: Self.nowPlayingTitle, playing: false)
+    Self.log.info(
+      "paused at \(self.elapsed(at: .now), format: .fixed(precision: 1), privacy: .public)")
+  }
+
+  /// A microphone that will not restart ends the session, since it would listen to nothing.
+  func resume() async {
+    guard stage == .running, isPaused, let live else { return }
+    do {
+      try await microphone?.resume()
+    } catch {
+      Self.log.error("Resume failed: \(String(describing: error), privacy: .public)")
+      await end()
+      return
+    }
+    timing.resume(at: .now)
+    await live.resume()
+    environment.media?.setNowPlaying(title: Self.nowPlayingTitle, playing: true)
+    Self.log.info("resumed")
+  }
+
+  private func handle(_ command: MediaCommand) async {
+    switch command {
+    case .play: await resume()
+    case .pause: await pause()
+    case .togglePlayPause: await isPaused ? resume() : pause()
+    case .stop: await end()
+    }
   }
 
   private func admitted(_ start: SessionStart?) {
@@ -264,8 +309,8 @@ final class SessionController {
   /// Posts the minutes from Start to End after the notes, since the Worker answers nothing for a
   /// session it has closed.
   private func postEnd() {
-    guard let gate, admission != nil, !startRefused, let startedAt, let endedAt else { return }
-    let minutes = SessionGate.minutes(endedAt.timeIntervalSince(startedAt))
+    guard let gate, admission != nil, !startRefused, let endedAt else { return }
+    let minutes = SessionGate.minutes(elapsed(at: endedAt))
     Task {
       do {
         try await gate.end(minutes)
@@ -422,7 +467,7 @@ final class SessionController {
     offlineChange?.cancel()
     for observer in observers { observer.cancel() }
     self.result = result
-    if endedAt == nil { endedAt = .now }
+    timing.end(at: .now)
     let finals = result.transcript.count(where: \.isFinal)
     Self.log.info(
       "Session ended segments=\(result.transcript.count, privacy: .public) final=\(finals, privacy: .public)"
@@ -446,11 +491,12 @@ final class SessionController {
     let store = environment.store
     let generator = startRefused ? nil : generator
     let startedAt = startedAt ?? .now
+    let duration = elapsed(at: endedAt ?? .now)
     notes = generator == nil ? .unavailable : .writing
     writing = Task {
       let saved = try? await store?.save(
         result: result, lines: lines, notes: nil, title: "", startedAt: startedAt,
-        endedAt: endedAt)
+        endedAt: startedAt.addingTimeInterval(duration))
       savedSessionID = saved
       if let generator {
         do {
@@ -471,22 +517,4 @@ final class SessionController {
       postEnd()
     }
   }
-}
-
-/// The audio session as the controller touches it, so tests can run without one.
-struct AudioAccess: Sendable {
-  var activate: @Sendable () throws -> Void
-  var deactivate: @Sendable () throws -> Void
-  var route: @Sendable () -> AudioRoute
-  var routeChanges: @Sendable () -> AsyncStream<AudioRoute>
-
-  static let device = AudioAccess(
-    activate: { try AudioSessionController().activate() },
-    deactivate: { try AudioSessionController().deactivate() },
-    route: { AudioSessionController().currentRoute },
-    routeChanges: { AudioSessionController().routeChanges() })
-
-  static let none = AudioAccess(
-    activate: {}, deactivate: {}, route: { .speaker },
-    routeChanges: { AsyncStream { $0.finish() } })
 }

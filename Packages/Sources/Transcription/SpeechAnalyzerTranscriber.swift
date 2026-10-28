@@ -61,6 +61,7 @@
     private var configurationWatch: Task<Void, Never>?
     private var activity = VoiceActivity()
     private var isRunning = false
+    private var isPaused = false
     private var startedAt: ContinuousClock.Instant?
     private var heardResult = false
     private var pauseFinalize: Task<Void, Never>?
@@ -131,9 +132,30 @@
       log("started")
     }
 
+    public func pause() async {
+      guard isRunning, !isPaused else { return }
+      isPaused = true
+      pauseFinalize?.cancel()
+      audioEngine.pause()
+      do {
+        try await analyzer?.finalize(through: nil)
+      } catch {
+        log("finalize on pause failed error=\(String(describing: error))", error: true)
+      }
+      log("paused audioTime=\(Int(audioTime))")
+    }
+
+    public func resume() async throws {
+      guard isRunning, isPaused else { return }
+      try audioEngine.start()
+      isPaused = false
+      log("resumed audioTime=\(Int(audioTime))")
+    }
+
     public func stop() async {
       guard isRunning else { return }
       isRunning = false
+      isPaused = false
       pauseFinalize?.cancel()
       configurationWatch?.cancel()
       audioEngine.inputNode.removeTap(onBus: 0)

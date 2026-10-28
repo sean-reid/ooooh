@@ -12,7 +12,9 @@ import Transcription
 @MainActor final class RecordingMediaControls: MediaControls {
   var registered: [MediaCommand] = []
   var handler: (@MainActor (MediaCommand) -> Void)?
+  /// The title of each publication, nil for a clear, and the rate each one carried.
   var nowPlaying: [String?] = []
+  var rates: [Double] = []
   var unregistrations = 0
 
   func register(_ commands: [MediaCommand], handler: @escaping @MainActor (MediaCommand) -> Void) {
@@ -25,7 +27,10 @@ import Transcription
     handler = nil
   }
 
-  func setNowPlaying(title: String) { nowPlaying.append(title) }
+  func setNowPlaying(title: String, playing: Bool) {
+    nowPlaying.append(title)
+    rates.append(playing ? 1 : 0)
+  }
 
   func clearNowPlaying() { nowPlaying.append(nil) }
 }
@@ -50,6 +55,7 @@ import Transcription
     #expect(controller.stage == .running)
     #expect(media.registered == [.play, .pause, .togglePlayPause, .stop])
     #expect(media.nowPlaying == ["ooooh"])
+    #expect(media.rates == [1])
     #expect(media.unregistrations == 0)
 
     await controller.end()
@@ -58,17 +64,82 @@ import Transcription
     #expect(media.nowPlaying == ["ooooh", nil])
   }
 
-  @Test(arguments: MediaCommand.allCases)
-  func aCommandEndsTheSession(_ command: MediaCommand) async throws {
+  @Test func stopEndsTheSession() async throws {
     let media = RecordingMediaControls()
     let controller = controller(media)
     await controller.start(.microphone)
     let handler = try #require(media.handler)
 
-    handler(command)
+    handler(.stop)
     await wait { controller.stage == .ended }
 
     #expect(controller.stage == .ended)
+    #expect(controller.endedAt != nil)
+    #expect(media.unregistrations == 1)
+    #expect(media.nowPlaying.last == .some(nil))
+  }
+
+  /// Pause and play each do one thing; toggle does whichever the session is not. Every change
+  /// republishes the title with the rate the car's display shows.
+  @Test(arguments: [
+    [MediaCommand.pause, .play], [.togglePlayPause, .togglePlayPause], [.pause, .togglePlayPause],
+    [.togglePlayPause, .play],
+  ])
+  func pauseAndPlayHoldAndReleaseTheSession(_ commands: [MediaCommand]) async throws {
+    let media = RecordingMediaControls()
+    let controller = controller(media)
+    await controller.start(.microphone)
+    let handler = try #require(media.handler)
+
+    handler(commands[0])
+    await wait { controller.isPaused }
+    #expect(controller.stage == .running)
+    #expect(controller.phase == .paused)
+    #expect(media.rates == [1, 0])
+    #expect(media.unregistrations == 0)
+
+    handler(commands[1])
+    await wait { !controller.isPaused }
+    #expect(controller.stage == .running)
+    #expect(controller.phase == .listening)
+    #expect(media.rates == [1, 0, 1])
+    #expect(media.nowPlaying == ["ooooh", "ooooh", "ooooh"])
+    await controller.end()
+  }
+
+  @Test func playWhileListeningAndPauseWhilePausedChangeNothing() async throws {
+    let media = RecordingMediaControls()
+    let controller = controller(media)
+    await controller.start(.microphone)
+    let handler = try #require(media.handler)
+
+    handler(.play)
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(!controller.isPaused)
+    #expect(media.rates == [1])
+
+    handler(.pause)
+    await wait { controller.isPaused }
+    handler(.pause)
+    try await Task.sleep(for: .milliseconds(50))
+    #expect(controller.isPaused)
+    #expect(media.rates == [1, 0])
+    await controller.end()
+  }
+
+  @Test func stopEndsAPausedSession() async throws {
+    let media = RecordingMediaControls()
+    let controller = controller(media)
+    await controller.start(.microphone)
+    let handler = try #require(media.handler)
+    handler(.pause)
+    await wait { controller.isPaused }
+
+    handler(.stop)
+    await wait { controller.stage == .ended }
+
+    #expect(controller.stage == .ended)
+    #expect(controller.phase == .resting)
     #expect(controller.endedAt != nil)
     #expect(media.unregistrations == 1)
     #expect(media.nowPlaying.last == .some(nil))
@@ -101,11 +172,15 @@ import Transcription
     ]
     let controls = SystemMediaControls()
     controls.register(MediaCommand.allCases) { _ in }
-    controls.setNowPlaying(title: "ooooh")
+    controls.setNowPlaying(title: "ooooh", playing: true)
     #expect(commands.map(\.isEnabled) == [true, true, true, true])
     let info = MPNowPlayingInfoCenter.default().nowPlayingInfo
     #expect(info?[MPMediaItemPropertyTitle] as? String == "ooooh")
     #expect(info?[MPNowPlayingInfoPropertyIsLiveStream] as? Bool == true)
+    #expect(info?[MPNowPlayingInfoPropertyPlaybackRate] as? Double == 1)
+    controls.setNowPlaying(title: "ooooh", playing: false)
+    let paused = MPNowPlayingInfoCenter.default().nowPlayingInfo
+    #expect(paused?[MPNowPlayingInfoPropertyPlaybackRate] as? Double == 0)
 
     controls.unregister()
     controls.clearNowPlaying()

@@ -4,6 +4,7 @@ public enum OrbPhase: String, CaseIterable, Sendable {
   case aboutToSpeak
   case speaking
   case offline
+  case paused
 
   public var accessibilityLabel: String {
     switch self {
@@ -12,6 +13,7 @@ public enum OrbPhase: String, CaseIterable, Sendable {
     case .aboutToSpeak: "Your listener is about to speak"
     case .speaking: "Your listener is speaking"
     case .offline: "Your listener is offline"
+    case .paused: "Your listener is paused"
     }
   }
 }

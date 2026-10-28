@@ -15,6 +15,15 @@ import Testing
     #expect(labels.count == OrbPhase.allCases.count)
     #expect(labels.allSatisfy { $0.hasPrefix("Your listener") })
     #expect(OrbPhase.resting.accessibilityLabel == "Your listener, resting")
+    #expect(OrbPhase.paused.accessibilityLabel == "Your listener is paused")
+    #expect(OrbPhase.paused.rawValue == "paused")
+  }
+
+  @Test func pausedIsDimAndStill() {
+    let frame = OrbMotion.still(at: 3, level: 0.8, phase: .paused)
+    #expect(frame.pose.speed == 0)
+    #expect(frame.pose.drift == 0)
+    #expect(frame.pose.dim > 0.5 && frame.pose.dim < 1)
   }
 
   @Test func bundlesBothFacesAndTheLicense() throws {
@@ -55,6 +64,8 @@ import Testing
     #expect(!Orb.pauses(true, 0.2, .resting))
     #expect(!Orb.pauses(true, 0, .listening))
     #expect(!Orb.pauses(true, 0, .offline))
+    #expect(Orb.pauses(true, 0, .paused))
+    #expect(!Orb.pauses(false, 0, .paused))
   }
 
   @Test func aFlatListeningOrbDrawsAtHalfRate() {
@@ -66,6 +77,7 @@ import Testing
     #expect(Orb.interval(true, 0, .speaking) == 1 / 30.0)
     #expect(Orb.interval(true, 0, .aboutToSpeak) == 1 / 30.0)
     #expect(Orb.interval(true, 0, .offline) == 1 / 30.0)
+    #expect(Orb.interval(true, 0, .paused) == 1 / 30.0)
   }
 
   @Test @MainActor func listeningGoesFlatOnceThePoseLandsAndBreathDrops() {

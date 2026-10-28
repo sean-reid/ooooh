@@ -214,6 +214,12 @@ public actor SessionLoop {
     }
   }
 
+  /// Drops the armed decision, as speech would. Nothing armed, nothing changes.
+  public func cancelArm(at now: TimeInterval) {
+    guard let arm else { return }
+    cancel(arm, at: now)
+  }
+
   func cancel(_ arm: Arm, at now: TimeInterval) {
     self.arm = nil
     arm.text?.cancel()
